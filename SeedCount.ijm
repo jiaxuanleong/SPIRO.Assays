@@ -47,7 +47,7 @@ function scale () {
 		length = getResult('Length', nResults-1);
 	};
 	waitForUser("1cm corresponds to " + length + " pixels. Click OK if correct.");
-	run("Set Scale...","known=1 unit=cm global");
+	run("Set Scale...","known=10 unit=mm global");
 	print("\\Clear");
 	print("Your scale is " + length + " pixels to 1cm.");
 	selectWindow("Log");
@@ -62,11 +62,14 @@ function cropPlate () {
 	if (i == 0) {
 	run("ROI Manager...");
 	setTool("Rectangle");
-	while (roiManager("count") <= 0) {
+	linenos = roiManager("count");
+	while (linenos <= 0) {
 		waitForUser("Select each line and add to ROI manager. ROI names will be saved.");
-	};
-	waitForUser(roiManager("count") + " lines have been selected. Press OK if correct. Edit now if incorrect.");
+		linenos = roiManager("count");
+	}
+	waitForUser(linenos + " lines have been selected. Press OK if correct. Edit now if incorrect.");
 	run("Select None");
+	
 	}
 	print("Cropping plates...");
  
@@ -78,10 +81,11 @@ function cropPlate () {
 	//second loop enables cropping of ROI(s) followed by saving of cropped image
 	//roi names cannot contain dashes due to split() to extract information from file name later on
 	setBatchMode(true);
+	close();
 	for (y = 0; y < sublist.length; ++y) { 
-
+	open(subdir+sublist[y]);
 		if (indexOf(getTitle(), "plate")>=0) {		
-			for (x=0; x<roiManager("count"); ++x) {
+			for (x=0; x<linenos; ++x) {
     			run("Duplicate..."," ");
     			roiManager("Select", x);
     			roinamecheck = Roi.getName;
@@ -90,84 +94,109 @@ function cropPlate () {
     				roinamecheck = Roi.getName;
     			}
     			roiname = Roi.getName+"-";
+    			linefolder = outcrop + "/"+roiname+"/";
+    			if (y==0){
+    				File.makeDirectory(linefolder);
+    				}
     			run("Crop");
-    			saveAs("Tiff", outcrop+roiname+File.nameWithoutExtension+"_cropped"+".tif");
+    			saveAs("Tiff", linefolder+roiname+File.nameWithoutExtension+".tif");
     			close();
 			};
+			close();
 		};
-	run("Open Next");
 	};
-close();
 };
-
 //processes images then runs particle analysis 
 //counted outlines are saved as an image under a newly created folder "outline"
 //output data is saved as a text file
 function countSeeds () {;
-	print("Counting seeds...");
-	outcrop = subdir + "/cropped/" ;
-	croplist = getFileList(outcrop);
-	open(outcrop+croplist[0]);
-	outline = subdir + "/outline/";
-	File.makeDirectory(outline); 
-
-	setBatchMode(true);
-	for (y = 0; y < croplist.length; ++y) {
-		seedMask();
-		run("Set Measurements...", "  redirect=None decimal=3");
-		run("Analyze Particles...", "size=0.001-0.008 circularity=0.8-1.00 show=Outlines summarize");
-		saveAs("Tiff", outline+File.nameWithoutExtension+"_outline"+".tif");
-		close();
-		close();
-		run("Open Next");
-		};
-	setBatchMode(false);
-	close();
-	//save summary of particle analysis
-	resultPA();
-	folder = list[i];
-	slash = indexOf(folder, "/");
-	foldername = substring(folder, 0, slash);
-	saveAs("Text", subdir+"Seed Count for "+foldername+".txt");
-	run("Close");
-};
+		linenos = roiManager("count");
+		outcrop = subdir + "/cropped/";
+		for (y=0; y<linenos; y++) { 
+			croplist = getFileList(outcrop);
+			linedir = outcrop+croplist[y];
+			linedirlist = getFileList(linedir);
+			
+			print("Counting seeds for "+croplist[y]+"...");
+	
+			for (z=0; z<linedirlist.length; z++) {
+				open(linedir+linedirlist[z]);
+				seedMask();
+				multiMeasure();
+				close();
+				close();
+				}
+			selectWindow("Round Summary");
+			folder = croplist[y];
+			slash = indexOf(folder, "/");
+			foldername = substring(folder, 0, slash);
+			saveAs("Text", linedir+"Round Summary for "+foldername+".txt");
+	}
+}
 
 //creates a binary mask and reduces noise
 function seedMask() {
-	run("Duplicate..."," ");		
+	run("Subtract Background...", "rolling=30 sliding");
 	run("8-bit");
-	setAutoThreshold("MaxEntropy dark");
+	setAutoThreshold("Minimum dark");
 	setOption("BlackBackground", false);
 	run("Convert to Mask");
-	run("Median...", "radius=4");
-	run("Open");
-	run("Close-");
+	run("Set Measurements...", "  redirect=None decimal=3");
+	run("Analyze Particles...", "size=0.1-Infinity circularity=0-1.00 show=Masks summarize");
+	selectWindow("Summary");
+	run("Close");
+	}
+
+function multiMeasure() {
+	run("Rotate 90 Degrees Right");
+	if (roiManager("count")>0) {
+	roiManager("Deselect");
+	roiManager("Delete");
+	}
+	run("Create Selection");
+	roiManager("Add");
+	roiManager("Select", 0);
+	roiManager("Split");
+	roiManager("Select", 0);
+	roiManager("Delete");
+	roicount = roiManager("count");
+	roiarray = newArray(roicount);
+	for (x=0; x<roicount; x++) {
+	roiarray[x] = x;
+	}
+	roiManager("Select", roiarray);
+	run("Set Measurements...", "area shape redirect=None decimal=3");
+	roiManager("multi-measure measure_all");
+	roiManager("Deselect");
+	columnName="T"+z;
+	selectWindow("Results");
+	array=Table.getColumn("Round");
+
+	if (z == 0) {
+		Table.create("Round Summary");
+	}	else {
+	selectWindow("Round Summary");
+	}	
+	Table.setColumn(columnName, array);
+	Table.update;
 }
 
 //reduces resuls of particle analysis to just "Count"
 //adds Genotype, Date, Time to results table based on file name
-function resultPA() {
-	IJ.renameResults("Summary", "Results");
-	Table.deleteColumn("Total Area");
-	Table.deleteColumn("Average Size");
-	Table.deleteColumn("%Area");
-	Table.update;
-	
-	nR = nResults;
+function extractLabel() {
 	geno = newArray(nR);
 	date = newArray(nR);
 	time = newArray(nR);
-	
-	for (v=0; v<nR;v++) {
-		resLabel = getResultString("Slice", v);
-		part = split(resLabel, "-");
-		geno = part[0];
-		date = part[2];
-		time = part[3]; 
-		setResult("Genotype", v, geno); 
-		setResult("Date", v, date);
-		setResult("Time", v, time);
-	}
-	updateResults();
-}
 
+	for (y=0; y<nR; y++){
+	label = Table.getString("Label", y)
+	part = split(label, "-");
+	geno = part[1];
+	date = part[3];
+	time = part[4]; 
+	Table.set("Genotype", y);
+	Table.set("Date", y);
+	Table.set("Time", y);
+	}
+}
+	
