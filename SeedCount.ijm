@@ -21,17 +21,18 @@ function processMain(maindir) {
 }
 
 //analyse files by first setting the scale (once), cropping plates then counting seeds
-function processSub (subdir) {
+function processSub(subdir) {
 	setBatchMode(false);
 	run("Image Sequence...", "open=["+subdir+sublist[0]+"]+convert sort use");
 	filename = sublist[0];
 	part = split(filename, "-");
 	plateno = part[0];
 	saveAs("Tiff", subdir+plateno+".tif");
-	if (i==0);
+	if (i==0)
 	scale();
 	cropPlate();
 	countSeeds();
+	/////WHY ISNT THIS PRINTING
 	print(subdir + " processed.");
 };
 
@@ -62,7 +63,7 @@ function scale() {
 
 //prompts user to determine line positions, then crops these out as individual tiffs
 //crops are saved under a newly created subfolder "cropped"
-function cropPlate () {
+function cropPlate() {
 	run("ROI Manager...");
 	setTool("Rectangle");
 	waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
@@ -78,10 +79,6 @@ function cropPlate () {
 	roiManager("add");
 	roiManager("Select", 1);
 	roiManager("Rename", "B");
-	makeRectangle(749, 1443, 963, 96);
-	roiManager("add");
-	roiManager("Select", 2);
-	roiManager("Rename", "C");
 	waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
 	while (roiManager("count") <= 0) {
 		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
@@ -122,7 +119,7 @@ close();
 //processes images then runs particle analysis 
 //counted outlines are saved as an image under a newly created folder "outline"
 //output data is saved as a text file
-function countSeeds () {
+function countSeeds() {
 	print("Counting seeds...");
 	outcrop = subdir + "/cropped/";
 	croplist = getFileList(outcrop);
@@ -151,12 +148,14 @@ function countSeeds () {
 		close();
 		//save summary of particle analysis
 		summaryPA();
-		saveAs("Text", genodir+"Seed count summary "+genoname+".txt");
+		platename = File.getName(subdir);
+		saveAs("Text", genodir+platename+" "+genoname+" seed count summary.txt");
 		run("Close");
 		resultPA();
-		saveAs("Text", genodir+"Individual seed analysis "+genoname+".txt.");
+		saveAs("Text", genodir+platename+" "+genoname+" individual seed analysis.txt");
 		run("Close");
-};
+}
+}
 
 //creates a binary mask and reduces noise
 function seedMask() {
