@@ -32,7 +32,6 @@ function processSub(subdir) {
 	scale();
 	cropPlate();
 	countSeeds();
-	/////WHY ISNT THIS PRINTING
 	print(subdir + " processed.");
 };
 
@@ -41,7 +40,6 @@ function processSub(subdir) {
 function scale() {
 	print("Setting scale...");
 	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
-	makeLine(2712, 2171, 2886, 2171);
 	setTool("line");
 	waitForUser("Draw a line corresponding to 1cm. Zoom in on the scale bar and hold the SHIFT key down.");
 	run("Measure");
@@ -66,19 +64,13 @@ function scale() {
 function cropPlate() {
 	run("ROI Manager...");
 	setTool("Rectangle");
-	waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
-	if (roiManager("count")>0) {
-	roiManager("deselect");
-	roiManager("delete");
+
+	if (i==0) {
+		if (roiManager("count")>0) {
+		roiManager("deselect");
+		roiManager("delete");
+		}
 	}
-	makeRectangle(716, 465, 963, 96);
-	roiManager("add");
-	roiManager("Select", 0);
-	roiManager("Rename", "A");
-	makeRectangle(704, 942, 963, 96);
-	roiManager("add");
-	roiManager("Select", 1);
-	roiManager("Rename", "B");
 	waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
 	while (roiManager("count") <= 0) {
 		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
@@ -137,8 +129,8 @@ function countSeeds() {
 		selectWindow(stack1);
 		seedMask();
 		run("Rotate 90 Degrees Right");
-		run("Set Measurements...", "area shape redirect=None decimal=3");
-		run("Analyze Particles...", "size=0.004-0.008 circularity=0.60-1.00 show=Outlines display clear summarize stack");
+		run("Set Measurements...", "area shape stack display redirect=None decimal=3");
+		run("Analyze Particles...", "size=0.004-0.007 circularity=0.835-1.00 show=Outlines display clear summarize stack");
 		outlinestack = getTitle();
 		run("Rotate 90 Degrees Left");
 		run("RGB Color");
@@ -147,10 +139,12 @@ function countSeeds() {
 		close();
 		close();
 		//save summary of particle analysis
+		selectWindow("Summary of "+orifile);
 		summaryPA();
 		platename = File.getName(subdir);
 		saveAs("Text", genodir+platename+" "+genoname+" seed count summary.txt");
 		run("Close");
+		selectWindow("Results");
 		resultPA();
 		saveAs("Text", genodir+platename+" "+genoname+" individual seed analysis.txt");
 		run("Close");
@@ -169,7 +163,6 @@ function seedMask() {
 //reduces summary of particle analysis to just "Count"
 //adds Genotype, Date, Time to results table based on file name
 function summaryPA() {
-	selectWindow("Summary of "+orifile);
 	Table.deleteColumn("Circ.");
 	Table.deleteColumn("Solidity");
 	Table.deleteColumn("Total Area");
@@ -192,7 +185,6 @@ function summaryPA() {
 }
 
 function resultPA() {
-	selectWindow("Results");
 	Table.deleteColumn("Solidity");
 }
 
