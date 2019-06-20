@@ -127,7 +127,7 @@ function countSeeds() {
 		temp = getTitle();
 		run("Set Measurements...", "area shape display redirect=None decimal=3");
 		//////////////////MODIFY HERE FOR CHANGED ROUND/AR
-		run("Extended Particle Analyzer", "area=0.004-0.008 show=Outlines redirect=None keep=None display summarize");
+		run("Extended Particle Analyzer", " area=0.001-0.008 perimeter=0.1-0.28 aspect=0-1.7 show=Outlines redirect=None keep=None display summarize");
 		close(temp);
 		selectWindow(stack1);
 		run("Next Slice [>]");
