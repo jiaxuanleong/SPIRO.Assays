@@ -2,6 +2,7 @@
 //main directory containing all images sorted by plate into subdirectories
 //requirements for image naming
 //plate1-date20190101-time000000-day
+//requires the Biovoxxel Toolbox (Help> Update> Manage update sites> tick checkbox for Biovoxxel)
 
 //user selection of main directory
 maindir = getDirectory("Choose a Directory ");
@@ -18,29 +19,34 @@ function processMain(maindir) {
 			processSub(subdir);
 		}
 	}
+selectWindow("ROI Manager");
+run("Close");
+print("All folders processed.")
 }
 
 //analyse files by first setting the scale (once), cropping plates then counting seeds
 function processSub(subdir) {
+	print("Processing "+ subdir+ "...");
 	setBatchMode(false);
 	run("Image Sequence...", "open=["+subdir+sublist[0]+"]+convert sort use");
 	platename = File.getName(subdir);
-	showMessage("Images will now be saved as a stack. This may take a while, please wait.");
+	showMessage(sublist.length + " images will now be saved as a stack. This may take some minutes, please go have a cup of coffee.");
 	saveAs("Tiff", subdir+platename+".tif");
 	if (i==0)
 	scale();
 	cropPlate();
 	countSeeds();
-	print(subdir + " processed.");
+	print(i+1 +"/"+list.length + " folders processed.");
 };
 
 //prompts user to draw a line to set scale globally
 //then saves the scale as a text file
+//only run at the first subdirectory as distance of camera from plates is assumed to be equal
 function scale() {
 	print("Setting scale...");
 	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
 	setTool("line");
-	waitForUser("Draw a line corresponding to 1cm. Zoom in on the scale bar and hold the SHIFT key down.");
+	waitForUser("Setting the scale. Please zoom in on the scale bar and hold the SHIFT key while drawing a line corresponding to 1cm.");
 	run("Measure");
 	length = getResult('Length', nResults-1);
 	while (length==0 || isNaN(length)) {
@@ -58,12 +64,16 @@ function scale() {
 	run("Close");
 }
 
-//prompts user to determine line positions, then crops these out as individual tiffs
+//prompts user to determine group/genotype positions
 //crops are saved under a newly created subfolder "cropped"
+//User ROI selection will be prompted at every subdirectory
 function cropPlate() {
 	run("ROI Manager...");
 	setTool("Rectangle");
+	if (i==0)
 	waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
+	if (i>0)
+	waitForUser("Modify ROI and names if needed.");
 	while (roiManager("count") <= 0) {
 		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
 	};
@@ -118,47 +128,54 @@ function countSeeds() {
 		orifile = File.name;
 		run("Duplicate...", "duplicate");
 		stack2 = getTitle();
+		
+		//stack1 will be analysed while stack2 remains in original state
 		selectWindow(stack1);
 		seedMask();
-		run("Rotate 90 Degrees Right");
+		run("Rotate 90 Degrees Right"); //as ImageJ counts top->bottom so seeds will be numbered more intuitively
 
+		//Biovoxxel's extended particle analyzer to filter out germinated seeds
 		for (x = 0; x < nSlices; x++) {
-		run("Duplicate...", "use");
-		temp = getTitle();
-		run("Set Measurements...", "area shape display redirect=None decimal=3");
-		//////////////////MODIFY HERE FOR CHANGED ROUND/AR
-		run("Extended Particle Analyzer", " area=0.001-0.008 perimeter=0.1-0.28 aspect=0-1.7 show=Outlines redirect=None keep=None display summarize");
-		close(temp);
-		selectWindow(stack1);
-		run("Next Slice [>]");
+			run("Duplicate...", "use");
+			temp = getTitle();
+			run("Set Measurements...", "area shape display redirect=None decimal=3");
+			run("Extended Particle Analyzer", " area=0.001-0.008 perimeter=0.1-0.28 aspect=0-1.7 show=Outlines redirect=None keep=None display summarize");
+			close(temp);
+			selectWindow(stack1);
+			run("Next Slice [>]");
 		}
 
+		//Stack output of particle analysis
 		run("Images to Stack", "name=["+genoname+"outline"+"] title=[] use");
 		run("Rotate 90 Degrees Left");
 		outlinestack = getTitle();
 		run("RGB Color");
 
+		//Obtain slice labels (contains time point info)
+		//Prints them on a new stack, then merges to outlinestack
 		selectWindow(stack2);
 		setSlice(1);
 		xmax = getWidth;
-
+		
 		for (x = 0; x < nSlices; x++) {
-		slicelabel = getMetadata("Label");
-		newImage("Slice label", "RGB white", xmax, 50, 1);
-		setFont("SansSerif", 20, " antialiased");
-		makeText(slicelabel, 0, 0);
-		setForegroundColor(0, 0, 0);
-		run("Draw", "slice");
-		selectWindow(stack2);
-		run("Next Slice [>]");
+			slicelabel = getMetadata("Label");
+			newImage("Slice label", "RGB white", xmax, 50, 1);
+			setFont("SansSerif", 20, " antialiased");
+			makeText(slicelabel, 0, 0);
+			setForegroundColor(0, 0, 0);
+			run("Draw", "slice");
+			selectWindow(stack2);
+			run("Next Slice [>]");
 		}
+		
 		run("Images to Stack");
 		run("Combine...", "stack1=["+outlinestack+"] stack2=[Stack] combine");
 		run("Combine...", "stack1=["+stack2+"] stack2=[Combined Stacks] combine");
 		saveAs("Tiff", genodir+"_outline"+".tif");
 		close();
 		close();
-		//save summary of particle analysis
+		
+		//Refines and saves outputs of particle analysis
 		selectWindow("Summary");
 		//summaryPA();
 		saveAs("Text", genodir+platename+" "+genoname+" seed count summary.txt");
