@@ -25,6 +25,7 @@ function processSub(subdir) {
 	setBatchMode(false);
 	run("Image Sequence...", "open=["+subdir+sublist[0]+"]+convert sort use");
 	platename = File.getName(subdir);
+	showMessage("Images will now be saved as a stack. This may take a while, please wait.");
 	saveAs("Tiff", subdir+platename+".tif");
 	if (i==0)
 	scale();
@@ -126,7 +127,7 @@ function countSeeds() {
 		temp = getTitle();
 		run("Set Measurements...", "area shape display redirect=None decimal=3");
 		//////////////////MODIFY HERE FOR CHANGED ROUND/AR
-		run("Extended Particle Analyzer", "  round=0.5-1.00 show=Outlines redirect=None keep=None display summarize");
+		run("Extended Particle Analyzer", "area=0.004-0.008 show=Outlines redirect=None keep=None display summarize");
 		close(temp);
 		selectWindow(stack1);
 		run("Next Slice [>]");
@@ -136,7 +137,24 @@ function countSeeds() {
 		run("Rotate 90 Degrees Left");
 		outlinestack = getTitle();
 		run("RGB Color");
-		run("Combine...", "stack1=["+stack2+"] stack2=["+outlinestack+"] combine");
+
+		selectWindow(stack2);
+		setSlice(1);
+		xmax = getWidth;
+
+		for (x = 0; x < nSlices; x++) {
+		slicelabel = getMetadata("Label");
+		newImage("Slice label", "RGB white", xmax, 50, 1);
+		setFont("SansSerif", 20, " antialiased");
+		makeText(slicelabel, 0, 0);
+		setForegroundColor(0, 0, 0);
+		run("Draw", "slice");
+		selectWindow(stack2);
+		run("Next Slice [>]");
+		}
+		run("Images to Stack");
+		run("Combine...", "stack1=["+outlinestack+"] stack2=[Stack] combine");
+		run("Combine...", "stack1=["+stack2+"] stack2=[Combined Stacks] combine");
 		saveAs("Tiff", genodir+"_outline"+".tif");
 		close();
 		close();
@@ -159,6 +177,8 @@ function seedMask() {
 	run("Median...", "radius=1 stack");
 	setAutoThreshold("MaxEntropy dark");
 	run("Convert to Mask", "method=MaxEntropy background=Dark");
+	run("Options...", "iterations=1 count=4 black do=Dilate stack");
+    run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
 }
 
 //reduces summary of particle analysis to just "Count"
