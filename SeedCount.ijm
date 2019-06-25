@@ -28,7 +28,6 @@ function processSub(subdir) {
 	setBatchMode(false);
 	run("Image Sequence...", "open=["+subdir+sublist[0]+"]+convert sort use");
 	platename = File.getName(subdir);
-	open();
 	showMessage(sublist.length + " images will now be saved as a stack. This may take some minutes, please go have a cup of coffee.");
 	saveAs("Tiff", subdir+platename+".tif");
 	if (i==0)
