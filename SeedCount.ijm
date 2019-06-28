@@ -18,7 +18,7 @@ function processMain(maindir) {
 		}
 	}
 selectWindow("ROI Manager");
-run("Close");
+//run("Close");
 print("All folders processed.")
 }
 
@@ -27,9 +27,10 @@ function processSub(subdir) {
 	print("Processing "+ subdir+ "...");
 	setBatchMode(false);
 	run("Image Sequence...", "open=["+subdir+sublist[0]+"]+convert sort use");
+	showMessage("Converting to 8-bit, please wait.");
+	run("8-bit");
 	platename = File.getName(subdir);
-	showMessage(sublist.length + " images will now be saved as a stack. This may take some minutes, please go have a cup of coffee.");
-	saveAs("Tiff", subdir+platename+".tif");
+	stack1 = getTitle();
 	if (i==0)
 	scale();
 	cropPlate();
@@ -37,10 +38,12 @@ function processSub(subdir) {
 	print(i+1 +"/"+list.length + " folders processed.");
 };
 
+
 //prompts user to draw a line to set scale globally
 //then saves the scale as a text file
 //only run at the first subdirectory as distance of camera from plates is assumed to be equal
 function scale() {
+	if (i==0) {
 	print("Setting scale...");
 	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
 	setTool("line");
@@ -60,8 +63,9 @@ function scale() {
 	selectWindow("Log");
 	saveAs("Text", maindir+"Scale "+length);
 	selectWindow("Results");
-	run("Close");
-	//for cropping of images into a smaller area to accomodate computers with low RAM
+	//run("Close");
+	}
+	//for cropping of images into a smaller area to allow faster processing
 	xmid = (xpoints[1]+xpoints[0])/2;
 	ymid = (ypoints[1]+ypoints[0])/2;
 	makePoint(xmid, ymid);
@@ -71,26 +75,50 @@ function scale() {
 	height = 12.65*length;
 	makeRectangle(x1, y1, width, height);
 	run("Crop");
+	run("Duplicate...", "duplicate");
+	stack2 = getTitle();
+	run("Subtract Background...", "rolling=30 stack");
+	tfn = subdir+"/Transformation Matrices/";
+	run("MultiStackReg", "stack_1="+stack2+" action_1=Align file_1="+tfn+" stack_2=None action_2=Ignore file_2=[] transformation=Translation save");
+	close(stack2);
+	run("MultiStackReg", "stack_1="+stack1+" action_1=[Load Transformation File] file_1="+tfn+" stack_2=None action_2=Ignore file_2=[] transformation=[Translation]");
+	selectWindow(stack1);
+	saveAs("Tiff", subdir+platename+"_registered.tif");
+	run("Z Project...", "projection=[Standard Deviation]");
+	zproj = getTitle();
+	showMessageWithCancel("Click OK if images were registered accurately, the projection will look sharp. \n If images were not registered well the projection will look blurry, \n in which case please exit by clicking Cancel");
+	close(zproj);
 }
 
 //prompts user to determine group/genotype positions
 //crops are saved under a newly created subfolder "cropped"
 //User ROI selection will be prompted at every subdirectory
 function cropPlate() {
-	run("Z Project...", "projection=[Max Intensity]");
-	maxproj = getTitle();
 	run("ROI Manager...");
 	setTool("Rectangle");
-	if (i==0)
-	waitForUser("Select each group on Max Intensity Projection image, and add to ROI manager. ROI names will be saved.");
-	if (i>0)
-	waitForUser("Modify ROI and names if needed.");
+	//if (i==0)
+	roiManager("reset");
+	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.");
+	//if (i>0)
+	//waitForUser("Modify ROI and names if needed.");
 	while (roiManager("count") <= 0) {
 		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
 	};
 	waitForUser(roiManager("count") + " lines have been selected. Press OK if correct. Edit now if incorrect.");
-	close(maxproj);
 	run("Select None");
+
+	//if (i==0) {
+		//Table.create("Genotype/group ROI coordinates");
+		//for (x=0; x<roiManager("count"); x++) {
+		//	roiManager("select", x);
+		//	getSelectionCoordinates(xpoints, ypoints);
+		//	Table.setColumn("X"+x, xpoints);
+		//	Table.setColumn("Y"+x, ypoints);
+	//	}
+//	} else { 
+		//////////
+//		makeSelection("polygon", xcoord, ycoord)
+//	}
 
 	outcrop = subdir + "/cropped/";
 	File.makeDirectory(outcrop);
@@ -103,17 +131,13 @@ function cropPlate() {
 			roicount = roiManager("count");
 			for (x=0; x<roicount; ++x) {
     			roiManager("Select", x);
-    			
     			roiname = Roi.getName;
     			if (indexOf(roiname, "-") > 0) {
     				waitForUser("ROI names cannot contain dashes '-'! Modify now.");
     				roiname = Roi.getName;
     			}
-
     			genodir = outcrop + "/"+roiname+"/";
-    			File.makeDirectory(genodir);
-				
-    			
+    			File.makeDirectory(genodir);	
 				print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
     			run("Duplicate...", "duplicate");
     			saveAs("Tiff", genodir+roiname+".tif");
@@ -145,12 +169,51 @@ function countSeeds() {
 
 		selectWindow(stack1);
 		seedMask();
+		roiManager("reset");
 		run("Rotate 90 Degrees Right");
+		setSlice(nSlices);
+		roiManager("Add");
+		roiManager("select", 0);
+		roiManager("split");
+		roiManager("select", 0);
+		roiManager("delete");
+		roiarray = newArray(roiManager("count"));
+		for (x = 0; x<roiManager("count"); x++) {
+			roiarray[x]=x;
+		}
+		
+		roiManager("select", roiarray);
+		roiManager("multi-measure");
+		roiManager("deselect");
+
+		for (x=0; x<nResults; x++) {
+		area = getResult("Area", x);
+
+		///////////AREA PROBLEM
+			if (area<0.002) {
+				roiManager("select", x);
+				roiManager("delete");
+			}
+		}
+
+		roiarray = newArray(roiManager("count"));
+		for (x = 0; x<roiManager("count"); x++) {
+			roiarray[x]=x;
+		}
+		///////////////COMBINE PROBLEM
+		roiManager("select", roiarray);
+		roiManager("combine");
+		roiManager("add");
+		roiManager("select", roiarray);
+		roiManager("delete");
+		
+		setSlice(1);
+		roiManager("select",0);
+		run("Enlarge...", "enlarge=0.01");	
 		run("Set Measurements...", "area perimeter shape display redirect=None decimal=3");
-		run("Analyze Particles...", "size=0.002-0.02 circularity=0.3-1.00 show=Outlines display clear summarize stack");
+		run("Analyze Particles...", "size=0-Infinity show=Outlines display clear stack");
 		outlinestack = getTitle();
 		run("Rotate 90 Degrees Left");
-		run("RGB Color");
 
 		//Obtain slice labels (contains time point info)
 		//Prints them on a new stack, then merges to outlinestack
@@ -160,7 +223,7 @@ function countSeeds() {
 		
 		for (x = 0; x < nSlices; x++) {
 			slicelabel = getMetadata("Label");
-			newImage("Slice label", "RGB white", xmax, 50, 1);
+			newImage("Slice label", "8-bit", xmax, 50, 1);
 			setFont("SansSerif", 20, " antialiased");
 			makeText(slicelabel, 0, 0);
 			setForegroundColor(0, 0, 0);
@@ -176,16 +239,11 @@ function countSeeds() {
 		close();
 		close();
 
-		//save output of particle analysis
-		selectWindow("Summary of "+orifile);
-		summaryPA();
-		platename = File.getName(subdir);
-		saveAs("Text", genodir+platename+" "+genoname+" seed count summary.txt");
-		run("Close");
+		//run("Close");
 		selectWindow("Results");
 		resultPA();
 		saveAs("Text", genodir+platename+" "+genoname+" individual seed analysis.txt");
-		run("Close");
+		//run("Close");
 }
 }
 
@@ -201,50 +259,9 @@ function seedMask() {
     run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
 }
 
-//reduces summary of particle analysis to just "Count"
-//adds Genotype, Date, Time to results table based on file name
-function summaryPA() {
-	Table.deleteColumn("Total Area");
-	Table.deleteColumn("Average Size");
-	Table.deleteColumn("%Area");
-	Table.deleteColumn("Perim.");
-	Table.deleteColumn("Solidity");
-	Table.deleteColumn("Circ.");
-	Table.update;
-
-	nR = Table.size;
-
-	
-	for (v=0; v<nR;v++) {
-		resLabel = Table.getString("Slice", v);
-		part = split(resLabel, "-");
-		date = part[1];
-		time = part[2]; 
-		Table.set("Genotype", v, genoname);
-		Table.set("Date", v, date);
-		Table.set("Time", v, time);
-	}
-	Table.update;
-
-	for (v=0; v<nR; v++) {
-		inicount = Table.get("Count", 0);
-		count = Table.get("Count", v);
-		label = Table.get("Slice", v);
-
-		if (v==0)
-		errorcount = 0;
-		
-		if (count != inicount)
-			errorcount=errorcount+1;
-	}
-	
-		if (errorcount > 0)
-			print("Warning! Number of seeds detected were not equal between time points.");
-}
 
 function resultPA() {
 	Table.deleteColumn("Circ.");
 	Table.deleteColumn("Solidity");
 }
-
 
