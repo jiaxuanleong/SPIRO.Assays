@@ -21,17 +21,6 @@ function processMain1(maindir) {
 	}
 }
 
-function processMain2(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
-			subdir = maindir+list[i];
-			sublist = getFileList(subdir);
-			platename = File.getName(subdir);
-			processSub2(subdir);
-		}
-	}
-}
-
 function processSub1(subdir) {
 	print("Processing "+ subdir+ "...");
 	setBatchMode(false);
@@ -109,49 +98,4 @@ function register() {
 	close();
 }
 
-//prompts user to determine group/genotype positions
-//crops are saved under a newly created subfolder "cropped"
-//User ROI selection will be prompted at every subdirectory
 
-function processSub2(subdir) {
-	print("Cropping genotypes/groups..");
-	setBatchMode(false);
-	open(subdir+platename+"_registered.tif");	
-	run("ROI Manager...");
-	setTool("Rectangle");
-	if (i==0) {
-	roiManager("reset");
-	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.");
-	}
-	if (i>0)
-	waitForUser("Modify ROI and names if needed.");
-	while (roiManager("count") <= 0) {
-		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
-	};
-	run("Select None");
-
-	outcrop = subdir + "/cropped/";
-	File.makeDirectory(outcrop);
-
-	setBatchMode(true);
-	
-	//loop enables cropping of ROI(s) followed by saving of cropped stacks
-	//roi names cannot contain dashes due to split() to extract information from file name later on
-	roicount = roiManager("count");
-	for (x=0; x<roicount; ++x) {
-    	roiManager("Select", x);
-    	roiname = Roi.getName;
-    	if (indexOf(roiname, "-") > 0) {
-    		waitForUser("ROI names cannot contain dashes '-'! Modify now.");
-    		roiname = Roi.getName;
-    	}
-    	genodir = outcrop + "/"+roiname+"/";
-    	File.makeDirectory(genodir);	
-		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
-    	run("Duplicate...", "duplicate");
-    	saveAs("Tiff", genodir+roiname+".tif");
-    	close();
-	};
-close();
-print(i+1 +"/"+list.length + " folders processed.");
-}
