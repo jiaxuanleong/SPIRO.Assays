@@ -16,7 +16,7 @@ function processMain1(maindir) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
-			processSub1(subdir);
+			cropGroup(subdir);
 		}
 	}
 }
@@ -28,45 +28,18 @@ function processMain2(maindir) {
 			sublist = getFileList(subdir);
 			processSub2(subdir);
 		}
-	}
 selectWindow("ROI Manager");
-//run("Close");
-print("All folders processed.")
+run("Close");
+print("All folders processed.");
 }
 
-//prompts user to determine group/genotype positions
-//crops are saved under a newly created subfolder "cropped"
-//User ROI selection will be prompted at every subdirectory
-
-function processSub1(subdir) {
-	subset();
-	cropGroup();
-}
-
-function subset() {
-	Dialog.create("Germination analysis end point");
-	Dialog.addString("Last time point", "20190101-000000");
-	Dialog.show();
-	tp = Dialog.getString();
-	open(subdir+platename+"_registered.tif");	
-	
-	for (x = 1; x < nSlices; x++) {
-		setSlice(x);
-		slicelabel = getInfo("slice.label");
-		
-		if (indexOf(slicelabel, tp)>0) {
-			lastsliceno = x;
-			slicesdelete = nSlices-x;
-			for (y=0; y<slicesdelete; y++) {
-				run("Delete Slice");
-			}
-		}
-	run("Next Slice [>]");
-}
-saveAs("Tiff", subdir+platename+"_subset.tif");
-}
-	
-function cropGroup() {
+function cropGroup(subdir) {
+	open(subdir+platename+"_registered.tif");
+	reg = getTitle();
+	waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
+	run("Make Substack...");
+	saveAs("Tiff", subdir+platename+"_subset.tif");
+	close(reg);
 	print("Cropping genotypes/groups..");
 	setBatchMode(false);
 	run("ROI Manager...");
@@ -124,7 +97,7 @@ function countSeeds() {
 	
 	for (y = 0; y < croplist.length; ++y) {
 		print("Tracking germination of "+croplist[y]);
-		setBatchMode(true);
+		setBatchMode(false);
 		genodir = outcrop+"/"+croplist[y]+"/";
 		genolist = getFileList(genodir);
 		genoname = File.getName(genodir);
@@ -139,7 +112,7 @@ function countSeeds() {
 		run("Rotate 90 Degrees Right");
 		setSlice(nSlices);
 		run("Create Selection");
-		run("Enlarge...", "enlarge=0.02");
+		run("Enlarge...", "enlarge=0.04");
 		roiManager("Add");
 		roiManager("select", 0);
 		roiManager("split");
@@ -152,42 +125,31 @@ function countSeeds() {
 			roiManager("rename", x+1);
 		}
 		
-		run("Set Measurements...", "area perimeter shape display redirect=None decimal=3");
+		run("Set Measurements...", "area perimeter shape stack display redirect=None decimal=3");
 		run("Clear Results");
 		
 		for (x=0; x<roiManager("count"); x++) {
 		roiManager("select", x);
 		run("Analyze Particles...", "size=0-Infinity show=Nothing display stack");
 		}
-		close(stack1);
+		
+		selectWindow(stack1);
 
-		//Obtain slice labels (contains time point info)
-		//Prints them on a new stack, then merges to outlinestack
+		roiManager("Show All");
+		roiManager("Show All with labels");
+		run("Flatten", "stack");
+		run("Rotate 90 Degrees Left");
+
 		selectWindow(stack2);
-		setSlice(1);
-		xmax = getWidth;
-		
-		for (x = 0; x < nSlices; x++) {
-			slicelabel = getMetadata("Label");
-			newImage("Slice label", "8-bit", xmax, 50, 1);
-			setFont("SansSerif", 20, " antialiased");
-			makeText(slicelabel, 0, 0);
-			setForegroundColor(0, 0, 0);
-			run("Draw", "slice");
-			selectWindow(stack2);
-			run("Next Slice [>]");
-		}
-		
-		run("Images to Stack");
-		run("Combine...", "stack1=["+stack2+"] stack2=[Stack] combine");
-		saveAs("Tiff", genodir+"_labelled"+".tif");
+		run("RGB Color");
+		run("Combine...", "stack1=["+stack2+"] stack2=["+stack1+"] combine");
+		saveAs("Tiff", genodir+platename+"_labelled.tif");
 		close();
-
-		//run("Close");
 		selectWindow("Results");
-		resultPA();
+		Table.deleteColumn("Circ.");
+		Table.deleteColumn("Solidity");
 		saveAs("Text", genodir+platename+" "+genoname+" individual seed analysis.txt");
-		//run("Close");
+		run("Close");
 }
 }
 
@@ -201,11 +163,5 @@ function seedMask() {
 	run("Convert to Mask", "method=MaxEntropy background=Dark");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
     run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-}
-
-
-function resultPA() {
-	Table.deleteColumn("Circ.");
-	Table.deleteColumn("Solidity");
 }
 
