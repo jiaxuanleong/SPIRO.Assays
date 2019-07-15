@@ -61,7 +61,6 @@ function scale() {
 function crop() {
 	print("Cropping...");
 	selectWindow("Positions");
-	print(Table.headings);
 	nR = Table.size;
 	bx = Table.get("BX", nR-1);
 	by = Table.get("BY", nR-1);
