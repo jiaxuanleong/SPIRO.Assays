@@ -34,6 +34,7 @@ print("All folders processed.");
 }
 
 function cropGroup(subdir) {
+	setBatchMode(false);
 	open(subdir+platename+"_registered.tif");
 	reg = getTitle();
 	waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
@@ -41,7 +42,6 @@ function cropGroup(subdir) {
 	saveAs("Tiff", subdir+platename+"_subset.tif");
 	close(reg);
 	print("Cropping genotypes/groups..");
-	setBatchMode(false);
 	run("ROI Manager...");
 	setTool("Rectangle");
 	if (i==0) {
