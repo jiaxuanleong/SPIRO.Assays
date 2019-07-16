@@ -35,12 +35,13 @@ print("All folders processed.");
 
 function cropGroup(subdir) {
 	setBatchMode(false);
-	open(subdir+platename+"_registered.tif");
-	reg = getTitle();
-	waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
-	run("Make Substack...");
-	saveAs("Tiff", subdir+platename+"_subset.tif");
-	close(reg);
+	//open(subdir+platename+"_registered.tif");
+	//reg = getTitle();
+	///waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
+	//run("Make Substack...");
+	//saveAs("Tiff", subdir+platename+"_subset.tif");
+	//close(reg);
+	open(subdir+platename+"_subset.tif");
 	print("Cropping genotypes/groups..");
 	run("ROI Manager...");
 	setTool("Rectangle");
@@ -142,8 +143,28 @@ function countSeeds() {
 
 		selectWindow(stack2);
 		run("RGB Color");
+		
+		xmax = getWidth;
+		
+		for (x = 0; x < nSlices; x++) {
+			slicelabel = getMetadata("Label");
+			newImage("Slice label", "8-bit", xmax, 50, 1);
+			setFont("SansSerif", 20, " antialiased");
+			makeText(slicelabel, 0, 0);
+			setForegroundColor(0, 0, 0);
+			run("Draw", "slice");
+			selectWindow(stack2);
+			run("Next Slice [>]");
+		}
+		
+		run("Images to Stack");
+		run("RGB Color");
+		label = getTitle();
+		
 		run("Combine...", "stack1=["+stack2+"] stack2=["+stack1+"] combine");
-		saveAs("Tiff", genodir+platename+"_labelled.tif");
+		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
+		
+		saveAs("Tiff", genodir+platename+"_"+genoname+"_labelled.tif");
 		close();
 		selectWindow("Results");
 		Table.deleteColumn("Circ.");
