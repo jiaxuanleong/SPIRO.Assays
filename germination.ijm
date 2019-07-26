@@ -35,12 +35,12 @@ print("All folders processed.");
 
 function cropGroup(subdir) {
 	setBatchMode(false);
-	//open(subdir+platename+"_registered.tif");
-	//reg = getTitle();
-	///waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
-	//run("Make Substack...");
-	//saveAs("Tiff", subdir+platename+"_subset.tif");
-	//close(reg);
+	open(subdir+platename+"_registered.tif");
+	reg = getTitle();
+	waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
+	run("Make Substack...");
+	saveAs("Tiff", subdir+platename+"_subset.tif");
+	close(reg);
 	open(subdir+platename+"_subset.tif");
 	print("Cropping genotypes/groups..");
 	run("ROI Manager...");
