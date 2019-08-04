@@ -6,200 +6,154 @@
 //user selection of main directory
 maindir = getDirectory("Choose a Directory ");
 list = getFileList(maindir);
-processMain(maindir);
+processMain1(maindir);
+processMain2(maindir);
 
-///set up recursive processing of a main directory which contains multiple subdirectories   
-function processMain(maindir) {
-	 
+
+function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
 		if (endsWith(list[i], "/")) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
-			setBatchMode(false);
-			open(subdir+sublist[0]);
-			processSub(subdir);
+			platename = File.getName(subdir);
+			cropGroup(subdir);
 		}
 	}
 }
 
-//analyse files by first setting the scale (once), cropping plates then counting seeds
-function processSub (subdir) {
-	if (i==0) {
-	scale();
-	}
-	cropPlate();
-	skel();	
-	print(subdir + " processed.");
-};
+function processMain2(maindir) {
+	for (i=0; i<list.length; i++) {
+		if (endsWith(list[i], "/")) {
+			subdir = maindir+list[i];
+			sublist = getFileList(subdir);
+			processSub2(subdir);
+		}
+selectWindow("ROI Manager");
+run("Close");
+print("All folders processed.");
+}
 
-//prompts user to draw a line to set scale globally
-//then saves the scale as a text file
-function scale () {
-	print("Setting scale...");
-	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
-	setTool("line");
-	waitForUser("Draw a line corresponding to 1cm. Zoom in on the scale bar and hold the SHIFT key down.");
-	run("Measure");
-	length = getResult('Length', nResults-1);
-	while (length==0 || isNaN(length)) {
-        waitForUser("Line selection required");
-        run("Measure");
-		length = getResult('Length', nResults-1);
-	};
-	waitForUser("1cm corresponds to " + length + " pixels. Click OK if correct.");
-	run("Set Scale...","known=1 unit=cm global");
-	print("\\Clear");
-	print("Your scale is " + length + " pixels to 1cm.");
-	selectWindow("Log");
-	saveAs("Text", maindir+"Scale "+length);
-	selectWindow("Results");
-	run("Close");
-};
-
-//prompts user to determine line positions, then crops these out as individual tiffs
-//crops are saved under a newly created subfolder "cropped"
-function cropPlate () {
-	if (i == 0) {
+function cropGroup(subdir) {
+	setBatchMode(false);
+	open(subdir+platename+"_registered.tif");
+	reg = getTitle();
+	waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
+	run("Make Substack...");
+	saveAs("Tiff", subdir+platename+"_subset.tif");
+	close(reg);
+	open(subdir+platename+"_subset.tif");
+	print("Cropping genotypes/groups..");
 	run("ROI Manager...");
 	setTool("Rectangle");
-	while (roiManager("count") <= 0) {
-		waitForUser("Select each line and add to ROI manager. ROI names will be saved.");
-	};
-	waitForUser(roiManager("count") + " lines have been selected. Press OK if correct. Edit now if incorrect.");
-	run("Select None");
+	if (i==0) {
+	roiManager("reset");
+	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.");
 	}
-	print("Cropping plates...");
- 
+	if (i>0)
+	waitForUser("Modify ROI and names if needed.");
+	while (roiManager("count") <= 0) {
+		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
+	};
+	run("Select None");
+
 	outcrop = subdir + "/cropped/";
 	File.makeDirectory(outcrop);
-	
-	//first loop enables batch processing of all in subdirectory
-	//if statement causes non-experiment files to be ignored
-	//second loop enables cropping of ROI(s) followed by saving of cropped image
-	//roi names cannot contain dashes due to split() to extract information from file name later on
-	setBatchMode(true);
-	for (y = 0; y < sublist.length; ++y) { 
 
-		if (indexOf(getTitle(), "plate")>=0) {		
-			for (x=0; x<roiManager("count"); ++x) {
-    			run("Duplicate..."," ");
-    			roiManager("Select", x);
-    			roinamecheck = Roi.getName;
-    			if (indexOf(roinamecheck, "-") > 0) {
-    				waitForUser("ROI names cannot contain dashes '-'!");
-    				roinamecheck = Roi.getName;
-    			}
-    			roiname = Roi.getName+"-";
-    			run("Crop");
-    			saveAs("Tiff", outcrop+roiname+File.nameWithoutExtension+"_cropped"+".tif");
-    			close();
-			};
-		};
-	run("Open Next");
+	setBatchMode(true);
+	
+	//loop enables cropping of ROI(s) followed by saving of cropped stacks
+	//roi names cannot contain dashes due to split() to extract information from file name later on
+	roicount = roiManager("count");
+	for (x=0; x<roicount; ++x) {
+    	roiManager("Select", x);
+    	roiname = Roi.getName;
+    	if (indexOf(roiname, "-") > 0) {
+    		waitForUser("ROI names cannot contain dashes '-'! Modify now.");
+    		roiname = Roi.getName;
+    	}
+    	genodir = outcrop + "/"+roiname+"/";
+    	File.makeDirectory(genodir);	
+		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
+    	run("Duplicate...", "duplicate");
+    	saveAs("Tiff", genodir+roiname+".tif");
+    	close();
 	};
 close();
-};
+print(i+1 +"/"+list.length + " folders processed.");
+}
 
-//STEP 3 Skeletonize and analysis
-function skel() {
-	print("Analysing roots..");
-	setBatchMode(true);
+function processSub2(subdir) {
+	print("Processing "+ subdir+ "...");
+	platename = File.getName(subdir);
+	
 	outcrop = subdir + "/cropped/";
 	croplist = getFileList(outcrop);
-	skeleton = subdir + "/skeleton/";
-	File.makeDirectory(skeleton);
-
-	for (w = 0; w < croplist.length; w++) {
-		open(outcrop+croplist[w]);
-		filename = File.nameWithoutExtension;
-		print("Analysing roots...");
-		run("8-bit");
-////////THIS PART IN PROGRESS////////////////////
-//need a way for user defined run("Threshold...") and apply the same values to the next time point
-		if (startsWith(filename, 1)==1 && indexOf(filename, "day")>-1) {
-		setThreshold(161, 255);
-		}
-		if (startsWith(filename, 2)==1 && indexOf(filename, "day")>-1) {
-		setThreshold(152, 255);
-		}
-		if (startsWith(filename, 3)==1 && indexOf(filename, "day")>-1) {
-		setThreshold(123, 255);
-		}
-		if (startsWith(filename, 4)==1 && indexOf(filename, "day")>-1) {
-		setThreshold(114, 255);
-		}
-		if (startsWith(filename, 1)==1 && indexOf(filename, "night")>-1) {
-		setThreshold(91, 255);
-		}
-		if (startsWith(filename, 3)==1 && indexOf(filename, "night")>-1) {
-		setThreshold(90, 255);
-		}
-		if (startsWith(filename, 3)==1 && indexOf(filename, "night")>-1) {
-		setThreshold(85, 255);
-		}
-		if (startsWith(filename, 4)==1 && indexOf(filename, "night")>-1) {
-		setThreshold(74, 255);
-		}
-		
-		setOption("BlackBackground", false);
-		run("Convert to Mask");
-		run("Median...", "radius=3");
-		run("Options...", "iterations=5 count=1 edm=8-bit do=Close");
-		run("Skeletonize");	
-///////////////////////////
-
-		run("Analyze Skeleton (2D/3D)", "prune=none show display");
-
-		selectWindow("Results");
-		run("Close");
-		IJ.renameResults("Branch information", "Results");
-
-//refining results table to just get "Skeleton ID" and "Branch length"
-//also extracts genotype from roi manager, date and time from file name
-
-		nR = nResults ;
-		skID = newArray(nR);
-		skBL = newArray(nR);
-		
-		part = split(filename, "-");
-		geno = part[0];
-		date = part[2];
-		time = part[3]; 
 	
+	skel();
+	print(i+1 +"/"+list.length + " folders processed.");
+};
+
+
+function rootlength() {
+	
+	for (y = 0; y < croplist.length; ++y) {
+		print("Analysis root length of "+croplist[y]);
+		setBatchMode(false);
+		genodir = outcrop+"/"+croplist[y]+"/";
+		genolist = getFileList(genodir);
+		genoname = File.getName(genodir);
+		open(genodir+genolist[0]);
+		stack1 = getTitle();
+		run("Duplicate...", "duplicate");
+		stack2 = getTitle();
+
+		selectWindow(stack1);
+		skel();
+		run("Analyze Skeleton (2D/3D)", "prune=none show display");
+		close(stack1);
+		run("Images to Stack");
+		stack1 = getTitle();
+
+		selectWindow(stack2);
+		xmax = getWidth;
 		
-		for (v = 0; v <nR;v++) {
-			skID[v] = getResult("Skeleton ID", v);
-			skBL[v] = getResult("Branch length", v);
+		for (x = 0; x < nSlices; x++) {
+			slicelabel = getMetadata("Label");
+			newImage("Slice label", "8-bit", xmax, 50, 1);
+			setFont("SansSerif", 20, " antialiased");
+			makeText(slicelabel, 0, 0);
+			setForegroundColor(0, 0, 0);
+			run("Draw", "slice");
+			selectWindow(stack2);
+			run("Next Slice [>]");
 		}
+		
+		run("Images to Stack");
+		run("RGB Color");
+		label = getTitle();
+		
+		run("Combine...", "stack1=["+stack2+"] stack2=["+stack1+"] combine");
+		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
+		
+		saveAs("Tiff", genodir+platename+"_"+genoname+"_labelled.tif");
+		close();
 		selectWindow("Results");
+		
+		saveAs("Text", genodir+platename+" "+genoname+" root length analysis.txt");
 		run("Close");
-		if (w>0) {
-			IJ.renameResults("Skeleton Summary", "Results");
-		}
-		for (v = 0; v <nR;v++) {
-			nRes = nResults;
-			setResult("Label", nRes, filename);
-			setResult("Skeleton ID", nRes, skID[v]);
-			setResult("Branch length", nRes, skBL[v]);
-			setResult("Genotype", nRes, geno); 
-			setResult("Date", nRes, date);
-			setResult("Time", nRes, time);
-			}
-		updateResults();
-		IJ.renameResults("Results", "Skeleton Summary");
-			
-		selectImage("Tagged skeleton");
-		close();
-		selectImage(filename+"-labeled-skeletons");
-		saveAs("Tiff", skeleton+filename+"labeledskel"+".txt");
-		close();
-		selectImage(File.name);
-		saveAs("Tiff", skeleton+filename+".txt");
-		close();		
-	}
-		selectWindow("Skeleton Summary");
-		folder = list[i];
-		slash = indexOf(folder, "/");
-		foldername = substring(folder, 0, slash);
-		saveAs("Text", subdir+"Skeleton Summary for "+foldername+".txt");
-	}
+}
+}
+
+
+//creates a binary mask and reduces noise
+function skel() {
+	run("8-bit");
+	run("Subtract Background...", "rolling=30 stack");
+	setAutoThreshold("MaxEntropy dark");
+	setOption("BlackBackground", false);
+	run("Convert to Mask", "method=MaxEntropy background=Dark");
+	run("Median...", "radius=1 stack");
+	run("Median...", "radius=1 stack");
+	run("Options...", "iterations=10 count=1 do=Close");
+    run("Skeletonize");	
+}
