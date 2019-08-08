@@ -8,9 +8,9 @@ library(pracma)
 
 # there is no support for directory picker under non-windows platforms
 if (.Platform$OS.type == 'unix') {
-  dir <- readline(prompt = "Enter directory containing output.csv: ")
+  dir <- readline(prompt = "Enter directory containing output.tsv: ")
 } else {
-  dir <- choose.dir(getwd(), "Choose folder containing output.csv")
+  dir <- choose.dir(getwd(), "Choose folder containing output.tsv")
 }
 
 data <- read.table(paste0(dir, "/output.tsv"), header=T)
@@ -39,7 +39,7 @@ data.peruid <- data %>%
 # sort data naturally
 m<-regexpr('([0-9]+)$', data.peruid$UID)
 data.peruid$num <- as.numeric(regmatches(data.peruid$UID, m))
-data.peruid<-data.peruid[order(data.peruid$num),]
+data.peruid<-data.peruid[order(data.peruid$Group, data.peruid$num),]
 data.peruid<-data.peruid %>% select(-num)
 
 data.pergroup <- data.peruid %>%
