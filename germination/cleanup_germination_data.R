@@ -1,8 +1,12 @@
 # cleanup_germination_data.R -
+#
 #   imports data from germination macro and cleans it up a bit.
+#   after running this script, adjust the groups in the file output.tsv, 
+#   then run process_data.R to get statistics.
 
 library(dplyr)
 
+# below are cutoffs for area filtering
 upper_area_threshold = 0.008
 lower_area_threshold = 0.002
 
@@ -26,6 +30,7 @@ getmode <- function(x) {
   ux[which.max(tabulate(match(x, ux)))]
 }
 
+# main function for extracting data from files
 processfile <- function(file) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
   resultfile <- read.delim(file, row.names=1, stringsAsFactors = FALSE)
@@ -34,9 +39,10 @@ processfile <- function(file) {
     # first, go through the file and make a list of rois and timepoints
     params <- unlist(strsplit(row$Label, ':', fixed=T))
     ImgSource <- c(ImgSource, sub('\\.tif$', '', params[1], ignore.case=T))
-    # assume that if the label contains two colons (i.e. 3 extracted elements), it is the initial image
-    # for that roi
+
     if (length(params) == 3) {
+      # assume that if the label contains two colons (i.e. 3 extracted elements), it is the initial image
+      # for that seed, i.e., we are starting with a new seed here. set initial parameters like seed no etc.
       r <- params[2]
       SeedPos <- c(SeedPos, r)
       d <- startdate <- getdate(params[3])
@@ -44,6 +50,7 @@ processfile <- function(file) {
       plates <- c(plates, plate)
       Date <- c(Date, as.character(d))
     } else {
+      # this is not the first record for a seed
       SeedPos <- c(SeedPos, r)
       d <- getdate(params[2])
       plate <- unlist(strsplit(params[2], '-', fixed=T))[1]
@@ -55,9 +62,9 @@ processfile <- function(file) {
   data <- NULL
   data$UID <- paste0(plates, '_', ImgSource, '_', SeedPos)
   data$Group <- paste0(plates[1], '_', ImgSource[1])
-  resultfile = select(resultfile, -Label)
-  out <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
-  return(out)
+  resultfile <- select(resultfile, -Label)
+  data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
+  return(data)
 }
 
 removecrap <- function(data) {
@@ -72,7 +79,7 @@ removecrap <- function(data) {
   }
 
   if(length(badseeds$UID) > 0) {
-    print(paste("Removed ROIs", paste(badseeds, collapse=' '), "due to area restrictions."))
+    print(paste("Removed seed(s)", paste(badseeds, collapse=' '), "due to being outside area limits."))
   }
   return(data)
 }
@@ -86,8 +93,8 @@ if (.Platform$OS.type == 'unix') {
 
 # get all .txt files in the directory
 files <- list.files(path = dir, pattern = 'txt$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
-allout <- NULL
 
+allout <- NULL
 for (f in files) {
   print(paste("Processing file", f))
   out <- processfile(f)
