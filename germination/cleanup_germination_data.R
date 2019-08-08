@@ -75,11 +75,11 @@ removecrap <- function(data) {
     filter(size < lower_area_threshold | size > upper_area_threshold)
   
   if(length(badseeds$UID) > 0) {
-    data <- data[! data$UID %in% badseeds,]
+    data <- data[! data$UID %in% badseeds$UID,]
   }
 
   if(length(badseeds$UID) > 0) {
-    print(paste("Removed seed(s)", paste(badseeds, collapse=' '), "due to being outside area limits."))
+    print(paste("Removed seed(s)", paste(badseeds$UID, collapse=' '), "due to being outside area limits."))
   }
   return(data)
 }
