@@ -37,7 +37,7 @@ function cropGroup(subdir) {
 	setBatchMode(false);
 	open(subdir+platename+"_registered.tif");
 	reg = getTitle();
-	waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
+    waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
 	run("Make Substack...");
 	saveAs("Tiff", subdir+platename+"_subset.tif");
 	close(reg);
@@ -47,12 +47,12 @@ function cropGroup(subdir) {
 	setTool("Rectangle");
 	if (i==0) {
 	roiManager("reset");
-	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.");
+	waitForUser("Select each group, and add to ROI manager. ROI names will be saved. \n Please do not use dashes in the ROI names or we will complain about it later. \n ROIs cannot share names.");
 	}
 	if (i>0)
 	waitForUser("Modify ROI and names if needed.");
 	while (roiManager("count") <= 0) {
-		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
+		waitForUser("Select each group and add to ROI manager. ROI names will be saved.\n Please do not use dashes in the ROI names or we will complain about it later \n ROIs cannot share names.");
 	};
 	run("Select None");
 
@@ -68,7 +68,7 @@ function cropGroup(subdir) {
     	roiManager("Select", x);
     	roiname = Roi.getName;
     	if (indexOf(roiname, "-") > 0) {
-    		waitForUser("ROI names cannot contain dashes '-'! Modify now.");
+    		waitForUser("Here we go: ROI names cannot contain dashes '-'! Please modify the name. Now!");
     		roiname = Roi.getName;
     	}
     	genodir = outcrop + "/"+roiname+"/";
@@ -91,7 +91,7 @@ function processSub2(subdir) {
 	
 	countSeeds();
 	print(i+1 +"/"+list.length + " folders processed.");
-};
+}
 
 
 function countSeeds() {
@@ -111,9 +111,10 @@ function countSeeds() {
 		seedMask();
 		roiManager("reset");
 		run("Rotate 90 Degrees Right");
-		setSlice(nSlices);
+		setSlice(1);
 		run("Create Selection");
-		run("Enlarge...", "enlarge=0.04");
+		run("Colors...", "foreground=black background=black selection=red");
+		
 		roiManager("Add");
 		roiManager("select", 0);
 		roiManager("split");
@@ -122,10 +123,40 @@ function countSeeds() {
 
 		roiarray = newArray(roiManager("count"));
 		for (x = 0; x<roiManager("count"); x++) {
-			roiManager("select", x);
-			roiManager("rename", x+1);
+			roiarray[x]=x;
+		}
+		roiManager("select", roiarray);
+		roiManager("multi-measure");
+		roiManager("deselect");
+		Table.create("Trash positions");
+		selectWindow("Results");
+		
+		for (x=0; x<nResults; x++) {
+		selectWindow("Results");
+		area = getResult("Area", x);
+			if (area<0.0017) {
+				selectWindow("Trash positions");
+				Table.set("Trash ROI", Table.size, x);
+			}
 		}
 		
+		selectWindow("Trash positions");
+		if (Table.size>0) {
+		trasharray = Table.getColumn("Trash ROI");
+		roiManager("select", trasharray);
+		roiManager("delete");
+		
+		roiarray = newArray(roiManager("count"));
+		}
+		close("Trash positions");
+		
+		for (x = 0; x<roiManager("count"); x++) {
+			roiManager("select", x);
+			run("Enlarge...", "enlarge=0.08");
+			roiManager("update");
+			roiManager("rename", x+1);
+		}
+	
 		run("Set Measurements...", "area perimeter shape stack display redirect=None decimal=3");
 		run("Clear Results");
 		
@@ -133,6 +164,7 @@ function countSeeds() {
 		roiManager("select", x);
 		run("Analyze Particles...", "size=0-Infinity show=Nothing display stack");
 		}
+		Table.update;
 		
 		selectWindow(stack1);
 
@@ -143,6 +175,7 @@ function countSeeds() {
 
 		selectWindow(stack2);
 		run("RGB Color");
+		setBatchMode(true);
 		
 		xmax = getWidth;
 		
@@ -184,5 +217,5 @@ function seedMask() {
 	run("Convert to Mask", "method=MaxEntropy background=Dark");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
     run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
+    run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
-
