@@ -32,7 +32,7 @@ for(group in unique(data$Group)) {
 
 data.peruid <- data %>% 
   group_by(Group, UID) %>%
-  filter(dperim > 1.04) %>%
+  filter(dperim > 1.1) %>%
   arrange(ElapsedHours) %>%
   summarize(GerminationTime = ElapsedHours[1], GerminationSlice = Slice[1])
 
