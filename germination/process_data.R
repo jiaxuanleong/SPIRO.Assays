@@ -36,6 +36,12 @@ data.peruid <- data %>%
   arrange(ElapsedHours) %>%
   summarize(GerminationTime = ElapsedHours[1], GerminationSlice = Slice[1])
 
+# sort data naturally
+m<-regexpr('([0-9]+)$', data.peruid$UID)
+data.peruid$num <- as.numeric(regmatches(data.peruid$UID, m))
+data.peruid<-data.peruid[order(data.peruid$num),]
+data.peruid<-data.peruid %>% select(-num)
+
 data.pergroup <- data.peruid %>%
   group_by(Group) %>%
   summarize(GerminationTimeSD = sd(GerminationTime,na.rm=T), GerminationTime = mean(GerminationTime))
