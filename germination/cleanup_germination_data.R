@@ -34,6 +34,7 @@ getmode <- function(x) {
 processfile <- function(file) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
   resultfile <- read.delim(file, row.names=1, stringsAsFactors = FALSE)
+  resultfile <- resultfile[resultfile$Area >= lower_area_threshold & resultfile$Area <= upper_area_threshold,]
   for (i in 1:dim(resultfile)[1]) {
     row <- resultfile[i,]
     # first, go through the file and make a list of rois and timepoints
@@ -67,23 +68,6 @@ processfile <- function(file) {
   return(data)
 }
 
-removecrap <- function(data) {
-  # remove values where initial area is outside the threshold, then remove rois which contained those data points
-  badseeds <- data %>%
-    group_by(UID) %>%
-    summarize(size = Area[1]) %>%
-    filter(size < lower_area_threshold | size > upper_area_threshold)
-  
-  if(length(badseeds$UID) > 0) {
-    data <- data[! data$UID %in% badseeds$UID,]
-  }
-
-  if(length(badseeds$UID) > 0) {
-    print(paste("Removed seed(s)", paste(badseeds$UID, collapse=' '), "due to being outside area limits."))
-  }
-  return(data)
-}
-
 # there is no support for directory picker under non-windows platforms
 if (.Platform$OS.type == 'unix') {
   dir <- readline(prompt = "Enter directory: ")
@@ -98,7 +82,6 @@ allout <- NULL
 for (f in files) {
   print(paste("Processing file", f))
   out <- processfile(f)
-  out <- removecrap(out)
   allout <- rbind(allout, out)
 }
 
