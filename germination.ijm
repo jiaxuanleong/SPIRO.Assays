@@ -9,6 +9,12 @@ list = getFileList(maindir);
 processMain1(maindir);
 processMain2(maindir);
 
+list = getList("window.titles"); 
+     for (i=0; i<list.length; i++){ 
+     winame = list[i]; 
+     	selectWindow(winame); 
+     run("Close"); 
+     } 
 
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
