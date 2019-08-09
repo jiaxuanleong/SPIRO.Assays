@@ -60,7 +60,6 @@ function scale() {
 //for cropping of images into a smaller area to allow faster processing
 function crop() {
 	print("Cropping...");
-	selectWindow("Positions");
 	nR = Table.size;
 	bx = Table.get("BX", nR-1);
 	by = Table.get("BY", nR-1);
