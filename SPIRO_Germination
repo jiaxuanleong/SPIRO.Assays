@@ -32,6 +32,7 @@ function processMain2(maindir) {
 		if (endsWith(list[i], "/")) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
+			print("Getting seed measurements of "+subdir);
 			processSub2(subdir);
 		}
 selectWindow("ROI Manager");
@@ -45,10 +46,10 @@ function cropGroup(subdir) {
 	reg = getTitle();
     waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
 	run("Make Substack...");
-	saveAs("Tiff", subdir+platename+"_subset.tif");
+	saveAs("Tiff", subdir+platename+"_germinationsubset.tif");
 	close(reg);
-	open(subdir+platename+"_subset.tif");
-	print("Cropping genotypes/groups..");
+	open(subdir+platename+"_germinationsubset.tif");
+	print("Cropping genotypes/groups of "+subdir);
 	run("ROI Manager...");
 	setTool("Rectangle");
 	if (i==0) {
@@ -140,7 +141,7 @@ function countSeeds() {
 		for (x=0; x<nResults; x++) {
 		selectWindow("Results");
 		area = getResult("Area", x);
-			if (area<0.0017) {
+			if (area<0.0012) {
 				selectWindow("Trash positions");
 				Table.set("Trash ROI", Table.size, x);
 			}
