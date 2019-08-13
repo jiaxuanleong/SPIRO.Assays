@@ -4,7 +4,6 @@
 #   germination times will be written to germination-{perssed,pergroup}.tsv in the data folder.
 
 library(dplyr)
-library(pracma)
 
 # there is no support for directory picker under non-windows platforms
 if (.Platform$OS.type == 'unix') {
@@ -15,24 +14,45 @@ if (.Platform$OS.type == 'unix') {
 
 data <- read.table(paste0(dir, "/output.tsv"), header=T)
 
-data$dperim <- data$pav <- groups <- uids <- perims <- NULL
+data$dPerim <- data$ddPerim <- 0
+data$Germinated <- FALSE
+data$pav <- groups <- uids <- perims <- NULL
 
-# algorithm works like this:
-# for each seed, calculate a moving average of the perimeter to reduce noise (called pav).
-# then, calculate a change in perimeter compared to the average value of the first three frames (called dperim).
-# after we do this, we can select the value where dperim is larger than 1.04, which signifies germination.
-for(group in unique(data$Group)) {
-  for(uid in unique(data$UID[data$Group == group])) {
-    data$pav[data$Group==group & data$UID==uid] <- movavg(data$`Perim.`[data$Group==group & data$UID==uid], n=3, t='s')
-    data$dperim[data$Group==group & data$UID==uid] <- data$pav[data$Group==group & data$UID==uid] / mean(c(perims, data$`Perim.`[data$Group==group & data$UID==uid][1:3]))
-    # ignore the first three frames (moving average requires three frames)
-    data$dperim[data$Group==group & data$UID==uid][1:3] <- 1
+for(uid in unique(data$UID)) {
+  # ds = data subset
+  ds <- subset(data, UID == uid)
+
+  # seed size is average of first 5 slices
+  seedsize <- mean(ds$`Perim.`[1:5])
+  
+  # loop through all lines. need 4 slices reserved at the end due to how the algorithm works.
+  for (i in seq(1, nrow(ds) - 4)) {
+    ds$dPerim[i] <- mean(ds$`Perim.`[seq(i,i+4)]) - seedsize
   }
+  
+  # set delta delta perimeter (rate of change of perimeter)
+  ds$ddPerim[2:nrow(ds)] <- ds$dPerim[2:nrow(ds)] - ds$dPerim[1:nrow(ds) - 1]
+  ds$ddPerim[1] <- 0
+  
+  # loop over the values again...:\
+  # we need a buffer of 14 slices.
+  for (i in seq(1, nrow(ds) - 14)) {
+    if (ds$dPerim[i] > 0) {
+      if (all(ds$ddPerim[seq(i+1, i+10)] > 0)) {
+        ds$Germinated[i] <- TRUE
+        break
+      }
+    }
+  }
+  
+  # replace the data with the manipulated subset
+  data <- subset(data, UID != uid)
+  data <- rbind(data, ds)
 }
 
 data.peruid <- data %>% 
   group_by(Group, UID) %>%
-  filter(dperim > 1.1) %>%
+  filter(Germinated == TRUE) %>%
   arrange(ElapsedHours) %>%
   summarize(GerminationTime = ElapsedHours[1], GerminationSlice = Slice[1])
 
