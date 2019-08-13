@@ -35,7 +35,7 @@ processfile <- function(file) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
   resultfile <- read.delim(file, row.names=1, stringsAsFactors = FALSE)
   #resultfile <- resultfile[resultfile$Area <= 2 * upper_area_threshold,]
-  for (i in 1:dim(resultfile)[1]) {
+  for (i in 1:nrow(resultfile)) {
     row <- resultfile[i,]
     # first, go through the file and make a list of rois and timepoints
     params <- unlist(strsplit(row$Label, ':', fixed=T))
