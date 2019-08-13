@@ -24,12 +24,6 @@ elapsed <- function(from, to) {
   return(as.numeric(difftime(t, f, units='hours')))
 }
 
-# find the mode of a vector of numbers
-getmode <- function(x) {
-  ux <- unique(x)
-  ux[which.max(tabulate(match(x, ux)))]
-}
-
 # main function for extracting data from files
 processfile <- function(file) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
@@ -98,7 +92,7 @@ check_duplicates <- function(data) {
       #print(paste0("Slice ", slice, ": Removing ", length(areas), " entries with areas ", areas))
       # remove entries with these areas
       if(length(areas)) {
-        x <- which(ds$Slice == slice & ! ds$Area %in% areas)
+        x <- which(ds$Slice == slice & ds$Area %in% areas)
         ds <- ds[-x,]
         cleaned <- cleaned + 1
       } else {
