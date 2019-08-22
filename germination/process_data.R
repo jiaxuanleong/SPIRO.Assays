@@ -11,7 +11,7 @@ library(germinationmetrics)
 # lookahead_slices:
 #   germination is determined as the point where the seed perimeter is increasing for <lookahead_slices> 
 #   number of slices. default is 10.
-lookahead_slices = 10
+lookahead_slices <- 10
 
 # there is no support for directory picker under non-windows platforms
 if (.Platform$OS.type == 'unix') {
@@ -44,7 +44,7 @@ for(uid in unique(data$UID)) {
   
   # loop over the values again...:\
   # we need a buffer of (4 + lookahead_slices) slices.
-  for (i in seq(1, nrow(ds) - 4 + lookahead_slices)) {
+  for (i in seq(1, nrow(ds) - (4 + lookahead_slices))) {
     if (ds$dPerim[i] > 0) {
       if (all(ds$ddPerim[seq(i + 1, i + lookahead_slices)] > 0)) {
         ds$Germinated[i] <- TRUE
