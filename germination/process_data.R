@@ -4,6 +4,8 @@
 #   germination times will be written to germination-{perssed,pergroup}.tsv in the data folder.
 
 library(dplyr)
+library(reshape2)
+library(germinationmetrics)
 
 # there is no support for directory picker under non-windows platforms
 if (.Platform$OS.type == 'unix') {
@@ -15,7 +17,7 @@ if (.Platform$OS.type == 'unix') {
 data <- read.table(paste0(dir, "/output.tsv"), header=T)
 
 data$dPerim <- data$ddPerim <- 0
-data$Germinated <- FALSE
+data$Germinated <- 0
 data$pav <- groups <- uids <- perims <- NULL
 
 for(uid in unique(data$UID)) {
@@ -52,19 +54,78 @@ for(uid in unique(data$UID)) {
 
 data.peruid <- data %>% 
   group_by(Group, UID) %>%
-  filter(Germinated == TRUE) %>%
+  filter(Germinated == 1) %>%
   arrange(ElapsedHours) %>%
   summarize(GerminationTime = ElapsedHours[1], GerminationSlice = Slice[1])
+
+data.peruid <- as.data.frame(data.peruid)
+
+uids <- unique(data$UID)
+uids <- uids[order(uids)]
+included <- uids %in% data.peruid$UID
+for(uid in uids[!included]) {
+  group <- data$Group[data$UID == uid][1]
+  row = data.frame(Group = group, UID = uid, GerminationTime = NA, GerminationSlice = NA)
+  data.peruid <- rbind(data.peruid, row)
+}
 
 # sort data naturally
 m<-regexpr('([0-9]+)$', data.peruid$UID)
 data.peruid$num <- as.numeric(regmatches(data.peruid$UID, m))
-data.peruid<-data.peruid[order(data.peruid$Group, data.peruid$num),]
-data.peruid<-data.peruid %>% select(-num)
-
-data.pergroup <- data.peruid %>%
-  group_by(Group) %>%
-  summarize(GerminationTimeSD = sd(GerminationTime,na.rm=T), GerminationTime = mean(GerminationTime))
+data.peruid <- data.peruid[order(data.peruid$Group, data.peruid$num),]
+data.peruid <- data.peruid %>% select(-num)
 
 write.table(data.peruid, file=paste0(dir, "/germination-perseed.tsv"), sep='\t', row.names=F)
-write.table(data.pergroup, file=paste0(dir, "/germination-pergroup.tsv"), sep='\t', row.names=F)
+
+# merge group and uid so we can keep both in the conversion long->wide->long
+data$GroupUID<-paste(data$Group, data$UID, sep="!")
+
+# convert to wide and back again as a hacky way of making sure all seeds have equal number of slices
+data.wide <- dcast(data, Slice ~ GroupUID, value.var = "Germinated")
+data.long <- melt(data.wide, id.vars="Slice")
+
+# now get all the groups and uids back
+groupuids <- unlist(strsplit(as.character(data.long$variable), "!"))
+data.long$Group <- groupuids[seq(1, length(groupuids), 2)]
+data.long$UID <- groupuids[seq(2, length(groupuids), 2)]
+data.long$value[is.na(data.long$value)] <- 0
+
+# calculate germination stats
+germstats <- data.long %>% 
+  group_by(Group, Slice) %>% 
+  summarize(GermCount = sum(value))
+
+germstats <- germstats %>% 
+  group_by(Group) %>%
+  arrange(Slice) %>%
+  mutate(CumGermCount = cumsum(GermCount))
+
+# now calculate some germination metrics
+groups <- t50s <- mgts <- mgtses <- NULL
+for(group in unique(data.long$Group)) {
+  # calculate t50 for summary file
+  t50 <- t50(germ.counts = germstats$GermCount[germstats$Group == group], 
+             intervals = germstats$Slice[germstats$Group == group], 
+             method = "coolbear")
+  mgt <- MeanGermTime(germ.counts = germstats$GermCount[germstats$Group == group], 
+             intervals = germstats$Slice[germstats$Group == group])
+  mgtse <- SEGermTime(germ.counts = germstats$GermCount[germstats$Group == group], 
+                      intervals = germstats$Slice[germstats$Group == group])
+  
+  t50s <- c(t50s, t50)
+  groups <- c(groups, group)
+  mgts <- c(mgts, mgt)
+  mgtses <- c(mgtses, mgtse)
+  
+  # make germination graph
+  pdf(paste0(dir, "/germinationplot-", group, ".pdf"), width=7, height=5)
+  graph <- FourPHFfit(germ.counts = germstats$GermCount[germstats$Group == group], 
+                      intervals = germstats$Slice[germstats$Group == group],
+                      total.seeds = length(unique(data$UID[data$Group == group])),
+                      tmax = max(germstats$Slice[germstats$Group == group]))
+  print(plot(graph))
+  dev.off()
+}
+
+germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts, MeanGermTimeSE = mgtses)
+write.table(germstats.pergroup, file=paste0(dir, "/germinationstats.tsv"), sep='\t', row.names=F)
