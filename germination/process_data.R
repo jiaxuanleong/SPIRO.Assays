@@ -82,6 +82,7 @@ data.peruid <- data.peruid[order(data.peruid$Group, data.peruid$num),]
 data.peruid <- data.peruid %>% select(-num)
 
 names(data.peruid)[3] <- 'Germination Time (h)'
+names(data.peruid)[4] <- 'Germination detected on frame'
 write.table(data.peruid, file=paste0(dir, "/germination-perseed.tsv"), sep='\t', row.names=F)
 
 # merge group and uid so we can keep both in the conversion long->wide->long
