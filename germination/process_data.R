@@ -108,17 +108,25 @@ germstats <- germstats %>%
   arrange(Slice) %>%
   mutate(CumGermCount = cumsum(GermCount))
 
+# to get the intervals in hours, we calculate average time per slice and multiply
+# slice# by that values. this will hopefully be good enough approximation in most cases. 
+TimePerSlice <- data$ElapsedHours / data$Slice
+TimePerSlice <- TimePerSlice[!is.infinite(TimePerSlice)]
+avgTimePerSlice <- mean(TimePerSlice)
+
+germstats$ApproxTime <- round(germstats$Slice * round(avgTimePerSlice, 2), 2)
+
 # now calculate some germination metrics
 groups <- t50s <- mgts <- mgtses <- NULL
 for(group in unique(data.long$Group)) {
   # calculate t50 for summary file
   t50 <- t50(germ.counts = germstats$GermCount[germstats$Group == group], 
-             intervals = germstats$Slice[germstats$Group == group], 
+             intervals = germstats$ApproxTime[germstats$Group == group], 
              method = "coolbear")
   mgt <- MeanGermTime(germ.counts = germstats$GermCount[germstats$Group == group], 
-             intervals = germstats$Slice[germstats$Group == group])
+             intervals = germstats$ApproxTime[germstats$Group == group])
   mgtse <- SEGermTime(germ.counts = germstats$GermCount[germstats$Group == group], 
-                      intervals = germstats$Slice[germstats$Group == group])
+                      intervals = germstats$ApproxTime[germstats$Group == group])
   
   t50s <- c(t50s, t50)
   groups <- c(groups, group)
@@ -128,9 +136,9 @@ for(group in unique(data.long$Group)) {
   # make germination graph
   pdf(paste0(dir, "/germinationplot-", group, ".pdf"), width=7, height=5)
   graph <- FourPHFfit(germ.counts = germstats$GermCount[germstats$Group == group], 
-                      intervals = germstats$Slice[germstats$Group == group],
+                      intervals = germstats$ApproxTime[germstats$Group == group],
                       total.seeds = length(unique(data$UID[data$Group == group])),
-                      tmax = max(germstats$Slice[germstats$Group == group]))
+                      tmax = max(germstats$ApproxTime[germstats$Group == group]))
   print(plot(graph))
   dev.off()
 }
