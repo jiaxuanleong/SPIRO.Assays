@@ -12,13 +12,14 @@ processMain2(maindir);
 list = getList("window.titles"); 
      for (i=0; i<list.length; i++){ 
      winame = list[i]; 
-     	selectWindow(winame); 
+     selectWindow(winame); 
      run("Close"); 
      } 
 
+//PART1 crop groups/genotypes per plate
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
+		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
@@ -27,19 +28,31 @@ function processMain1(maindir) {
 	}
 }
 
+//PART2 analyses seeds per genotype/group per plate
 function processMain2(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
+		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
 			print("Getting seed measurements of "+subdir);
 			processSub2(subdir);
 		}
-selectWindow("ROI Manager");
-run("Close");
-print("All folders processed.");
+	print("All folders processed.");
+	}
 }
 
+function processSub2(subdir) {
+	print("Processing "+ subdir+ "...");
+	platename = File.getName(subdir);
+	
+	outcrop = subdir + "/germncropped/";
+	croplist = getFileList(outcrop);
+	
+	seedAnalysis();
+	print(i+1 +"/"+list.length + " folders processed.");
+}
+
+//PART1 crops groups/genotypes
 function cropGroup(subdir) {
 	setBatchMode(false);
 	open(subdir+platename+"_registered.tif");
@@ -63,7 +76,7 @@ function cropGroup(subdir) {
 	};
 	run("Select None");
 
-	outcrop = subdir + "/cropped/";
+	outcrop = subdir + "/seedcropped/";
 	File.makeDirectory(outcrop);
 
 	setBatchMode(true);
@@ -89,19 +102,8 @@ close();
 print(i+1 +"/"+list.length + " folders processed.");
 }
 
-function processSub2(subdir) {
-	print("Processing "+ subdir+ "...");
-	platename = File.getName(subdir);
-	
-	outcrop = subdir + "/cropped/";
-	croplist = getFileList(outcrop);
-	
-	countSeeds();
-	print(i+1 +"/"+list.length + " folders processed.");
-}
-
-
-function countSeeds() {
+//PART2 analyses seeds per genotype/group 
+function seedAnalysis() {
 	
 	for (y = 0; y < croplist.length; ++y) {
 		print("Tracking germination of "+croplist[y]);
@@ -135,27 +137,27 @@ function countSeeds() {
 		roiManager("select", roiarray);
 		roiManager("multi-measure");
 		roiManager("deselect");
-		Table.create("Trash positions");
+		tp = "Trash positions";
+		Table.create(tp);
 		selectWindow("Results");
 		
 		for (x=0; x<nResults; x++) {
 		selectWindow("Results");
 		area = getResult("Area", x);
 			if (area<0.0012) {
-				selectWindow("Trash positions");
-				Table.set("Trash ROI", Table.size, x);
+				Table.set("Trash ROI", Table.size(tp), x);
 			}
 		}
 		
 		selectWindow("Trash positions");
-		if (Table.size>0) {
-		trasharray = Table.getColumn("Trash ROI");
+		if (Table.size(tp)>0) {
+		trasharray = Table.getColumn("Trash ROI", tp);
 		roiManager("select", trasharray);
 		roiManager("delete");
 		
 		roiarray = newArray(roiManager("count"));
 		}
-		close("Trash positions");
+		close(tp);
 		
 		for (x = 0; x<roiManager("count"); x++) {
 			roiManager("select", x);
@@ -171,7 +173,6 @@ function countSeeds() {
 		roiManager("select", x);
 		run("Analyze Particles...", "size=0-Infinity show=Nothing display stack");
 		}
-		Table.update;
 		
 		selectWindow(stack1);
 
@@ -204,16 +205,15 @@ function countSeeds() {
 		run("Combine...", "stack1=["+stack2+"] stack2=["+stack1+"] combine");
 		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
 		
-		saveAs("Tiff", genodir+platename+"_"+genoname+"_labelled.tif");
+		saveAs("Tiff", genodir+platename+"_"+genoname+"_germination.tif");
 		close();
 		selectWindow("Results");
 		Table.deleteColumn("Circ.");
 		Table.deleteColumn("Solidity");
-		saveAs("Text", genodir+platename+" "+genoname+" individual seed analysis.txt");
+		saveAs("Text", genodir+platename+" "+genoname+" seed measurements.txt");
 		run("Close");
 }
 }
-
 
 //creates a binary mask and reduces noise
 function seedMask() {
