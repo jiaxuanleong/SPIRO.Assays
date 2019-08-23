@@ -1,13 +1,80 @@
-ImageJ macros for the analysis of data acquired by [SPIRO](https://github.com/jonasoh/spiro), an imaging platform for biological samples.
 
-**SPIRO_Registration** for the reduction of drift during image acquisition. The images acquired through SPIRO is converted into a stack. User is prompted to set scale using the scale bar in the image. The stack is then cropped to remove irrelevant background for faster processing. Once this is done registration using [MultiStackReg](http://bradbusse.net/sciencedownloads.html) is done to reduce any drift during acquisition of images. A Z-projection is created to allow easy validation of registration.
+These two assays were developed for high-throughput analysis of data acquired by [SPIRO](https://www.alyonaminina.org/spiro), smart plate imaging robot. The assay were optimized for imaging <i>Arabidopsis thaliana</i> seeds and seedlings, but can be optimized for other species. 
 
-**SPIRO_Germination** for the measurement of germination rate of seeds. User is prompted to select the range of images to analyze, as image acquisition in some experiments could include time points past germination of all seeds. A substack is made from this range of images and saved in the same subfolder. User is prompted to select and name the lines/genotypes of seeds using ROI selection. These will be cropped and saved under named folders for easy analysis.
 
-The images are thresholded and made binary, and some processing is done to remove background noise. Seed positions are determined and the 
-"Analyze Particles" command used to measure seed characteristics. The original and processed stacks are merged, together with annotated file name containing plate, date and time info. Results are saved as a tab-delimited text file. This will be processed in R.
+Each assay comprises three major steps:
+1. Image processing using ImageJ macro SPIRO_Registration
+2. Image analysis using ImageJ macro SPIRO_Germination or SPIRO_RootGrowth
+3. Data analysis using R scripts Germination or RootGrowth
 
-**SPIRO_RootGrowth** for the measurement of root growth. User is prompted to select the range of images to analyze, as image acquisition in some experiments could include time points before germination of seed occurs. A substack is made from this range of images and saved in the same subfolder. User is prompted to select and name the lines/genotypes of seeds using ROI selection. These will be cropped and saved under named folders for easy analysis.
 
-The images are thresholded and made binary, and some processing is done to remove background noise. The roots are skeletonized and the
-"Analyze Skeleton (2D/3D)" command is used to measure root length. The original and processed stacks are merged, together with annotated file name containing plate, date and time info. Results are saved as a tab-delimited text file. This will be processed in R.
+
+[**SPIRO_Registration**](https://github.com/jiaxuanleong/spiro-IJmacros/blob/master/SPIRO_Registration) macro (ImageJ Macro Language):
+This macro will process all four folders of a SPIRO experiment.
+
+- combining separate images into one time-lapse stack file
+- setting the scale
+- resizing the stack by cropping off edges
+- correcting for image drift
+
+
+[**SPIRO_Germination**](https://github.com/jiaxuanleong/spiro-IJmacros/blob/master/SPIRO_Germination) macro (ImageJ Macro Language):
+This macro will analyze all four folders of a SPIRO experiment using data processed by the SPIRO_Registration macro
+
+- defining a range of time points that will be included into analysis
+- selecting groups of seeds that will be analyzed together, e.g. the same genotype
+- processing of images to identify seed positions 
+- measurement of square and perimeter of each seed at each time point
+- creating a time-lapse stack file illustrating quality of seed recognition for each group
+- Results are saved as a tab-delimited text file to be processed using [R scripts Germination](https://github.com/jiaxuanleong/spiro-IJmacros/tree/master/germination).
+
+[**R scripts_Germination**](https://github.com/jiaxuanleong/spiro-IJmacros/blob/master/SPIRO_Germination):
+The script will analyze data from all four folders of a SPIRO experiment processed by the SPIRO_Germination macro
+
+- quality control to remove any objects that were mistakingly recognized as seeds
+- results are saved in tab-delimited output.txt file
+- data processing to determine time of germination for each seed
+- statistical analysis to determine the time at which 50% of seed germinated and to compare user-defined groups
+- results are saved in tab-delimited text files
+
+
+[**SPIRO_RootGrowth**](https://github.com/jiaxuanleong/spiro-IJmacros/blob/master/SPIRO_RootGrowth) macro (ImageJ Macro Language):
+This macro will analyze all four folders of a SPIRO experiment using data processed by the SPIRO_Registration macro
+
+- defining a range of time points that will be included into analysis
+- selecting groups of seedlings that will be analyzed together, e.g. the same genotype
+- processing of images to identify seedling positions 
+- measurement of primary root length for each seed at each time point
+- creating a time-lapse stack file illustrating quality of root recognition for each group
+- Results are saved as a tab-delimited text file to be processed using [R scripts Germination](https://github.com/jiaxuanleong/spiro-IJmacros/tree/master/).
+
+[**R scripts_RootGrowth**](https://github.com/jiaxuanleong/spiro-IJmacros/blob/master/):
+The script will analyze data from all four folders of a SPIRO experiment processed by the SPIRO_RootGrowth macro
+
+- quality control to remove any objects that were mistakingly recognized as primary roots
+- results are saved in tab-delimited output.txt file
+- data processing to determine root length for each seedling at each time point
+- statistical analysis to determine the average rooth growth speed for each group
+- results are saved in tab-delimited text files
+
+
+
+<b>Installation</b>
+
+To use maro:
+- Download the macro (.ijm file)
+- Open ImageJ
+- Go to Plugins-> Macro-> Open->Find the downloded macro file
+
+To use R scripts:
+- Open Rstudio
+- File-> NewProject -> Version Control -> Git-> repository URL: https://github.com/jiaxuanleong/spiro-IJmacros 
+
+
+
+<b>Requirements</b>
+
+- [ImageJ v1.52p](https://imagej.net/Fiji/Downloads)
+- [MultiStackReg](http://bradbusse.net/sciencedownloads.html)
+- RStudio v...
+- R packages......
