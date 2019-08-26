@@ -117,7 +117,7 @@ avgTimePerSlice <- mean(TimePerSlice)
 germstats$ApproxTime <- round(germstats$Slice * round(avgTimePerSlice, 2), 2)
 
 # now calculate some germination metrics
-groups <- t50s <- mgts <- mgtses <- NULL
+groups <- t50s <- mgts <- mgtses <- nseeds <- nongerms <- NULL
 for(group in unique(data.long$Group)) {
   # calculate t50 for summary file
   t50 <- t50(germ.counts = germstats$GermCount[germstats$Group == group], 
@@ -127,11 +127,15 @@ for(group in unique(data.long$Group)) {
              intervals = germstats$ApproxTime[germstats$Group == group])
   mgtse <- SEGermTime(germ.counts = germstats$GermCount[germstats$Group == group], 
                       intervals = germstats$ApproxTime[germstats$Group == group])
+  nseed <- sum(germstats$GermCount[germstats$Group == group])
+  nongerm <- sum(is.na(data.peruid$`Germination Time (h)`[data.peruid$Group == group]))
   
   t50s <- c(t50s, t50)
   groups <- c(groups, group)
   mgts <- c(mgts, mgt)
   mgtses <- c(mgtses, mgtse)
+  nseeds <- c(nseeds, nseed)
+  nongerms <- c(nongerms, nongerm)
   
   # make germination graph
   pdf(paste0(dir, "/germinationplot-", group, ".pdf"), width=7, height=5)
@@ -143,5 +147,6 @@ for(group in unique(data.long$Group)) {
   dev.off()
 }
 
-germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts, MeanGermTimeSE = mgtses)
+germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts, 
+                                 MeanGermTimeSE = mgtses, n = nseeds, Ungerminated = nongerms)
 write.table(germstats.pergroup, file=paste0(dir, "/germinationstats.tsv"), sep='\t', row.names=F)
