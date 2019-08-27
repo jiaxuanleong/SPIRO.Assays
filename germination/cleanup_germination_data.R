@@ -127,7 +127,7 @@ if (.Platform$OS.type == 'unix') {
 }
 
 # get all .txt files in the directory
-files <- list.files(path = dir, pattern = 'txt$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
+files <- list.files(path = dir, pattern = 'individual seed analysis.txt$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
 allout <- NULL
 print("Processing files and performing basic quality control. This may take a little while...")
