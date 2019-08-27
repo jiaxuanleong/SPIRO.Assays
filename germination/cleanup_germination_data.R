@@ -139,4 +139,5 @@ for (f in files) {
 
 allout <- select(allout, -X.1)
 
-write.table(allout, file=paste0(dir, "/output.tsv"), sep='\t', row.names=F)
+write.table(allout, file=paste0(dir, "/germination.postQC.tsv"), sep='\t', row.names=F)
+print(paste0("Saving cleaned and collated data to '", dir, "/germination.postQC.tsv", "'. Please edit that file to set up correct grouping for your experiment."))

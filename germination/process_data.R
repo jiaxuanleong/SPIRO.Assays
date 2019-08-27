@@ -15,9 +15,9 @@ lookahead_slices <- 10
 
 # there is no support for directory picker under non-windows platforms
 if (.Platform$OS.type == 'unix') {
-  dir <- readline(prompt = "Enter directory containing output.tsv: ")
+  dir <- readline(prompt = "Enter directory containing germination.postQC.tsv: ")
 } else {
-  dir <- choose.dir(getwd(), "Choose folder containing output.tsv")
+  dir <- choose.dir(getwd(), "Choose folder containing germination.postQC.tsv")
 }
 
 data <- read.table(paste0(dir, "/output.tsv"), header=T)
