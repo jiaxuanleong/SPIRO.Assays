@@ -76,7 +76,7 @@ function cropGroup(subdir) {
 	};
 	run("Select None");
 
-	outcrop = subdir + "/seedcropped/";
+	outcrop = subdir + "/germncropped/";
 	File.makeDirectory(outcrop);
 
 	setBatchMode(true);
