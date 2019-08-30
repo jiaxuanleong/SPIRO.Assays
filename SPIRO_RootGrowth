@@ -4,7 +4,7 @@
 //plate1-date20190101-time000000-day
 
 //user selection of main directory
-maindir = getDirectory("Choose a Director");
+maindir = getDirectory("Choose a Directory");
 list = getFileList(maindir);
 processMain1(maindir);
 processMain2(maindir);
@@ -158,11 +158,11 @@ function seedPosition(subdir) {
 		setBatchMode(false);
 		genodir = outcrop+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
-		print("Finding seed positions for "+platename+genoname);
+		print("Finding seedling positions for "+platename+genoname);
 		open(genodir+genoname+".tif");
 		img = getTitle();
 		
-		seedMask();
+		firstMask();
 		run("Rotate 90 Degrees Right");
 		roiManager("reset");
 		run("Create Selection");
@@ -225,7 +225,8 @@ function seedPosition(subdir) {
 	}
 }
 
-function seedMask() {
+//PART2 creates a binary mask for seed/lings and reduces noise
+function firstMask() {
 	run("8-bit");
 	run("Subtract Background...", "rolling=30 stack");
 	run("Median...", "radius=1 stack");
@@ -239,7 +240,7 @@ function seedMask() {
 //PART2.1 finds root start coordinates per genotype/group
 function rootStart(subdir) {
 	for (y = 0; y < croplist.length; ++y) {
-		setBatchMode(true);
+		setBatchMode(false);
 		genodir = outcrop+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
@@ -251,8 +252,6 @@ function rootStart(subdir) {
 		roiManager("open", genodir+genoname+"seedpositions.zip")
 		roiarray = newArray(roiManager("count"));
 				for(x=0; x<roiManager("count"); x++){
-					roiManager("select", x);
-					roiManager("rename", x+1);
 					roiarray[x]=x;
 				}
 	
@@ -261,9 +260,9 @@ function rootStart(subdir) {
 		roiManager("select", roiarray);
 		roiManager("multi-measure");
 		roicount = roiManager("count");
-		
-		w = 0.48;
-		h = 0.32;
+
+		w = 0.18;
+		h = 0.2;
 		toUnscaled(w, h);
 		
 		nS = nSlices;
@@ -272,14 +271,13 @@ function rootStart(subdir) {
 		
 		for (z=0; z<nS; z++) {
 			setSlice(z+1);
-		
 			if (z==0) {
 				roiManager("reset");
 				for(x=0; x<roicount; x++) {
-					x1 = getResult("X", x);
-					y1 = getResult("Y", x);
-					x2 = x1 - 0.41;
-					y2 = y1 - 0.16;
+					x0 = getResult("X", x);
+					y0 = getResult("Y", x);
+					x2 = x0 - 0.12;
+					y2 = y0 - 0.1;
 					toUnscaled(x2, y2);
 					makeRectangle(x2, y2, w, h);
 					roiManager("add");
@@ -292,8 +290,11 @@ function rootStart(subdir) {
 					x1 = Table.get("XM", rowIndex, rsc);
 					y1 = Table.get("YM", rowIndex, rsc);
 					toScaled(x1, y1);
-					x2 = x1 - 0.41;
-					y2 = y1 - 0.16;
+					if (x1>x0) {
+						x1=x0;
+					}
+					x2 = x1 - 0.23;
+					y2 = y1 - 0.1;
 					toUnscaled(x2, y2);
 					makeRectangle(x2, y2, w, h);
 					roiManager("add");
@@ -348,7 +349,7 @@ function rootStart(subdir) {
 		
 				nr = Table.size(rsc);
 				Table.set("Slice", nr, z+1, rsc);
-				Table.set("ROI", nr, z+1, rsc);
+				Table.set("ROI", nr, x+1, rsc);
 				Table.set("XM", nr, xm, rsc);
 				Table.set("YM", nr, ym, rsc);
 		}
@@ -361,28 +362,32 @@ function rootStart(subdir) {
 		run("Rotate 90 Degrees Right");
 		roiManager("reset");
 		
-		selectWindow(rsc);
-		nr = Table.size;
+		nr = Table.size(rsc);
 		for (x=0; x<nr; x++) {
-			xm = Table.get("XM", x);
-			ym = Table.get("YM", x);
-			slice = Table.get("Slice", x);
+			xm = Table.get("XM", x, rsc);
+			ym = Table.get("YM", x, rsc);
+			slice = Table.get("Slice", x, rsc);
+			roino = Table.get("ROI", x, rsc);
 			setSlice(slice);
 			makePoint(xm, ym);
 			roiManager("add");
+			roiManager("select", x);
+			roiManager("rename", roino);
 		}
+
+		roiManager("save", genodir+genoname+"rootstartrois.zip");
 		
 		roiManager("Associate", "true");
 		roiManager("Centered", "false");
-		roiManager("UseNames", "false");
-		roiManager("Show All without labels");
+		roiManager("UseNames", "true");
+		roiManager("Show All with labels");
 		run("Flatten", "stack");
 		run("Rotate 90 Degrees Left");
 		saveAs("Tiff", genodir+genoname+"_"+"rootstartlabelled.tif");
 		close();
 		
 		selectWindow(rsc);
-		saveAs("Text", genodir+genoname+"_"+rsc+".txt");
+		saveAs("Text", genodir+genoname+"_"+rsc+".xls");
 		close(rsc);
 		File.delete(genodir+genoname+"masked.tif");
 	}
@@ -394,25 +399,52 @@ function rootlength(subdir) {
 		setBatchMode(true);
 		genodir = outcrop+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
-		print("Analyzing root length of "+platename+genoname);
+		print("Analyzing root growth of "+platename+genoname);
 		open(genodir+genoname+".tif");
 		stack1 = getTitle();
+		run("Rotate 90 Degrees Right");
 				
 		//process roots for skeletonization
-		skel();
+		secondMask();
+		rsc = "Root start coordinates";
+		rsc = genoname+"_"+rsc+".xls";
+		open(genodir+rsc);
 		
-		nS = nSlices;
-		for (x=0; x<nS; x++) {
+		nr = Table.size(rsc);
+		roicount = nr/nSlices;
+		roiManager("reset");
+		for (x=0; x<nr; x++){
+			slice = Table.get("Slice", x, rsc);
+			roino = Table.get("ROI", x, rsc);
+			xm1 = Table.get("XM", x, rsc);
+			ym1 = Table.get("YM", x, rsc);
+			setSlice(slice);
+			if (roino == roicount) {
+				y1 = ym1 - (0.5*h);
+				makeRectangle(0, y1, xm1, h);
+			} else {
+				ym2 = Table.get("YM", x+1, rsc);
+				y2 = 0.6*(ym2-ym1)+ym1;
+				h = 2*(y2-ym1);
+				y1 = ym1 - (0.5*h);
+				makeRectangle(0, y1, xm1, h);
+			}
+			roiManager("add");
+			roiManager("select", x);
+			roiManager("rename", roino);
+		}
+		
+		for (x=0; x<nr; x++) {
 		selectWindow(stack1);
-		setSlice(x+1);
+		roiManager("select", x);
+		roino = Roi.getName;
 		run("Duplicate...", "use");
 		temp=getTitle();
-		run("Analyze Skeleton (2D/3D)", "prune=none show display");
+		run("Analyze Skeleton (2D/3D)", "prune=none show");
 		close("Tagged skeleton");
 		close(temp);
 		close("Results");
-		selectWindow(temp+"-labeled-skeletons");
-		rename("slice"+x+1);
+
 		ra="Root analysis";
 		bi="Branch information";
 		if (x==0) {
@@ -421,9 +453,10 @@ function rootlength(subdir) {
 	
 		for (z=0; z<Table.size(bi); z++) {
 			rar = Table.size(ra);
+			Table.set("Slice name", rar, temp, ra);
+			Table.set("ROI", rar, roino, ra);
 			id = Table.get("Skeleton ID", z, bi);
 			Table.set("Skeleton ID", rar, id, ra);
-			Table.set("Slice name", rar, temp, ra);
 			bl = Table.get("Branch length", z, bi);
 			Table.set("Branch length", rar, bl, ra);
 			v1x = Table.get("V1 x", z, bi);
@@ -433,46 +466,56 @@ function rootlength(subdir) {
 			}
 		}
 		close(bi);
-		Table.update(ra);
 		Table.save(genodir+platename+" "+genoname+" root analysis.txt", ra);
-		
-		run("Images to Stack");
-		run("RGB Color");
-		
-		xmax = getWidth;
 
 		selectWindow(stack1);
-		run("RGB Color");
-		for (x = 0; x < nSlices; x++) {
+		roiManager("reset");
+		roiManager("open", genodir+genoname+"rootstartrois.zip");
+		roiManager("Associate", "true");
+		roiManager("Centered", "false");
+		roiManager("UseNames", "true");
+		roiManager("Show All with labels");
+		run("Flatten", "stack");
+		run("Rotate 90 Degrees Left");
+		saveAs("Tiff", genodir+genoname+"_"+"skeletonized.tif");
+		stack1 = getTitle();
+		xmax = getWidth;
+		nS = nSlices;
+
+		for (x = 0; x < nS; x++) {
+			selectWindow(stack1);
+			setSlice(x+1);
 			slicelabel = getMetadata("Label");
-			newImage("Slice label", "8-bit", xmax, 50, 1);
+			newImage("Slice label", "RGB Color", xmax, 50, 1);
 			setFont("SansSerif", 20, " antialiased");
 			makeText(slicelabel, 0, 0);
 			setForegroundColor(0, 0, 0);
 			run("Draw", "slice");
-			selectWindow(stack1);
-			run("Next Slice [>]");
 		}
 		
 		run("Images to Stack");
-		run("RGB Color");
 		label = getTitle();
 		
 		open(genodir+genoname+"_"+"rootstartlabelled.tif");
 		rsl = getTitle();
 		
-		run("Combine...", "stack1=["+rsl+"] stack2=[Stack] combine");
+		run("Combine...", "stack1=["+rsl+"] stack2=["+stack1+"] combine");
 		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
 		
-		saveAs("Tiff", genodir+platename+"_"+genoname+"_labelled.tif");
+		saveAs("Tiff", genodir+platename+"_"+genoname+"_rootgrowth.tif");
 		close();
-		close();
+		//File.delete(genodir+genoname+"seedpositions.zip");
+		//File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
+		//File.delete(genodir+genoname+"_"+"skeletonized.tif");
+		//File.delete(genodir+genoname+"rootstartrois.zip");
+		//File.delete(genodir+rsc);
+		
 }
 }
 
 
 //PART3 creates a binary mask for roots and reduces noise
-function skel() {
+function secondMask() {
 	run("8-bit");
 	run("Subtract Background...", "rolling=5 stack");
 	run("Enhance Contrast...", "saturated=0.2 normalize process_all");
