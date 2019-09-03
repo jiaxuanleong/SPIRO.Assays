@@ -225,6 +225,6 @@ function seedMask() {
 	setAutoThreshold("MaxEntropy dark");
 	run("Convert to Mask", "method=MaxEntropy background=Dark");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
-    run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-    run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
+	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
+	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
