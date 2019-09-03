@@ -212,6 +212,8 @@ function seedAnalysis() {
 		selectWindow("Results");
 		Table.deleteColumn("Circ.");
 		Table.deleteColumn("Solidity");
+		Table.deleteColumn("AR");
+		Table.deleteColumn("Round");
 		saveAs("Results", genodir + platename + " " + genoname + " seed germination analysis.tsv");
 		run("Close");
 	}
