@@ -4,7 +4,7 @@
 //plate1-date20190101-time000000-day
 
 //user selection of main directory
-maindir = getDirectory("Choose a Directory ");
+maindir = getDirectory("Choose a Directory");
 list = getFileList(maindir);
 processMain1(maindir);
 processMain2(maindir);
@@ -34,15 +34,12 @@ function processMain2(maindir) {
 		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
-			print("Getting seed measurements of "+subdir);
 			processSub2(subdir);
 		}
-	print("All folders processed.");
 	}
 }
 
 function processSub2(subdir) {
-	print("Processing "+ subdir+ "...");
 	platename = File.getName(subdir);
 	
 	outcrop = subdir + "/germncropped/";
@@ -61,7 +58,6 @@ function cropGroup(subdir) {
 	run("Make Substack...");
 	saveAs("Tiff", subdir+platename+"_germinationsubset.tif");
 	close(reg);
-	open(subdir+platename+"_germinationsubset.tif");
 	print("Cropping genotypes/groups of "+subdir);
 	run("ROI Manager...");
 	setTool("Rectangle");
@@ -88,7 +84,7 @@ function cropGroup(subdir) {
     	roiManager("Select", x);
     	roiname = Roi.getName;
     	if (indexOf(roiname, "-") > 0) {
-    		waitForUser("Here we go: ROI names cannot contain dashes '-'! Please modify the name. Now!");
+    		waitForUser("ROI names cannot contain dashes '-'! Please modify the name.");
     		roiname = Roi.getName;
     	}
     	genodir = outcrop + "/"+roiname+"/";
@@ -189,7 +185,7 @@ function seedAnalysis() {
 		
 		for (x = 0; x < nSlices; x++) {
 			slicelabel = getMetadata("Label");
-			newImage("Slice label", "8-bit", xmax, 50, 1);
+			newImage("Slice label", "RGB Color", xmax, 50, 1);
 			setFont("SansSerif", 20, " antialiased");
 			makeText(slicelabel, 0, 0);
 			setForegroundColor(0, 0, 0);
@@ -199,7 +195,6 @@ function seedAnalysis() {
 		}
 		
 		run("Images to Stack");
-		run("RGB Color");
 		label = getTitle();
 		
 		run("Combine...", "stack1=["+stack2+"] stack2=["+stack1+"] combine");
@@ -210,7 +205,7 @@ function seedAnalysis() {
 		selectWindow("Results");
 		Table.deleteColumn("Circ.");
 		Table.deleteColumn("Solidity");
-		saveAs("Text", genodir+platename+" "+genoname+" seed measurements.txt");
+		saveAs("Results", genodir+platename+" "+genoname+" seed germination analysis.tsv");
 		run("Close");
 }
 }
