@@ -169,7 +169,7 @@ function seedAnalysis() {
 			roiManager("rename", x+1);
 		}
 
-		run("Set Measurements...", "area perimeter shape stack display redirect=None decimal=3");
+		run("Set Measurements...", "area perimeter stack display redirect=None decimal=3");
 		run("Clear Results");
 
 		for (x=0; x<roiManager("count"); x++) {
@@ -210,10 +210,6 @@ function seedAnalysis() {
 		saveAs("Tiff", genodir + platename + "_" + genoname + "_germination.tif");
 		close();
 		selectWindow("Results");
-		Table.deleteColumn("Circ.");
-		Table.deleteColumn("Solidity");
-		Table.deleteColumn("AR");
-		Table.deleteColumn("Round");
 		saveAs("Results", genodir + platename + " " + genoname + " seed germination analysis.tsv");
 		run("Close");
 	}
