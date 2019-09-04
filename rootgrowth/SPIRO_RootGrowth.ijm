@@ -43,7 +43,6 @@ function processMain2(maindir) {
 }
 
 function processSub2(subdir) {
-	print("Processing "+ subdir+ "...");
 	platename = File.getName(subdir);
 	
 	outcrop = subdir + "/rootcropped/";
@@ -66,7 +65,6 @@ function processMain21(maindir) {
 }
 
 function processSub21(subdir) {
-	print("Processing "+ subdir+ "...");
 	platename = File.getName(subdir);
 	
 	outcrop = subdir + "/rootcropped/";
@@ -90,7 +88,6 @@ function processMain3(maindir) {
 }
 
 function processSub3(subdir) {
-	print("Processing "+ subdir+ "...");
 	platename = File.getName(subdir);
 	
 	outcrop = subdir + "/rootcropped/";
@@ -110,7 +107,7 @@ function cropGroup(subdir) {
 	saveAs("Tiff", subdir+platename+"_rootlengthsubset.tif");
 	close(reg);
 	open(subdir+platename+"_rootlengthsubset.tif");
-	print("Cropping genotypes/groups..");
+	print("Cropping genotypes/groups in "+platename);
 	run("ROI Manager...");
 	setTool("Rectangle");
 	if (i==0) {
@@ -136,7 +133,7 @@ function cropGroup(subdir) {
     	roiManager("Select", x);
     	roiname = Roi.getName;
     	if (indexOf(roiname, "-") > 0) {
-    		waitForUser("Here we go: ROI names cannot contain dashes '-'! Please modify the name. Now!");
+    		waitForUser("ROI names cannot contain dashes '-'! Please modify the name.");
     		roiname = Roi.getName;
     	}
     	genodir = outcrop + "/"+roiname+"/";
@@ -240,7 +237,7 @@ function firstMask() {
 //PART2.1 finds root start coordinates per genotype/group
 function rootStart(subdir) {
 	for (y = 0; y < croplist.length; ++y) {
-		setBatchMode(false);
+		setBatchMode(true);
 		genodir = outcrop+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
@@ -261,39 +258,46 @@ function rootStart(subdir) {
 		roiManager("multi-measure");
 		roicount = roiManager("count");
 
-		w = 0.18;
-		h = 0.2;
+		w = 0.18; //width of ROI is 0.18cm
+		h = 0.2; //height
 		toUnscaled(w, h);
 		
 		nS = nSlices;
 		rsc = "Root start coordinates";
 		Table.create(rsc);
 		
-		for (z=0; z<nS; z++) {
-			setSlice(z+1);
-			if (z==0) {
+		for (z=0; z<nS; z++) { //for each slice
+			setSlice(z+1); //starting with first slice
+			if (z==0) { //if first slice, obtain XY coordinates from Results to make ROI
 				roiManager("reset");
+				xini = "Xini";
+				Table.create(xini);
 				for(x=0; x<roicount; x++) {
 					x0 = getResult("X", x);
+					Table.set("x0", x, x0, xini);
 					y0 = getResult("Y", x);
-					x2 = x0 - 0.12;
-					y2 = y0 - 0.1;
+					x2 = x0 - 0.12; //shift centre of mass 0.12cm to the left
+					y2 = y0 - 0.1; //to the top
 					toUnscaled(x2, y2);
 					makeRectangle(x2, y2, w, h);
 					roiManager("add");
 				}
-			} else {
+			} else { //if subsequent slices, obtain XY coordinates from rsc
 				roiManager("reset");
 				for(x=0; x<roicount; x++) {
 					zprev = z-1;
-					rowIndex = (zprev*roicount)+x;
+					rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
 					x1 = Table.get("XM", rowIndex, rsc);
 					y1 = Table.get("YM", rowIndex, rsc);
 					toScaled(x1, y1);
+					x0 = Table.get("x0", x, xini);
 					if (x1>x0) {
 						x1=x0;
 					}
-					x2 = x1 - 0.23;
+					
+					Table.set("x0", x, x1, xini); //HASH THIS LINE OUT TO ALWAYS REFER TO X OF FIRST SLICE
+					//RUN LINE ABOVE TO REFER TO X OF PREVIOUS SLICE
+					x2 = x1 - 0.12;
 					y2 = y1 - 0.1;
 					toUnscaled(x2, y2);
 					makeRectangle(x2, y2, w, h);
@@ -301,13 +305,22 @@ function rootStart(subdir) {
 				}
 			}
 		
-			for (x=0; x<roiManager("count"); x++) {
+			for (x=0; x<roiManager("count"); x++) { //for number of rois
 				run("Set Measurements...", "area center display redirect=None decimal=5");
 				roiManager("select", x);
 				run("Analyze Particles...", "display clear summarize slice");
 			
 				count = Table.get("Count", Table.size-1, "Summary of "+img);
 				totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+ 
+				if (count==0) { //firstMask() erased seed (rarely happens)
+					toUnscaled(x1,y1);
+					nr = Table.size(rsc);
+					Table.set("Slice", nr, z+1, rsc);
+					Table.set("ROI", nr, x+1, rsc);
+					Table.set("XM", nr, x1, rsc); //set xm as previous slice
+					Table.set("YM", nr, y1, rsc); //ym as previous slice
+				} else { //erode then analyse particles for xm/ym
 					
 				while (totalarea>0.0015) {
 				roiManager("select", x);
@@ -337,14 +350,22 @@ function rootStart(subdir) {
 					}
 				}
 		
-				if (count==0) {
+				if (count>1) {
+					area = newArray(count);
+					for (v=0; v<count; v++){
+						area[v] = getResult("Area", nResults-(v+1));
+					}
+					areaasc = Array.rankPositions(area);
+					areadesc = Array.invert(areaasc);
+					maxarea = areadesc[0];
+	
+							xm = getResult("XM", nResults-(maxarea+1));
+							ym = getResult("YM", nResults-(maxarea+1));
+				} else {
 					xm = getResult("XM", nResults-1);
 					ym = getResult("YM", nResults-1);
-				} else {
-				xm = getResult("XM", nResults-count);
-				ym = getResult("YM", nResults-count);
 				}
-		
+				
 				toUnscaled(xm, ym);
 		
 				nr = Table.size(rsc);
@@ -352,8 +373,10 @@ function rootStart(subdir) {
 				Table.set("ROI", nr, x+1, rsc);
 				Table.set("XM", nr, xm, rsc);
 				Table.set("YM", nr, ym, rsc);
+				}
 		}
 		}
+		close(xini);
 		close("Results");
 		close("Summary of "+img);
 		close(img);
@@ -387,7 +410,7 @@ function rootStart(subdir) {
 		close();
 		
 		selectWindow(rsc);
-		saveAs("Text", genodir+genoname+"_"+rsc+".xls");
+		saveAs("Results", genodir+genoname+"_"+rsc+".tsv");
 		close(rsc);
 		File.delete(genodir+genoname+"masked.tif");
 	}
@@ -407,7 +430,7 @@ function rootlength(subdir) {
 		//process roots for skeletonization
 		secondMask();
 		rsc = "Root start coordinates";
-		rsc = genoname+"_"+rsc+".xls";
+		rsc = genoname+"_"+rsc+".tsv";
 		open(genodir+rsc);
 		
 		nr = Table.size(rsc);
@@ -466,7 +489,7 @@ function rootlength(subdir) {
 			}
 		}
 		close(bi);
-		Table.save(genodir+platename+" "+genoname+" root analysis.txt", ra);
+		Table.save(genodir+platename+" "+genoname+" root analysis.tsv", ra);
 
 		selectWindow(stack1);
 		roiManager("reset");
@@ -504,11 +527,11 @@ function rootlength(subdir) {
 		
 		saveAs("Tiff", genodir+platename+"_"+genoname+"_rootgrowth.tif");
 		close();
-		//File.delete(genodir+genoname+"seedpositions.zip");
-		//File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
-		//File.delete(genodir+genoname+"_"+"skeletonized.tif");
-		//File.delete(genodir+genoname+"rootstartrois.zip");
-		//File.delete(genodir+rsc);
+		File.delete(genodir+genoname+"seedpositions.zip");
+		File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
+		File.delete(genodir+genoname+"_"+"skeletonized.tif");
+		File.delete(genodir+genoname+"rootstartrois.zip");
+		File.delete(genodir+rsc);
 		
 }
 }
