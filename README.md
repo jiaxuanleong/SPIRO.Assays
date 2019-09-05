@@ -9,7 +9,7 @@ Each assay comprises three major steps:
 
 ## Image processing
 
-[**Registration**](https://github.com/jiaxuanleong/spiro-IJmacros/tree/master/registration)
+[**Preprocessing**](https://github.com/jiaxuanleong/spiro-IJmacros/tree/master/preprocessing)
 
 This macro will process all four folders of a SPIRO experiment.
 
