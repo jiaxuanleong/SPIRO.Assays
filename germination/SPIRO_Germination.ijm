@@ -54,7 +54,7 @@ function cropGroup(subdir) {
 	setBatchMode(false);
 	open(subdir + platename + "_registered.tif");
 	reg = getTitle();
-    waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
+    waitForUser("Create substack", "Please note first and last slice to be included for germination analysis, and indicate it in the next step.");	
 	run("Make Substack...");
 	saveAs("Tiff", subdir + platename + "_germinationsubset.tif");
 	close(reg);
@@ -169,7 +169,7 @@ function seedAnalysis() {
 			roiManager("rename", x+1);
 		}
 
-		run("Set Measurements...", "area perimeter shape stack display redirect=None decimal=3");
+		run("Set Measurements...", "area perimeter stack display redirect=None decimal=3");
 		run("Clear Results");
 
 		for (x=0; x<roiManager("count"); x++) {
@@ -210,10 +210,6 @@ function seedAnalysis() {
 		saveAs("Tiff", genodir + platename + "_" + genoname + "_germination.tif");
 		close();
 		selectWindow("Results");
-		Table.deleteColumn("Circ.");
-		Table.deleteColumn("Solidity");
-		Table.deleteColumn("AR");
-		Table.deleteColumn("Round");
 		saveAs("Results", genodir + platename + " " + genoname + " seed germination analysis.tsv");
 		run("Close");
 	}
