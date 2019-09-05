@@ -54,7 +54,7 @@ function cropGroup(subdir) {
 	setBatchMode(false);
 	open(subdir + platename + "_registered.tif");
 	reg = getTitle();
-    waitForUser("Create substack", "Please scroll to the last slice to be included for germination analysis.");	
+    waitForUser("Create substack", "Please note first and last slice to be included for germination analysis, and indicate it in the next step.");	
 	run("Make Substack...");
 	saveAs("Tiff", subdir + platename + "_germinationsubset.tif");
 	close(reg);
