@@ -102,7 +102,7 @@ function cropGroup(subdir) {
 	setBatchMode(false);
 	open(subdir+platename+"_registered.tif");
 	reg = getTitle();
-	waitForUser("Create substack", "Please note the first and last slice to be included for root length analysis.");	
+	waitForUser("Create substack", "Please note first and last slice to be included for root length analysis, and indicate it in the next step.");	
 	run("Make Substack...");
 	saveAs("Tiff", subdir+platename+"_rootlengthsubset.tif");
 	close(reg);
