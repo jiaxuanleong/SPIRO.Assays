@@ -3,7 +3,7 @@
 These two assays were developed for high-throughput analysis of data acquired by [SPIRO](https://www.alyonaminina.org/spiro), the [Smart Plate Imaging RObot](https://github.com/jonasoh/spiro). The assay were optimized for imaging <i>Arabidopsis thaliana</i> seeds and seedlings, but can be optimized for other species. 
 
 Each assay comprises three major steps:
-1. Image processing using the ImageJ macro `SPIRO_Registration`
+1. Image processing using the ImageJ macro `SPIRO_Preprocessing`
 2. Image analysis using the ImageJ macro `SPIRO_Germination` or `SPIRO_RootGrowth`
 3. Further data analysis using the accompanying R scripts
 
