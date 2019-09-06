@@ -4,7 +4,9 @@
 //plate1-date20190101-time000000-day
 
 //user selection of main directory
+showMessage("Please locate and open your experiment folder.");
 maindir = getDirectory("Choose a Directory ");
+regq = getBoolean("Would you like to carry out drift correction (registration)? \n Please note that this step may take up a lot of time and computer memory for large datasets.")
 list = getFileList(maindir);
 processMain1(maindir);
 
@@ -28,7 +30,9 @@ function processSub1(subdir) {
 	if (i==0)
 	scale();
 	crop();
+	if (regq ==1) {
 	register();
+	}
 	print(i+1 +"/"+list.length + " folders processed.");
 }
 
