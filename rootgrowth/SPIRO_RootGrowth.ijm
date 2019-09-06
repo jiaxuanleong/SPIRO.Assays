@@ -4,6 +4,7 @@
 //plate1-date20190101-time000000-day
 
 //user selection of main directory
+showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
 list = getFileList(maindir);
 processMain1(maindir);
@@ -104,9 +105,8 @@ function cropGroup(subdir) {
 	reg = getTitle();
 	waitForUser("Create substack", "Please note first and last slice to be included for root length analysis, and indicate it in the next step.");	
 	run("Make Substack...");
-	saveAs("Tiff", subdir+platename+"_rootlengthsubset.tif");
+	saveAs("Tiff", subdir+platename+"_rootlengthsubstack.tif");
 	close(reg);
-	open(subdir+platename+"_rootlengthsubset.tif");
 	print("Cropping genotypes/groups in "+platename);
 	run("ROI Manager...");
 	setTool("Rectangle");
@@ -143,7 +143,6 @@ function cropGroup(subdir) {
     	saveAs("Tiff", genodir+roiname+".tif");
     	close();
 	}
-close();
 close();
 print(i+1 +"/"+list.length + " folders processed.");
 }
