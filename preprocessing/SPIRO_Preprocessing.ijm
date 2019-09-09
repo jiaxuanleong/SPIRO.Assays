@@ -6,7 +6,8 @@
 //user selection of main directory
 showMessage("Please locate and open your experiment folder.");
 maindir = getDirectory("Choose a Directory ");
-regq = getBoolean("Would you like to carry out drift correction (registration)? \n Please note that this step may take up a lot of time and computer memory for large datasets.")
+regq = getBoolean("Would you like to carry out drift correction (registration)?\n" +
+				  "Please note that this step may take up a lot of time and computer memory for large datasets.")
 list = getFileList(maindir);
 processMain1(maindir);
 
@@ -14,7 +15,7 @@ processMain1(maindir);
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
 		if (endsWith(list[i], "/")) {
-			subdir = maindir+list[i];
+			subdir = maindir + list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
 			processSub1(subdir);
@@ -23,17 +24,17 @@ function processMain1(maindir) {
 }
 
 function processSub1(subdir) {
-	print("Processing "+ subdir+ "...");
+	print("Processing " + subdir + "...");
 	setBatchMode(false);
-	run("Image Sequence...", "open=["+subdir+sublist[0]+"]+convert sort use");
+	run("Image Sequence...", "open=[" + subdir + sublist[0] + "]+convert sort use");
 	stack1 = getTitle();
-	if (i==0)
+	if (i == 0)
 	scale();
 	crop();
-	if (regq ==1) {
-	register();
+	if (regq == 1) {
+		register();
 	}
-	print(i+1 +"/"+list.length + " folders processed.");
+	print(i+1 + "/" + list.length + " folders processed.");
 }
 
 
@@ -42,10 +43,10 @@ function scale() {
 	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
 	setTool("line");
 	run("Set Measurements...", "area bounding display redirect=None decimal=3");
-	waitForUser("Setting the scale. Please zoom in on the scale bar and hold the SHIFT key while drawing a line corresponding to 1cm.");
+	waitForUser("Setting the scale. Please zoom in on the scale bar and hold the SHIFT key while drawing a line corresponding to 1 cm.");
 	run("Measure");
 	length = getResult('Length', nResults-1);
-	while (length==0 || isNaN(length)) {
+	while (length == 0 || isNaN(length)) {
         waitForUser("Line selection required.");
         run("Measure");
 		length = getResult('Length', nResults-1);
@@ -57,7 +58,7 @@ function scale() {
 			angle  = getResult('Angle', nResults-1);
 	}
 	Table.rename("Results", "Positions");
-	waitForUser("1cm corresponds to " + length + " pixels. Click OK if correct.");
+	waitForUser("1 cm corresponds to " + length + " pixels. Click OK if correct.");
 	run("Set Scale...","distance="+length+" known=1 unit=cm global");
 	}
 
@@ -87,17 +88,15 @@ function register() {
 	run("Duplicate...", "duplicate");
 	stack2 = getTitle();
 	run("Subtract Background...", "rolling=30 stack");
-	tfn = subdir+"/Transformation Matrices/";
-	run("MultiStackReg", "stack_1="+stack2+" action_1=Align file_1="+tfn+" stack_2=None action_2=Ignore file_2=[] transformation=Translation save");
+	tfn = subdir + "/Transformation Matrices/";
+	run("MultiStackReg", "stack_1=" + stack2 + " action_1=Align file_1=" + tfn + " stack_2=None action_2=Ignore file_2=[] transformation=Translation save");
 	close(stack2);
-	run("MultiStackReg", "stack_1="+stack1+" action_1=[Load Transformation File] file_1="+tfn+" stack_2=None action_2=Ignore file_2=[] transformation=[Translation]");
+	run("MultiStackReg", "stack_1=" + stack1 + " action_1=[Load Transformation File] file_1=" + tfn + " stack_2=None action_2=Ignore file_2=[] transformation=[Translation]");
 	selectWindow(stack1);
-	saveAs("Tiff", subdir+platename+"_registered.tif");
+	saveAs("Tiff", subdir + platename + "_registered.tif");
 	run("Z Project...", "projection=[Standard Deviation]");
 	zproj = getTitle();
-	saveAs("Tiff", subdir+platename+"Z-Projection.tif");
+	saveAs("Tiff", subdir + platename + "Z-Projection.tif");
 	close();
 	close();
 }
-
-
