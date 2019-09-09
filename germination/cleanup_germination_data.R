@@ -126,7 +126,7 @@ if (.Platform$OS.type == 'unix') {
   dir <- choose.dir(getwd(), "Choose folder to process")
 }
 
-# get all .txt files in the directory
+# get all matching .tsv files in the directory
 files <- list.files(path = dir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
 allout <- NULL
