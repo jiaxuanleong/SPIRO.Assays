@@ -21,27 +21,31 @@ minus <- function(vals) {
 
 processfile <- function(file) {
   r <- read.delim(file, stringsAsFactors=FALSE)
+  b <- basename(f)
+  GID <- paste0(unlist(strsplit(b, ' ', fixed=TRUE))[1], '_', unlist(strsplit(b, ' ', fixed=TRUE))[2])
+  r$GID <- GID
   unlist(strsplit(r$Slice.name, '-', fixed=TRUE)) -> params
   r$date <- as.POSIXct(strptime(paste0(params[seq(2, length(params), 4)], params[seq(3, length(params), 4)]), format='%Y%m%d%H%M%S'))
   r$PR <- FALSE
   rawfile <<- r
+  r$UID <- paste0(GID, '_', r$ROI)
   # check if root coords match primary x/y and set PR variable accordingly
   r$PR[abs(r$Primary.X - r$V1.x) < pixel_radius & abs(r$Primary.Y - r$V1.y) < pixel_radius] <- TRUE
   r$PR[abs(r$Primary.X - r$V2.x) < pixel_radius & abs(r$Primary.Y - r$V2.y) < pixel_radius] <- TRUE
 
   # add elapsed times
-  r %>% group_by(ROI) %>%
+  r %>% group_by(UID) %>%
     arrange(date) %>%
     mutate(elapsed=elapsed(date[1], date)) -> r
   step1 <<- r
   
   # the entire skeleton is a PR if any branch is a PR
-  r %>% group_by(ROI, elapsed, Skeleton.ID) %>%
+  r %>% group_by(UID, elapsed, Skeleton.ID) %>%
     mutate(PR = max(PR)) -> r
   
   r %>% filter(PR == TRUE) %>%
-    group_by(ROI, date) %>%
-    summarize(Branches = n(), Skeletons = length(unique(Skeleton.ID)), BranchLength = sum(Branch.length), elapsed=elapsed[1]) -> r
+    group_by(UID, date) %>%
+    summarize(Branches = n(), GID = GID[1], Skeletons = length(unique(Skeleton.ID)), BranchLength = sum(Branch.length), elapsed=elapsed[1]) -> r
   # r %>% group_by(ROI, date, Skeleton.ID) %>%
   #   filter(PR == TRUE) %>%
   #   filter(Branch.length == max(Branch.length)) %>%
@@ -52,19 +56,19 @@ processfile <- function(file) {
   r$BranchLength[r$Skeletons > 1] <- NA
   
   r %>% arrange(elapsed) %>%
-    group_by(ROI) %>%
+    group_by(UID) %>%
     mutate(mabl=rollapply(BranchLength, 10, mean, na.rm=T, align="right", fill=NA)) %>%
     filter(BranchLength > mabl) -> r
   
   # add difference to previous
-  r$diff <- ave(r$BranchLength, r$ROI, FUN=function(x) c(0, diff(x)))
+  r$diff <- ave(r$BranchLength, r$UID, FUN=function(x) c(0, diff(x)))
   r$pctchange <- r$diff / r$BranchLength
   step3 <<- r
 
   r[abs(r$diff) > 0.5,] -> suspects
   for (i in seq(1, length(suspects))) {
     s <- suspects[i,]
-    r$BranchLength[r$ROI == s$ROI & r$elapsed >= s$elapsed] <- NA
+    r$BranchLength[r$UID == s$UID & r$elapsed >= s$elapsed] <- NA
   }
   step4 <<- r
   return(r)
@@ -84,7 +88,7 @@ allout <- NULL
 
 for (f in files) {
   out <- processfile(f)
-  allout <- c(allout, out)
+  allout <- rbind(allout, out)
 }
 
 write.table(allout, file=paste0(dir, "root-output.tsv"), sep='\t', row.names=FALSE)
