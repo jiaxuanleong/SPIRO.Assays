@@ -370,7 +370,7 @@ function rootStart(subdir) {
 				Table.create(xref);
 				for(x=0; x<roicount; x++) {
 					xm0 = getResult("X", x); //xm0 is xm of initial seed
-					xlb = xm0 - 0.5;
+					xlb = xm0 - 0.1;
 					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.5cm to the left of initial xm
 					Table.set("xrb", x, xm0, xref); //x (right border) cannot be more than xm0
 					y0 = getResult("Y", x);
@@ -537,22 +537,31 @@ function rootlength(subdir) {
 		nr = Table.size(rsc);
 		roicount = nr/nSlices;
 		roiManager("reset");
+		roih = "ROI Heights";
+		Table.create(roih);
+		for (x=0; x<roicount; x++) {
+			setSlice(1);
+			roino = Table.get("ROI", x, rsc);
+			xm1 = Table.get("XM", x, rsc);
+			ym1 = Table.get("YM", x, rsc);
+			if (roino<roicount) {
+			ym2 = Table.get("YM", x+1, rsc);
+			y2 = 0.6*(ym2-ym1)+ym1;
+			h = 2*(y2-ym1); //height of ROI is distance to next seed *0.6 *2
+			Table.set("ROI height", x, h, roih);
+			} else { //if last ROI, no distance to next seed, copy last height
+			Table.set("ROI height", x, h, roih); 
+			}
+		}
 		for (x=0; x<nr; x++){
 			slice = Table.get("Slice", x, rsc);
 			roino = Table.get("ROI", x, rsc);
 			xm1 = Table.get("XM", x, rsc);
 			ym1 = Table.get("YM", x, rsc);
+			h = Table.get("ROI height", roino-1, roih); 
 			setSlice(slice);
-			if (roino == roicount) {
-				y1 = ym1 - (0.5*h);
-				makeRectangle(0, y1, xm1, h);
-			} else {
-				ym2 = Table.get("YM", x+1, rsc);
-				y2 = 0.6*(ym2-ym1)+ym1;
-				h = 2*(y2-ym1);
-				y1 = ym1 - (0.5*h);
-				makeRectangle(0, y1, xm1, h);
-			}
+			y1 = ym1 - (0.5*h);
+			makeRectangle(0, y1, xm1, h);
 			roiManager("add");
 			roiManager("select", x);
 			roiManager("rename", roino);
@@ -563,7 +572,8 @@ function rootlength(subdir) {
 		roiManager("select", x);
 		roino = Roi.getName;
 		run("Duplicate...", "use");
-		temp=getTitle();
+		temp = getTitle();
+		sliceno = getSliceNumber();
 		halfy = 0.5*getHeight();
 		fullx = getWidth();
 		run("Set Measurements...", "display redirect=None decimal=3");
@@ -581,6 +591,7 @@ function rootlength(subdir) {
 		for (z=0; z<Table.size(bi); z++) {
 			rar = Table.size(ra);
 			Table.set("Slice name", rar, temp, ra);
+			Table.set("Slice no.", rar, sliceno, ra);			
 			Table.set("ROI", rar, roino, ra);
 			id = Table.get("Skeleton ID", z, bi);
 			Table.set("Skeleton ID", rar, id, ra);
@@ -654,13 +665,15 @@ function rootlength(subdir) {
 //PART3 creates a binary mask for roots and reduces noise
 function secondMask() {
 	run("8-bit");
-	run("Subtract Background...", "rolling=5 stack");
+	run("Subtract Background...", "rolling=15 stack");
 	run("Enhance Contrast...", "saturated=0.2 normalize process_all");
 	setAutoThreshold("MaxEntropy dark");
 	setOption("BlackBackground", false);
 	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
 	run("Options...", "iterations=1 count=1 pad do=Dilate stack");
+	run("Remove Outliers...", "radius=2 threshold=1 which=Dark stack");
 	run("Options...", "iterations=3 count=1 pad do=Close stack");
+	run("Remove Outliers...", "radius=4 threshold=1 which=Dark stack");
 	run("Remove Outliers...", "radius=4 threshold=1 which=Dark stack");
 	run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 }
