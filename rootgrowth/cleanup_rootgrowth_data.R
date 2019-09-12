@@ -91,4 +91,4 @@ for (f in files) {
   allout <- rbind(allout, out)
 }
 
-write.table(allout, file=paste0(dir, "root-output.tsv"), sep='\t', row.names=FALSE)
+write.table(allout, file=paste0(dir, "/root-output.tsv"), sep='\t', row.names=FALSE)
