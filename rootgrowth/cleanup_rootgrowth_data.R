@@ -45,7 +45,11 @@ processfile <- function(file) {
   
   r %>% filter(PR == TRUE) %>%
     group_by(UID, date) %>%
-    summarize(Branches = n(), GID = GID[1], Skeletons = length(unique(Skeleton.ID)), BranchLength = sum(Branch.length), elapsed=elapsed[1]) -> r
+    summarize(Branches = n(), GID = GID[1], 
+              Skeletons = length(unique(Skeleton.ID)), 
+              BranchLength = sum(Branch.length), 
+              elapsed=elapsed[1],
+              SliceNo = Slice.no.[1]) -> r
   # r %>% group_by(ROI, date, Skeleton.ID) %>%
   #   filter(PR == TRUE) %>%
   #   filter(Branch.length == max(Branch.length)) %>%
@@ -99,3 +103,7 @@ for (f in files) {
 }
 
 write.table(allout, file=paste0(dir, "/root-output.tsv"), sep='\t', row.names=FALSE)
+write.table(step1, file=paste0(dir, "/step1.tsv"), sep='\t', row.names=FALSE)
+write.table(step2, file=paste0(dir, "/step2.tsv"), sep='\t', row.names=FALSE)
+write.table(step3, file=paste0(dir, "/step3.tsv"), sep='\t', row.names=FALSE)
+write.table(step4, file=paste0(dir, "/step4.tsv"), sep='\t', row.names=FALSE)
