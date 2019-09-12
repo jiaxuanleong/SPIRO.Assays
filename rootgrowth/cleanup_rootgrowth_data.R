@@ -66,9 +66,16 @@ processfile <- function(file) {
   step3 <<- r
 
   r[abs(r$diff) > 0.5,] -> suspects
-  for (i in seq(1, length(suspects))) {
-    s <- suspects[i,]
-    r$BranchLength[r$UID == s$UID & r$elapsed >= s$elapsed] <- NA
+
+  if (length(suspects$UID) > 0) {
+    suspects %>%
+      group_by(UID) %>%
+      summarize(elapsed=min(elapsed)) -> suspects
+    for (i in seq(1, length(suspects$UID))) {
+      s <- suspects[i,]
+      print(paste0('Removing anomalous value from UID ', s$UID, ' at timepoint ', s$elapsed))
+      r$BranchLength[r$UID == s$UID & r$elapsed >= s$elapsed] <- NA
+    }
   }
   step4 <<- r
   return(r)
