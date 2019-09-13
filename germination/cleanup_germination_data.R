@@ -137,7 +137,9 @@ for (f in files) {
   allout <- rbind(allout, out)
 }
 
-allout <- select(allout, -X.1)
+if ("X.1" %in% names(allout)) {
+  allout <- select(allout, -X.1)
+}
 
 write.table(allout, file=paste0(dir, "/germination.postQC.tsv"), sep='\t', row.names=F)
 print(paste0("Saving cleaned and collated data to '", dir, "/germination.postQC.tsv", "'. Please edit that file to set up correct grouping for your experiment."))
