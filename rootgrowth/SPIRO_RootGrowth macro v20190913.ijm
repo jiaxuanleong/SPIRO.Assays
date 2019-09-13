@@ -186,9 +186,10 @@ function seedPosition(subdir) {
 				for (x=0; x<nResults; x++) {
 				selectWindow("Results");
 				area = getResult("Area", x);
-					if (area<0.0012) {
+					if (area<0.0008 || area>0.01) {
 						Table.set("Trash ROI", Table.size(tp), x, tp);
 					}
+				
 				}
 			
 				
@@ -245,7 +246,7 @@ function firstMask() {
 	run("Convert to Mask", "method=MaxEntropy background=Dark");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
     run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-    run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
+    //run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
 
 function sdlingf() {
@@ -571,9 +572,9 @@ function rootlength(subdir) {
 		selectWindow(stack1);
 		roiManager("select", x);
 		roino = Roi.getName;
+		sliceno = getSliceNumber();
 		run("Duplicate...", "use");
 		temp = getTitle();
-		sliceno = getSliceNumber();
 		halfy = 0.5*getHeight();
 		fullx = getWidth();
 		run("Set Measurements...", "display redirect=None decimal=3");
