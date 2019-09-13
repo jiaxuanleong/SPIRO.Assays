@@ -182,17 +182,23 @@ function seedAnalysis() {
 
 		roiManager("Show All");
 		roiManager("Show All with labels");
+		run("Labels...", "color=white font=18 show use draw");
 		run("Flatten", "stack");
 		run("Rotate 90 Degrees Left");
 
 		selectWindow(stack2);
 		run("RGB Color");
 		setBatchMode(true);
-
+//determine the frame size to orient combining stacks horizontally or vertically
 		xmax = getWidth;
+		ymax = getHeight;
+		framesize=xmax/ymax; 
+		
 
 		for (x = 0; x < nSlices; x++) {
+			
 			slicelabel = getMetadata("Label");
+			if (framesize > 1) {
 			newImage("Slice label", "RGB Color", xmax, 50, 1);
 			setFont("SansSerif", 20, " antialiased");
 			makeText(slicelabel, 0, 0);
@@ -201,12 +207,29 @@ function seedAnalysis() {
 			selectWindow(stack2);
 			run("Next Slice [>]");
 		}
+		if (framesize < 1) {
+			newImage("Slice label", "RGB Color", 2*xmax, 50, 1);
+			setFont("SansSerif", 20, " antialiased");
+			makeText(slicelabel, 0, 0);
+			setForegroundColor(0, 0, 0);
+			run("Draw", "slice");
+			selectWindow(stack2);
+			run("Next Slice [>]");
+		}
+}
 
 		run("Images to Stack");
 		label = getTitle();
-
+        if (framesize > 1) {
 		run("Combine...", "stack1=[" + stack2 + "] stack2=[" + stack1 + "] combine");
 		run("Combine...", "stack1=[Combined Stacks] stack2=[" + label + "] combine");
+		}
+		if (framesize < 1) {
+		run("Combine...", "stack1=[" + stack2 + "] stack2=[" + stack1 + "]");
+		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
+		}
+
+
 
 		saveAs("Tiff", genodir + platename + "_" + genoname + "_germination.tif");
 		close();
