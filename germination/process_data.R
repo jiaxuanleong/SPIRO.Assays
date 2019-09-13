@@ -21,7 +21,7 @@ if (.Platform$OS.type == 'unix') {
   dir <- choose.dir(getwd(), "Choose folder containing germination.postQC.tsv")
 }
 
-data <- read.table(paste0(dir, "/output.tsv"), header=T)
+data <- read.table(paste0(dir, "/germination.postQC.tsv"), header=T)
 
 data$dPerim <- data$ddPerim <- 0
 data$Germinated <- 0
