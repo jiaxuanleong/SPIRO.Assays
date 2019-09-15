@@ -44,7 +44,7 @@ function processSubdir(subdir) {
 	scale();
 	crop();
 	if (regq) {
-	    register(segmented = false);
+	    register(false);
 	} else {
 		selectWindow(stack1);
 		saveAs("Tiff", subdir + platename + "_unregistered.tif");
@@ -84,7 +84,7 @@ function processSubdirSegmented(subdir) {
 		}
 		crop();
 		if (regq) {
-			register(segmented = true);
+			register(true);
 		} else {
 			selectWindow(stack1);
 			saveAs("Tiff", subdir + platename + "_segment" + x+1 + "_unregistered.tif");
