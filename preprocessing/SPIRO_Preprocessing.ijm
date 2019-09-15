@@ -44,10 +44,10 @@ function processSubdir(subdir) {
 	scale();
 	crop();
 	if (regq) {
-	    register(false);
+        register(false);
 	} else {
 		selectWindow(stack1);
-		saveAs("Tiff", subdir + platename + "_unregistered.tif");
+		saveAs("Tiff", subdir + platename + "_preprocessed.tif");
 	}
 	print(i+1 + "/" + list.length + " folders processed.");
 }
@@ -87,7 +87,7 @@ function processSubdirSegmented(subdir) {
 			register(true);
 		} else {
 			selectWindow(stack1);
-			saveAs("Tiff", subdir + platename + "_segment" + x+1 + "_unregistered.tif");
+			saveAs("Tiff", subdir + platename + "_segment" + x+1 + "_preprocessed.tif");
 			close();
 		}
 	}
@@ -109,11 +109,11 @@ function processSubdirSegmented(subdir) {
 	}
 	selectWindow("Untitled");
 	if(regq) {
-        saveAs("Tiff", subdir + platename + "_registered.tif");
-        close(platename + "_registered.tif");
+        saveAs("Tiff", subdir + platename + "_preprocessed.tif");
+        close(platename + "_preprocessed.tif");
 	} else {
-		saveAs("Tiff", subdir + platename + "_unregistered.tif");
-		close(platename + "_unregistered.tif");
+		saveAs("Tiff", subdir + platename + "_preprocessed.tif");
+		close(platename + "_preprocessed.tif");
 	}
 	for (x=0; x<sublist.length; x++) {
 		if (indexOf(sublist[x], "segment") > 0)
@@ -138,7 +138,7 @@ function scale() {
             length = getResult('Length', nResults - 1);
         }
         angle  = getResult('Angle', nResults - 1);
-        while (angle != 0) {
+        while (angle != 0 && angle != 180) {
             waitForUser("Line must not be at an angle.");
             run("Measure");
             angle  = getResult('Angle', nResults - 1);
@@ -181,22 +181,23 @@ function register(segmented) {
         run("8-bit");
         //stick first time point to stack, to enable more accurate registration for later time points
         run("Concatenate...", "  image1=[" + tempini + "] image2=[" + stack1 + "]");
-	}
-	run("8-bit");
-	run("Duplicate...", "duplicate");
-	stack2 = getTitle();
-	run("Subtract Background...", "rolling=30 stack");
-	tfn = subdir + "/Transformation Matrices/";
-	run("MultiStackReg", "stack_1=" + stack2 + " action_1=Align file_1=" + tfn +
-	    " stack_2=None action_2=Ignore file_2=[] transformation=Translation save");
-	close(stack2);
-	run("MultiStackReg", "stack_1=" + stack1 + " action_1=[Load Transformation File] file_1=" +
-	    tfn + " stack_2=None action_2=Ignore file_2=[] transformation=[Translation]");
-	selectWindow(stack1);
-	saveAs("Tiff", subdir + platename + "_registered.tif");
-	if (segmented) {
+        stack1 = getTitle();
+    }
+    run("8-bit");
+    run("Duplicate...", "duplicate");
+    stack2 = getTitle();
+    run("Subtract Background...", "rolling=30 stack");
+    tfn = subdir + "/Transformation Matrices/";
+    run("MultiStackReg", "stack_1=" + stack2 + " action_1=Align file_1=" + tfn +
+        " stack_2=None action_2=Ignore file_2=[] transformation=Translation save");
+    close(stack2);
+    run("MultiStackReg", "stack_1=" + stack1 + " action_1=[Load Transformation File] file_1=" + tfn +
+        " stack_2=None action_2=Ignore file_2=[] transformation=[Translation]");
+    selectWindow(stack1);
+    saveAs("Tiff", subdir + platename + "_preprocessed.tif");
+    if (segmented) {
         run("Slice Remover", "first=1 last=1 increment=1"); //remove temporary first slice
-        saveAs("Tiff", subdir + platename + "_segment" + x+1 + "_registered.tif");
-	}
-	close();
+        saveAs("Tiff", subdir + platename + "_segment" + x+1 + "_preprocessed.tif");
+    }
+    close();
 }
