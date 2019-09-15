@@ -30,6 +30,11 @@ data$pav <- groups <- uids <- perims <- NULL
 for(uid in unique(data$UID)) {
   # ds = data subset
   ds <- subset(data, UID == uid)
+  
+  if (nrow(ds) < lookahead_slices + 4) {
+    print(paste0("Too few data points for UID ", uid, ", removing from analysis."))
+    next
+  }
 
   # seed size is average of first 5 slices
   seedsize <- mean(ds$`Perim.`[1:5])
