@@ -11,13 +11,6 @@ list = getFileList(maindir);
 segmentsize = 350;
 processMain1(maindir);
 
-list = getList("window.titles"); 
-     for (i=0; i<list.length; i++){ 
-     winame = list[i]; 
-     selectWindow(winame); 
-     run("Close"); 
-     }
-
 ///set up recursive processing of a main directory which contains multiple subdirectories   
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
@@ -125,8 +118,7 @@ function register() {
 function processSub12(subdir) {
 	setBatchMode(false);
 	print("Processing "+ subdir+ "...");
-	if (i==0)
-	showMessage(sublist.length+" time points detected. Images will be preprocessed in batches of "+segmentsize+" to reduce RAM requirement.");
+	showMessage(sublist.length+" time points detected. Preprocessing will be done in segments of "+segmentsize+" to reduce RAM requirement.");
 	numloops = sublist.length/segmentsize; // number of loops
 	
 	rnl = round(numloops); //returns closest integer
@@ -137,13 +129,13 @@ function processSub12(subdir) {
 	}
 	
 	for (x=0; x<numloops; x++) {
-		print("Processing batch "+x+1);
-		initial = x*segmentsize+1;
+		print("Processing segment "+x+1);
+		initial = x*segmentsize;
 		if (x==numloops-1) {//on last loop
-			lastno = sublist.length-initial+1; //open only the number of images left
-			run("Image Sequence...", "open=["+subdir+sublist[0]+"] number=["+lastno+"] starting=["+initial+"] convert sort use");
+			lastno = sublist.length-initial; //open only the number of images left
+			run("Image Sequence...", "open=["+subdir+sublist[initial]+"] number=["+lastno+"] convert sort use");
 		} else {
-		run("Image Sequence...", "open=["+subdir+sublist[0]+"] number=["+segmentsize+"] starting=["+initial+"] convert sort use");
+		run("Image Sequence...", "open=["+subdir+sublist[initial]+"] number=["+segmentsize+"] convert sort use");
 		}
 		stack1 = getTitle();
 		if (x==0) {
