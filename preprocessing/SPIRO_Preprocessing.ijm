@@ -175,12 +175,12 @@ function crop() {
 function register(segmented) {
     print("Registering...");
     if (segmented) {
-        open(subdir+sublist[0]); //open first time point
+        open(subdir + sublist[0]); //open first time point
         crop();
         tempini = getTitle();
         run("8-bit");
         //stick first time point to stack, to enable more accurate registration for later time points
-        run("Concatenate...", "  image1=["+tempini+"] image2=["+stack1+"]");
+        run("Concatenate...", "  image1=[" + tempini + "] image2=[" + stack1 + "]");
 	}
 	run("8-bit");
 	run("Duplicate...", "duplicate");
@@ -196,7 +196,7 @@ function register(segmented) {
 	saveAs("Tiff", subdir + platename + "_registered.tif");
 	if (segmented) {
         run("Slice Remover", "first=1 last=1 increment=1"); //remove temporary first slice
-        saveAs("Tiff", subdir+platename+"_segment"+x+1+"_registered.tif");
+        saveAs("Tiff", subdir + platename + "_segment" + x+1 + "_registered.tif");
 	}
 	close();
 }
