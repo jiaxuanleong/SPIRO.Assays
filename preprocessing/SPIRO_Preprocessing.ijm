@@ -9,7 +9,7 @@ maindir = getDirectory("Choose a Directory");
 regq = getBoolean("Would you like to carry out drift correction (registration)?\n" +
     "Please note that this step may take up a lot of time and computer memory for large datasets.")
 list = getFileList(maindir);
-segmentsize = 2;
+segmentsize = 350;
 processMain1(maindir);
 
 list = getList("window.titles");
