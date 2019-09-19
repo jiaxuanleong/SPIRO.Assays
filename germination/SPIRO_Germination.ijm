@@ -177,9 +177,9 @@ function seedAnalysis() {
 			roiManager("select", x);
 			run("Analyze Particles...", "size=0-Infinity show=Nothing display stack");
 		}
-
+		
+//Visualize detected seed positions on the first time point of the binary masks stack 
 		selectWindow(stack1);
-
 		roiManager("Show All");
 		roiManager("Show All with labels");
 		run("Labels...", "color=white font=18 show use draw");
@@ -189,16 +189,15 @@ function seedAnalysis() {
 		selectWindow(stack2);
 		run("RGB Color");
 		setBatchMode(true);
-//determine the frame size to orient combining stacks horizontally or vertically
+//Determine the cropped frame proportions to orient combining stacks horizontally or vertically
 		xmax = getWidth;
 		ymax = getHeight;
-		framesize=xmax/ymax; 
+		frameproportions=xmax/ymax; 
 		
-
+//Add label to each slice (time point). The window width for label is determined by frame proportions 
 		for (x = 0; x < nSlices; x++) {
-			
 			slicelabel = getMetadata("Label");
-			if (framesize > 1) {
+			if (frameproportions > 1) {
 			newImage("Slice label", "RGB Color", xmax, 50, 1);
 			setFont("SansSerif", 20, " antialiased");
 			makeText(slicelabel, 0, 0);
@@ -207,7 +206,7 @@ function seedAnalysis() {
 			selectWindow(stack2);
 			run("Next Slice [>]");
 		}
-		if (framesize < 1) {
+		if (frameproportions < 1) {
 			newImage("Slice label", "RGB Color", 2*xmax, 50, 1);
 			setFont("SansSerif", 20, " antialiased");
 			makeText(slicelabel, 0, 0);
@@ -218,13 +217,14 @@ function seedAnalysis() {
 		}
 }
 
+//Combine the cropped photos and masks with labels into one time-lapse stack. Combine vertically or horizontally depending on the frame proportions
 		run("Images to Stack");
 		label = getTitle();
-        if (framesize > 1) {
+        if (frameproportions > 1) {
 		run("Combine...", "stack1=[" + stack2 + "] stack2=[" + stack1 + "] combine");
 		run("Combine...", "stack1=[Combined Stacks] stack2=[" + label + "] combine");
 		}
-		if (framesize < 1) {
+		if (frameproportions < 1) {
 		run("Combine...", "stack1=[" + stack2 + "] stack2=[" + stack1 + "]");
 		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
 		}
