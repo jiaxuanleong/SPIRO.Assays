@@ -592,7 +592,7 @@ function rootlength(subdir) {
 		for (z=0; z<Table.size(bi); z++) {
 			rar = Table.size(ra);
 			Table.set("Slice name", rar, temp, ra);
-			Table.set("Slice no.", rar, sliceno, ra);			
+			Table.set("Slice no.", rar, sliceno, ra);	
 			Table.set("ROI", rar, roino, ra);
 			id = Table.get("Skeleton ID", z, bi);
 			Table.set("Skeleton ID", rar, id, ra);
@@ -627,31 +627,54 @@ function rootlength(subdir) {
 		run("Rotate 90 Degrees Left");
 		saveAs("Tiff", genodir+genoname+"_"+"skeletonized.tif");
 		stack1 = getTitle();
-		xmax = getWidth;
 		nS = nSlices;
-
+//Determine the cropped frame proportions to orient combining stacks horizontally or vertically
+		xmax = getWidth;
+		ymax = getHeight;
+		frameproportions=xmax/ymax; 
+		
+//Add label to each slice (time point). The window width for label is determined by frame proportions 
 		for (x = 0; x < nS; x++) {
 			selectWindow(stack1);
 			setSlice(x+1);
 			slicelabel = getMetadata("Label");
+			if (frameproportions > 1) {
 			newImage("Slice label", "RGB Color", xmax, 50, 1);
 			setFont("SansSerif", 20, " antialiased");
 			makeText(slicelabel, 0, 0);
 			setForegroundColor(0, 0, 0);
 			run("Draw", "slice");
-		}
+			selectWindow(stack1);
+			run("Next Slice [>]");
+		 }
 		
+		if (frameproportions < 1) {
+			newImage("Slice label", "RGB Color", 2*xmax, 50, 1);
+			setFont("SansSerif", 20, " antialiased");
+			makeText(slicelabel, 0, 0);
+			setForegroundColor(0, 0, 0);
+			run("Draw", "slice");
+			selectWindow(stack1);
+			run("Next Slice [>]");
+		}
+}
+//Combine the cropped photos and binary masks with labels into one time-lapse stack. Combine vertically or horizontally depending on the frame proportions
 		run("Images to Stack");
 		label = getTitle();
-		
 		open(genodir+genoname+"_"+"rootstartlabelled.tif");
 		rsl = getTitle();
 		
+		if (frameproportions > 1) {
 		run("Combine...", "stack1=["+rsl+"] stack2=["+stack1+"] combine");
 		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
-		
+		}
+		if (frameproportions < 1) {
+		run("Combine...", "stack1=["+rsl+"] stack2=["+stack1+"]");
+		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
+		}
 		saveAs("Tiff", genodir+platename+"_"+genoname+"_rootgrowth.tif");
 		close();
+//Delete temporary files used for analysis
 		File.delete(genodir+genoname+"seedpositions.zip");
 		File.delete(genodir+genoname+"initialpositions.zip");
 		File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
