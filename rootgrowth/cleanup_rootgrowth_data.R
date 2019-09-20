@@ -32,7 +32,7 @@ processfile <- function(file) {
   # check if root coords match primary x/y and set PR variable accordingly
   r$PR[abs(r$Primary.X - r$V1.x) < pixel_radius & abs(r$Primary.Y - r$V1.y) < pixel_radius] <- TRUE
   r$PR[abs(r$Primary.X - r$V2.x) < pixel_radius & abs(r$Primary.Y - r$V2.y) < pixel_radius] <- TRUE
-
+  
   # add elapsed times
   r %>% group_by(UID) %>%
     arrange(date) %>%
@@ -50,27 +50,28 @@ processfile <- function(file) {
               BranchLength = sum(Branch.length), 
               elapsed=elapsed[1],
               SliceNo = Slice.no.[1]) -> r
-  # r %>% group_by(ROI, date, Skeleton.ID) %>%
-  #   filter(PR == TRUE) %>%
-  #   filter(Branch.length == max(Branch.length)) %>%
-  #   mutate(n=n(), maxlength = max(Branch.length)) -> r
-  step2 <<- r
-  
-  # remove data points with several PR's
-  r$BranchLength[r$Skeletons > 1] <- NA
   
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
-    mutate(mabl=rollapply(BranchLength, 10, mean, na.rm=T, align="right", fill=NA)) %>%
-    filter(BranchLength > mabl) -> r
+    mutate(mablleft=rollapply(BranchLength, 5, mean, na.rm=T, align="right", fill=NA), 
+           mablright=rollapply(BranchLength, 5, mean, na.rm=T, align="left", fill=NA)) -> r
+  
+  step2 <<- r
+  
+  # remove data points with several PR's
+  r %>% filter(Skeletons == 1) -> r
+  
+  step2.5 <<- r
+  
+  r %>% filter(mablright > mablleft) -> r
   
   # add difference to previous
   r$diff <- ave(r$BranchLength, r$UID, FUN=function(x) c(0, diff(x)))
   r$pctchange <- r$diff / r$BranchLength
   step3 <<- r
-
+  
   r[abs(r$diff) > 0.5,] -> suspects
-
+  
   if (length(suspects$UID) > 0) {
     suspects %>%
       group_by(UID) %>%
