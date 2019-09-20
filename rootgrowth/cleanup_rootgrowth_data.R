@@ -19,6 +19,8 @@ minus <- function(vals) {
   return(vals[2] - vals[1])
 }
 
+step1 <<- step2 <<- step2.5 <<- step3 <<- step4 <<- NULL
+
 processfile <- function(file) {
   r <- read.delim(file, stringsAsFactors=FALSE)
   b <- basename(f)
@@ -37,7 +39,7 @@ processfile <- function(file) {
   r %>% group_by(UID) %>%
     arrange(date) %>%
     mutate(elapsed=elapsed(date[1], date)) -> r
-  step1 <<- r
+  step1 <<- rbind(step1, r)
   
   # the entire skeleton is a PR if any branch is a PR
   r %>% group_by(UID, elapsed, Skeleton.ID) %>%
@@ -56,19 +58,19 @@ processfile <- function(file) {
     mutate(mablleft=rollapply(BranchLength, 5, mean, na.rm=T, align="right", fill=NA), 
            mablright=rollapply(BranchLength, 5, mean, na.rm=T, align="left", fill=NA)) -> r
   
-  step2 <<- r
+  step2 <<- rbind(step2, r)
   
   # remove data points with several PR's
   r %>% filter(Skeletons == 1) -> r
   
-  step2.5 <<- r
+  step2.5 <<- rbind(step2.5, r)
   
   r %>% filter(mablright > mablleft) -> r
   
   # add difference to previous
   r$diff <- ave(r$BranchLength, r$UID, FUN=function(x) c(0, diff(x)))
   r$pctchange <- r$diff / r$BranchLength
-  step3 <<- r
+  step3 <<- rbind(step3, r)
   
   r[abs(r$diff) > 0.5,] -> suspects
   
@@ -82,7 +84,9 @@ processfile <- function(file) {
       r$BranchLength[r$UID == s$UID & r$elapsed >= s$elapsed] <- NA
     }
   }
-  step4 <<- r
+
+  step4 <<- rbind(step4, r)
+
   return(r)
 }
 
