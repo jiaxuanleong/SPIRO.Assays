@@ -50,19 +50,20 @@ processfile <- function(file) {
               BranchLength = sum(Branch.length), 
               elapsed=elapsed[1],
               SliceNo = Slice.no.[1]) -> r
-  # r %>% group_by(ROI, date, Skeleton.ID) %>%
-  #   filter(PR == TRUE) %>%
-  #   filter(Branch.length == max(Branch.length)) %>%
-  #   mutate(n=n(), maxlength = max(Branch.length)) -> r
+
+  r %>% arrange(elapsed) %>%
+    group_by(UID) %>%
+    mutate(mablleft=rollapply(BranchLength, 5, mean, na.rm=T, align="right", fill=NA), 
+           mablright=rollapply(BranchLength, 5, mean, na.rm=T, align="left", fill=NA)) -> r
+
   step2 <<- r
   
   # remove data points with several PR's
-  r$BranchLength[r$Skeletons > 1] <- NA
+  r %>% filter(Skeletons == 1) -> r
+
+  step2.5 <<- r
   
-  r %>% arrange(elapsed) %>%
-    group_by(UID) %>%
-    mutate(mabl=rollapply(BranchLength, 10, mean, na.rm=T, align="right", fill=NA)) %>%
-    filter(BranchLength > mabl) -> r
+  r %>% filter(mablright > mablleft) -> r
   
   # add difference to previous
   r$diff <- ave(r$BranchLength, r$UID, FUN=function(x) c(0, diff(x)))
