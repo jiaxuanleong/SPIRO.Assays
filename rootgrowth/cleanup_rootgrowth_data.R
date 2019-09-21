@@ -39,24 +39,47 @@ processfile <- function(file) {
   r %>% group_by(UID) %>%
     arrange(date) %>%
     mutate(elapsed=elapsed(date[1], date)) -> r
-  step1 <<- rbind(step1, r)
-  
+
   # the entire skeleton is a PR if any branch is a PR
   r %>% group_by(UID, elapsed, Skeleton.ID) %>%
     mutate(PR = max(PR)) -> r
+  
+  step1 <<- rbind(step1, r)
   
   r %>% filter(PR == TRUE) %>%
     group_by(UID, date) %>%
     summarize(Branches = n(), GID = GID[1], 
               Skeletons = length(unique(Skeleton.ID)), 
-              BranchLength = sum(Branch.length), 
+              Branch.length = sum(Branch.length), 
               elapsed=elapsed[1],
               SliceNo = Slice.no.[1]) -> r
   
+  r %>% mutate(delta = Branch.length - lag(Branch.length),
+               signdelta = sign(delta),
+               absdelta = abs(delta)) -> r
+  
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
-    mutate(mablleft=rollapply(BranchLength, 5, mean, na.rm=T, align="right", fill=NA), 
-           mablright=rollapply(BranchLength, 5, mean, na.rm=T, align="left", fill=NA)) -> r
+    mutate(mablright = rollapply(Branch.length, 5, mean, na.rm=T, align="left", fill=NA),
+           mabldelta = mablright - lag(mablright),
+           mablsign = sign(mabldelta)) -> r
+  
+  r %>% arrange(elapsed) %>%
+    group_by(UID) %>%
+    mutate(signsum = rollapply(mablsign, 8, sum, na.rm=T, align="left", fill=NA)) -> r
+  
+  r$growing <- NA
+  
+  # if we have more than six consecutive increases of average root length, we assume growth has started
+  r$growing[r$signsum > 6] <- TRUE
+  
+  # if root starts to grow, it is considered to be growing for the remaining datapoints
+  r %>% arrange(elapsed) %>%
+    group_by(UID) %>%
+    mutate(growing = na.locf(growing, na.rm=F)) -> r
+  
+  # construct a normalized elapsed time value based on root growth start
+  r %>% group_by(UID) %>% mutate(normtime = elapsed - elapsed[1]) -> r
   
   step2 <<- rbind(step2, r)
   
@@ -65,11 +88,11 @@ processfile <- function(file) {
   
   step2.5 <<- rbind(step2.5, r)
   
-  r %>% filter(mablright > mablleft) -> r
+  r %>% filter(Branch.length > mablright) -> r
   
   # add difference to previous
-  r$diff <- ave(r$BranchLength, r$UID, FUN=function(x) c(0, diff(x)))
-  r$pctchange <- r$diff / r$BranchLength
+  r$diff <- ave(r$Branch.length, r$UID, FUN=function(x) c(0, diff(x)))
+  r$pctchange <- r$diff / r$Branch.length
   step3 <<- rbind(step3, r)
   
   r[abs(r$diff) > 0.5,] -> suspects
@@ -80,8 +103,8 @@ processfile <- function(file) {
       summarize(elapsed=min(elapsed)) -> suspects
     for (i in seq(1, length(suspects$UID))) {
       s <- suspects[i,]
-      print(paste0('Removing anomalous value from UID ', s$UID, ' at timepoint ', s$elapsed))
-      r$BranchLength[r$UID == s$UID & r$elapsed >= s$elapsed] <- NA
+      print(paste0('Removing anomalous values from UID ', s$UID, ' starting at timepoint ', s$elapsed))
+      r$Branch.length[r$UID == s$UID & r$elapsed >= s$elapsed] <- NA
     }
   }
 
