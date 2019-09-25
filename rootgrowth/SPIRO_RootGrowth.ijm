@@ -356,7 +356,7 @@ function rootStart(subdir) {
 		roicount = roiManager("count");
 
 		w = 0.18; //width of ROI is 0.18cm
-		h = 0.2; //height
+		h = 0.12; //height
 		toUnscaled(w, h);
 		
 		nS = nSlices;
@@ -370,15 +370,15 @@ function rootStart(subdir) {
 				xref = "XRef";
 				Table.create(xref);
 				for(x=0; x<roicount; x++) {
-					xm0 = getResult("X", x); //xm0 is xm of initial seed
-					xlb = xm0 - 0.1;
-					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.5cm to the left of initial xm
-					Table.set("xrb", x, xm0, xref); //x (right border) cannot be more than xm0
-					y0 = getResult("Y", x);
-					x2 = xm0 - 0.12; //shift centre of mass 0.12cm to the left
-					y2 = y0 - 0.1; //to the top
-					toUnscaled(x2, y2);
-					makeRectangle(x2, y2, w, h);
+					xisp = getResult("X", x); //xisp is x initial seed position
+					xlb = xisp - 0.3;
+					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.3cm to the left of initial xm
+					Table.set("xrb", x, xisp, xref); //x (right border) cannot be more than xisp
+					yisp = getResult("Y", x);
+					xroi = xisp - 0.15; //xroi is top+leftmost xcoordinate of roi
+					yroi = yisp - 0.06; //yroi is top+leftmost ycoordinate of roi
+					toUnscaled(xroi, yroi);
+					makeRectangle(xroi, yroi, w, h);
 					roiManager("add");
 				}
 			} else { //if subsequent slices, obtain XY coordinates from rsc
@@ -391,17 +391,26 @@ function rootStart(subdir) {
 					toScaled(x1, y1);
 					xlb = Table.get("xlb", x, xref);
 					xrb = Table.get("xrb", x, xref);
-					if (x1>xrb){
-						x1=xrb;
+					xroi = x1 - 0.15; //xroi is top+leftmost xcoordinate of roi
+					yroi = y1 - 0.06; //xroi is top+leftmost ycoordinate of roi
+					scaledw = w;
+					tempcoord = 1; //needed as toScaled only works with 2 coordinates
+					toScaled(scaledw, tempcoord);
+					xroiright = xroi + scaledw;
+					
+					if (xroiright > xrb){
+						reducedwidth = xrb - xroi;
+						toUnscaled(reducedwidth, tempcoord);
 					}
-					if (x1<xlb){
-						x1=xlb;
+					if (xroi < xlb){
+						xroi = xlb;
 					}
-					Table.set("xrb", x, x1, xref); //set right border 
-					x2 = x1 - 0.12;
-					y2 = y1 - 0.1;
-					toUnscaled(x2, y2);
-					makeRectangle(x2, y2, w, h);
+					toUnscaled(xroi, yroi);
+					if (xroiright > xrb) {
+						makeRectangle(xroi, yroi, reducedwidth, h);
+					} else {
+					makeRectangle(xroi, yroi, w, h);
+					}
 					roiManager("add");
 				}
 			}
@@ -421,60 +430,65 @@ function rootStart(subdir) {
 					Table.set("ROI", nr, x+1, rsc);
 					Table.set("XM", nr, x1, rsc); //set xm as previous slice
 					Table.set("YM", nr, y1, rsc); //ym as previous slice
+					tempcoord = 1;
+					toScaled(xm, tempcoord);
+					Table.set("xrb", x, xm+0.03, xref); //set x right border of next slice with offset 0.03
 				} else { //erode then analyse particles for xm/ym
+					while (totalarea>0.0015) {
+					roiManager("select", x);
+					run("Options...", "iterations=1 count=1 do=Erode");
+					roiManager("select", x);
+					run("Analyze Particles...", "display summarize slice");
+			
+					count = Table.get("Count", Table.size-1, "Summary of "+img);
+						if (count==0) { //erode went too far, particle disappeared
+							totalarea=0; //to get out of the while loop
+						} else {
+						totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+						}
+					}
+			
+					while (totalarea>0.0012) {
+					roiManager("select", x);
+					run("Options...", "iterations=1 count=3 do=Erode");
+					roiManager("select", x);
+					run("Analyze Particles...", "display clear summarize slice");
+			
+					count = Table.get("Count", Table.size-1, "Summary of "+img);
+						if (count==0) { //erode went too far, particle disappeared
+							totalarea=0; //to get out of the while loop
+						} else {
+						totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+						}
+					}
+			
+					if (count>1) {
+						area = newArray(count);
+						for (v=0; v<count; v++){
+							area[v] = getResult("Area", nResults-(v+1));
+						}
+						areaasc = Array.rankPositions(area);
+						areadesc = Array.invert(areaasc);
+						maxarea = areadesc[0];
+		
+								xm = getResult("XM", nResults-(maxarea+1));
+								ym = getResult("YM", nResults-(maxarea+1));
+					} else {
+						xm = getResult("XM", nResults-1);
+						ym = getResult("YM", nResults-1);
+					}
 					
-				while (totalarea>0.0015) {
-				roiManager("select", x);
-				run("Options...", "iterations=1 count=1 do=Erode");
-				roiManager("select", x);
-				run("Analyze Particles...", "display summarize slice");
-		
-				count = Table.get("Count", Table.size-1, "Summary of "+img);
-					if (count==0) { //erode went too far, particle disappeared
-						totalarea=0; //to get out of the while loop
-					} else {
-					totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+					toUnscaled(xm, ym);
+			
+					nr = Table.size(rsc);
+					Table.set("Slice", nr, z+1, rsc);
+					Table.set("ROI", nr, x+1, rsc);
+					Table.set("XM", nr, xm, rsc);
+					Table.set("YM", nr, ym, rsc);
+					tempcoord = 1;
+					toScaled(xm, tempcoord);
+					Table.set("xrb", x, xm+0.03, xref); //set x right border of next slice with offset 0.03
 					}
-				}
-		
-				while (totalarea>0.0012) {
-				roiManager("select", x);
-				run("Options...", "iterations=1 count=3 do=Erode");
-				roiManager("select", x);
-				run("Analyze Particles...", "display clear summarize slice");
-		
-				count = Table.get("Count", Table.size-1, "Summary of "+img);
-					if (count==0) { //erode went too far, particle disappeared
-						totalarea=0; //to get out of the while loop
-					} else {
-					totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
-					}
-				}
-		
-				if (count>1) {
-					area = newArray(count);
-					for (v=0; v<count; v++){
-						area[v] = getResult("Area", nResults-(v+1));
-					}
-					areaasc = Array.rankPositions(area);
-					areadesc = Array.invert(areaasc);
-					maxarea = areadesc[0];
-	
-							xm = getResult("XM", nResults-(maxarea+1));
-							ym = getResult("YM", nResults-(maxarea+1));
-				} else {
-					xm = getResult("XM", nResults-1);
-					ym = getResult("YM", nResults-1);
-				}
-				
-				toUnscaled(xm, ym);
-		
-				nr = Table.size(rsc);
-				Table.set("Slice", nr, z+1, rsc);
-				Table.set("ROI", nr, x+1, rsc);
-				Table.set("XM", nr, xm, rsc);
-				Table.set("YM", nr, ym, rsc);
-				}
 		}
 		}
 		close(xref);
