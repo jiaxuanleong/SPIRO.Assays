@@ -186,7 +186,8 @@ function seedPosition(subdir) {
 				for (x=0; x<nResults; x++) {
 				selectWindow("Results");
 				area = getResult("Area", x);
-					if (area<0.0008 || area>0.01) {
+					//if (area<0.0008 || area>0.01) {
+					if (area<0.0008) {
 						Table.set("Trash ROI", Table.size(tp), x, tp);
 					}
 				
@@ -224,7 +225,7 @@ function seedPosition(subdir) {
 			if (area>0.02)
 			a = a+1;
 		}
-		if (a>2) {
+		if (a>0) {
 			sdf = getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?");
 			if (sdf == 1) 
 				sdlingf();
@@ -329,7 +330,7 @@ function sdlingf() {
 //PART2.1 finds root start coordinates per genotype/group
 function rootStart(subdir) {
 	for (y = 0; y < croplist.length; ++y) {
-		setBatchMode(true);
+		setBatchMode(false);
 		genodir = outcrop+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
@@ -368,14 +369,16 @@ function rootStart(subdir) {
 			if (z==0) { //if first slice, obtain XY coordinates from Results to make ROI
 				roiManager("reset");
 				xref = "XRef";
-				Table.create(xref);
+				Table.create(xref); //table for "x references" which are the left and right borders
 				for(x=0; x<roicount; x++) {
 					xisp = getResult("X", x); //xisp is x initial seed position
-					xlb = xisp - 0.3;
-					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.3cm to the left of initial xm
-					Table.set("xrb", x, xisp, xref); //x (right border) cannot be more than xisp
+					xlb = xisp - 0.4;
+					xrb = xisp + 0.03;
+					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.4cm to the left of initial xm
+					Table.set("xrb", x, xrb, xref); //x (right border) cannot be more than xisp
 					yisp = getResult("Y", x);
-					xroi = xisp - 0.15; //xroi is top+leftmost xcoordinate of roi
+					rightoffset = 0.03; //needed to include a little more of the right bit from the centre of mass
+					xroi = xisp - (0.18-rightoffset); //xroi is top+leftmost xcoordinate of roi
 					yroi = yisp - 0.06; //yroi is top+leftmost ycoordinate of roi
 					toUnscaled(xroi, yroi);
 					makeRectangle(xroi, yroi, w, h);
@@ -386,31 +389,27 @@ function rootStart(subdir) {
 				for(x=0; x<roicount; x++) {
 					zprev = z-1;
 					rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
-					x1 = Table.get("XM", rowIndex, rsc); //x1 now is xm of prev slice
-					y1 = Table.get("YM", rowIndex, rsc); 
-					toScaled(x1, y1);
+					//xm, ym are coordinates for the centre of mass obtained through erosion
+					xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
+					ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
+					toScaled(xmprev, ymprev);
 					xlb = Table.get("xlb", x, xref);
 					xrb = Table.get("xrb", x, xref);
-					xroi = x1 - 0.15; //xroi is top+leftmost xcoordinate of roi
-					yroi = y1 - 0.06; //xroi is top+leftmost ycoordinate of roi
+					xroi = xmprev - (0.18-rightoffset); //xroi is top+leftmost xcoordinate of roi
+					yroi = ymprev - 0.06; //yroi is top+leftmost ycoordinate of roi and 0.06 is half of h (height)
 					scaledw = w;
 					tempcoord = 1; //needed as toScaled only works with 2 coordinates
 					toScaled(scaledw, tempcoord);
 					xroiright = xroi + scaledw;
-					
-					if (xroiright > xrb){
-						reducedwidth = xrb - xroi;
-						toUnscaled(reducedwidth, tempcoord);
+					if (xroi < xlb) { //left border exceeded 
+						xroi = xlb; //left side of roi becomes x left border
 					}
-					if (xroi < xlb){
-						xroi = xlb;
+					if (xroiright > xrb) { //right border exceeded by right side of roi
+						exceededdistance = xroiright - xrb;
+						xroi = xroi - exceededdistance;
 					}
 					toUnscaled(xroi, yroi);
-					if (xroiright > xrb) {
-						makeRectangle(xroi, yroi, reducedwidth, h);
-					} else {
 					makeRectangle(xroi, yroi, w, h);
-					}
 					roiManager("add");
 				}
 			}
@@ -424,15 +423,12 @@ function rootStart(subdir) {
 				totalarea = Table.get("Total Area", Table.size("Summary of "+img)-1, "Summary of "+img);
  
 				if (count==0) { //firstMask() erased seed (rarely happens)
-					toUnscaled(x1,y1);
+					toUnscaled(xmprev, ymprev);
 					nr = Table.size(rsc);
 					Table.set("Slice", nr, z+1, rsc);
 					Table.set("ROI", nr, x+1, rsc);
-					Table.set("XM", nr, x1, rsc); //set xm as previous slice
-					Table.set("YM", nr, y1, rsc); //ym as previous slice
-					tempcoord = 1;
-					toScaled(xm, tempcoord);
-					Table.set("xrb", x, xm+0.03, xref); //set x right border of next slice with offset 0.03
+					Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
+					Table.set("YM", nr, ymprev, rsc); //ym as previous slice
 				} else { //erode then analyse particles for xm/ym
 					while (totalarea>0.0015) {
 					roiManager("select", x);
@@ -485,9 +481,6 @@ function rootStart(subdir) {
 					Table.set("ROI", nr, x+1, rsc);
 					Table.set("XM", nr, xm, rsc);
 					Table.set("YM", nr, ym, rsc);
-					tempcoord = 1;
-					toScaled(xm, tempcoord);
-					Table.set("xrb", x, xm+0.03, xref); //set x right border of next slice with offset 0.03
 					}
 		}
 		}
