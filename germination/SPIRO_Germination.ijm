@@ -6,6 +6,12 @@
 //user selection of main directory
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
+resultsdir = maindir + "/Results/";
+germnmaindir = resultsdir + "/Germination/";
+preprocessingmaindir = resultsdir + "/Preprocessing/";
+if (!File.isDirectory(germnmaindir)) {
+	File.makeDirectory(germnmaindir);
+}
 list = getFileList(maindir);
 processMain1(maindir);
 processMain2(maindir);
@@ -20,7 +26,7 @@ list = getList("window.titles");
 //PART1 crop groups/genotypes per plate
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped") < 0) {
+		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
@@ -32,7 +38,7 @@ function processMain1(maindir) {
 //PART2 analyses seeds per genotype/group per plate
 function processMain2(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped") < 0) {
+		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
 			processSub2(subdir);
@@ -42,23 +48,32 @@ function processMain2(maindir) {
 
 function processSub2(subdir) {
 	platename = File.getName(subdir);
-	
-	outcrop = subdir + "/germncropped/";
-	croplist = getFileList(outcrop);
+	germnsubdir = germnmaindir+ "/" + platename + "/";
+	germncroppeddir = germnsubdir + "/CroppedGroups/";
+	croplist = getFileList(germncroppeddir);
 	
 	seedAnalysis();
-	print(i+1 + "/" + list.length + " folders processed.");
 }
 
 //PART1 crops groups/genotypes
 function cropGroup(subdir) {
+	germnsubdir = germnmaindir+ "/" + platename + "/";
+	if (!File.isDirectory(germnsubdir)) {
+		File.makeDirectory(germnsubdir);
+	}
+	germncroppeddir = germnsubdir + "/CroppedGroups/";
+	if (!File.isDirectory(germncroppeddir)) {
+		File.makeDirectory(germncroppeddir);
+	}
+	preprocessingsubdir = preprocessingmaindir + "/" + platename + "/";
+
 	setBatchMode(false);
-	open(subdir + platename + "_registered.tif");
-	reg = getTitle();
+	open(preprocessingsubdir + platename + "_preprocessed.tif");
+	oristack = getTitle();
     waitForUser("Create substack", "Please note first and last slice to be included for germination analysis, and indicate it in the next step.");	
 	run("Make Substack...");
-	saveAs("Tiff", subdir + platename + "_germinationsubstack.tif");
-	close(reg);
+	saveAs("Tiff", germnsubdir + platename + "_germinationsubstack.tif");
+	close(oristack);
 	print("Cropping genotypes/groups of " + subdir);
 	run("ROI Manager...");
 	setTool("Rectangle");
@@ -82,9 +97,6 @@ function cropGroup(subdir) {
 
 	run("Select None");
 
-	outcrop = subdir + "/germncropped/";
-	File.makeDirectory(outcrop);
-
 	setBatchMode(true);
 	
 	//loop enables cropping of ROI(s) followed by saving of cropped stacks
@@ -97,7 +109,10 @@ function cropGroup(subdir) {
 			waitForUser("ROI names cannot contain dashes '-'! Please modify the name.");
 			roiname = Roi.getName;
 		}
-		genodir = outcrop + "/" + roiname + "/";
+		genodir = germncroppeddir + "/" + roiname + "/";
+		if (!File.isDirectory(genodir)) {
+		File.makeDirectory(genodir);
+		}
 		File.makeDirectory(genodir);
 		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
 		run("Duplicate...", "duplicate");
@@ -105,7 +120,6 @@ function cropGroup(subdir) {
 		close();
 	}
 	close();
-	print(i+1 + "/" + list.length + " folders processed.");
 }
 
 //PART2 analyses seeds per genotype/group 
@@ -113,7 +127,7 @@ function seedAnalysis() {
 	for (y = 0; y < croplist.length; ++y) {
 		print("Tracking germination of " + croplist[y]);
 		setBatchMode(false);
-		genodir = outcrop + "/" + croplist[y] + "/";
+		genodir = germncroppeddir + "/" + croplist[y] + "/";
 		genolist = getFileList(genodir);
 		genoname = File.getName(genodir);
 		open(genodir + genolist[0]);
@@ -180,6 +194,9 @@ function seedAnalysis() {
 		
 //Visualize detected seed positions on the first time point of the binary masks stack 
 		selectWindow(stack1);
+		roiManager("Associate", "false");
+		roiManager("Centered", "false");
+		roiManager("UseNames", "false");
 		roiManager("Show All");
 		roiManager("Show All with labels");
 		run("Labels...", "color=white font=18 show use draw");

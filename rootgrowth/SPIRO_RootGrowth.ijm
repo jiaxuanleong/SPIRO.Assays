@@ -7,6 +7,12 @@
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
 list = getFileList(maindir);
+resultsdir = maindir + "/Results/";
+rootgrowthmaindir = resultsdir + "/RootGrowth/";
+if (!File.isDirectory(rootgrowthmaindir)) {
+	File.makeDirectory(rootgrowthmaindir);
+}
+preprocessingmaindir = resultsdir + "/Preprocessing/";
 processMain1(maindir);
 processMain2(maindir);
 processMain21(maindir);
@@ -22,7 +28,7 @@ list = getList("window.titles");
 //PART1 crop groups/genotypes per plate
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
+		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
@@ -34,7 +40,7 @@ function processMain1(maindir) {
 //PART2 find seed positions per group per plate
 function processMain2(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
+		if (endsWith(list[i], "/")  && !endsWith(list[i], "Results/")) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
@@ -45,18 +51,17 @@ function processMain2(maindir) {
 
 function processSub2(subdir) {
 	platename = File.getName(subdir);
-	
-	outcrop = subdir + "/rootcropped/";
-	croplist = getFileList(outcrop);
+	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";	
+	rootgrowthcroppeddir = rootgrowthsubdir + "/CroppedGroups/";
+	croplist = getFileList(rootgrowthcroppeddir);
 	
 	seedPosition(subdir);
-	print(i+1 +"/"+list.length + " folders processed.");
 }
 
 //PART2.1 find root start coordinates per group per plate
 function processMain21(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
+		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
@@ -67,19 +72,18 @@ function processMain21(maindir) {
 
 function processSub21(subdir) {
 	platename = File.getName(subdir);
-	
-	outcrop = subdir + "/rootcropped/";
-	croplist = getFileList(outcrop);
+	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthcroppeddir = rootgrowthsubdir + "/CroppedGroups/";
+	croplist = getFileList(rootgrowthcroppeddir);
 	
 	rootStart(subdir);
-	print(i+1 +"/"+list.length + " folders processed.");
 }
 
 
 //PART3 skeleton analysis per group per plate
 function processMain3(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
+		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
 			subdir = maindir+list[i];
 			sublist = getFileList(subdir);
 			print("Getting root measurements of "+subdir);
@@ -90,22 +94,30 @@ function processMain3(maindir) {
 
 function processSub3(subdir) {
 	platename = File.getName(subdir);
-	
-	outcrop = subdir + "/rootcropped/";
-	croplist = getFileList(outcrop);
-	
+	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthcroppeddir = rootgrowthsubdir + "/CroppedGroups/";
+	croplist = getFileList(rootgrowthcroppeddir);
 	rootlength(subdir);
-	print(i+1 +"/"+list.length + " folders processed.");
 };
 
 //PART1 crop genotypes/group 
 function cropGroup(subdir) {
+	preprocessingsubdir = preprocessingmaindir + "/" + platename + "/";
+	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	if (!File.isDirectory(rootgrowthsubdir)) {
+		File.makeDirectory(rootgrowthsubdir);
+	}
+	rootgrowthcroppeddir = rootgrowthsubdir + "/CroppedGroups/";
+	if (!File.isDirectory(rootgrowthcroppeddir)) {
+		File.makeDirectory(rootgrowthcroppeddir);
+	}
+	croplist = getFileList(rootgrowthcroppeddir);
 	setBatchMode(false);
-	open(subdir+platename+"_registered.tif");
+	open(preprocessingsubdir+platename+"_preprocessed.tif");
 	reg = getTitle();
 	waitForUser("Create substack", "Please note first and last slice to be included for root length analysis, and indicate it in the next step.");	
 	run("Make Substack...");
-	saveAs("Tiff", subdir+platename+"_rootlengthsubstack.tif");
+	saveAs("Tiff", rootgrowthsubdir+platename+"_rootlengthsubstack.tif");
 	close(reg);
 	print("Cropping genotypes/groups in "+platename);
 	run("ROI Manager...");
@@ -120,10 +132,7 @@ function cropGroup(subdir) {
 		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
 	}
 	run("Select None");
-
-	outcrop = subdir + "/rootcropped/";
-	File.makeDirectory(outcrop);
-
+	
 	setBatchMode(true);
 	
 	//loop enables cropping of ROI(s) followed by saving of cropped stacks
@@ -136,7 +145,7 @@ function cropGroup(subdir) {
     		waitForUser("ROI names cannot contain dashes '-'! Please modify the name.");
     		roiname = Roi.getName;
     	}
-    	genodir = outcrop + "/"+roiname+"/";
+    	genodir = rootgrowthcroppeddir + "/"+roiname+"/";
     	File.makeDirectory(genodir);	
 		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
     	run("Duplicate...", "duplicate");
@@ -144,7 +153,6 @@ function cropGroup(subdir) {
     	close();
 	}
 close();
-print(i+1 +"/"+list.length + " folders processed.");
 }
 
 
@@ -152,7 +160,7 @@ print(i+1 +"/"+list.length + " folders processed.");
 function seedPosition(subdir) {
 	for (y = 0; y < croplist.length; ++y) {
 		setBatchMode(false);
-		genodir = outcrop+"/"+croplist[y]+"/";	
+		genodir = rootgrowthcroppeddir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding seedling positions for "+platename+genoname);
 		open(genodir+genoname+".tif");
@@ -330,8 +338,8 @@ function sdlingf() {
 //PART2.1 finds root start coordinates per genotype/group
 function rootStart(subdir) {
 	for (y = 0; y < croplist.length; ++y) {
-		setBatchMode(false);
-		genodir = outcrop+"/"+croplist[y]+"/";	
+		setBatchMode(true);
+		genodir = rootgrowthcroppeddir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
 		open(genodir+genoname+"masked.tif");
@@ -529,7 +537,7 @@ function rootStart(subdir) {
 function rootlength(subdir) {
 	for (y = 0; y < croplist.length; ++y) {
 		setBatchMode(true);
-		genodir = outcrop+"/"+croplist[y]+"/";	
+		genodir = rootgrowthcroppeddir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Analyzing root growth of "+platename+genoname);
 		open(genodir+genoname+".tif");
