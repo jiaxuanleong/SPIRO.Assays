@@ -6,8 +6,16 @@
 //user selection of main directory
 showMessage("Please locate and open your experiment folder.");
 maindir = getDirectory("Choose a Directory");
+resultsdir = maindir + "/Results/";
+if (!File.isDirectory(resultsdir)) {
+	File.makeDirectory(resultsdir);
+}
+preprocessingmaindir = resultsdir + "/Preprocessing/";
+if (!File.isDirectory(preprocessingmaindir)) {
+	File.makeDirectory(preprocessingmaindir);
+}
 regq = getBoolean("Would you like to carry out drift correction (registration)?\n" +
-    "Please note that this step may take up a lot of time and computer memory for large datasets.")
+    "Please note that this step may take up a lot of time and computer memory for large datasets.");
 list = getFileList(maindir);
 segmentsize = 350;
 processMain1(maindir);
@@ -22,7 +30,7 @@ for (i=0; i<list.length; i++) {
 ///set up recursive processing of a main directory which contains multiple subdirectories   
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
+		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
 			subdir = maindir + list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
@@ -38,6 +46,10 @@ function processMain1(maindir) {
 // process files in a subdirectory
 function processSubdir(subdir) {
 	print("Processing " + subdir + "...");
+	preprocessingsubdir = preprocessingmaindir+ "/" + platename + "/";
+	if (!File.isDirectory(preprocessingsubdir)) {
+		File.makeDirectory(preprocessingsubdir);
+	}
 	setBatchMode(false);
 	run("Image Sequence...", "open=[" + subdir + sublist[0] + "]+convert sort use");
 	stack1 = getTitle();
@@ -46,15 +58,25 @@ function processSubdir(subdir) {
 	if (regq) {
 	    // calling register with argument 'false' means non-segmented registration
         register(false);
+        saveAs("Tiff", preprocessingsubdir + platename + "_preprocessed.tif");
+        close(platename + "_preprocessed.tif");
 	} else {
 		selectWindow(stack1);
-		saveAs("Tiff", maindir + platename + "_preprocessed.tif");
+		saveAs("Tiff", preprocessingsubdir + platename + "_preprocessed.tif");
+		close(platename + "_preprocessed.tif");
 	}
-	print(i+1 + "/" + list.length + " folders processed.");
 }
 
 // process files in a subdirectory, dividing images into separate batches
 function processSubdirSegmented(subdir) {
+	preprocessingsubdir = preprocessingmaindir+ "/" + platename + "/";
+	tempdirsegmented = preprocessingsubdir + "/temp/";
+	if (!File.isDirectory(preprocessingsubdir)) {
+		File.makeDirectory(preprocessingsubdir);
+	}
+	if (!File.isDirectory(tempdirsegmented)) {
+	    File.makeDirectory(tempdirsegmented);
+	}
 	setBatchMode(false);
 	print("Processing " + subdir + "...");
 	if (i == 0) {
@@ -63,7 +85,7 @@ function processSubdirSegmented(subdir) {
 	}
 	numloops = sublist.length / segmentsize; // number of loops
 
-	rnl = floor(numloops) + 1; //returns closest integer rounded up
+	rnl = floor(numloops) + 1; //returns closest integer rounded down
 	
 	for (x=0; x<numloops; x++) {
 		print("Processing batch " + x+1);
@@ -89,39 +111,27 @@ function processSubdirSegmented(subdir) {
 			register(true);
 		} else {
 			selectWindow(stack1);
-			saveAs("Tiff", maindir + platename + "_segment" + x+1 + "_preprocessed.tif");
-			close();
+			saveAs("Tiff", tempdirsegmented + x);
 		}
 	}
-	y = 0;
-	sublist = getFileList(maindir);
-	for (x=0; x<sublist.length; x++) {
-		if (indexOf(sublist[x], "segment") > 0) {
-            open(maindir + sublist[x]);
-            rename(y);
-            y = y + 1;
-		}
-	}
-	for (x=0; x<y-1; x++) {
+	tempdirsegmentedlist = getFileList(tempdirsegmented);
+	for (x=0; x<tempdirsegmentedlist.length-1; x++) {
 		if (x == 0) {
-		    run("Concatenate...", "  image1=[" + x + "] image2=[" + x+1 + "]");
+		    run("Concatenate...", "  image1=[" + x + ".tif" + "] image2=[" + x+1 + ".tif" + "]");
 		} else {
-			run("Concatenate...", "  image1=[Untitled] image2=[" + x+1 + "]");
+			run("Concatenate...", "  image1=[Untitled] image2=[" + x+1  + ".tif" + "]");
 		}
 	}
 	selectWindow("Untitled");
-	if(regq) {
-        saveAs("Tiff", maindir + platename + "_preprocessed.tif");
-        close(platename + "_preprocessed.tif");
-	} else {
-		saveAs("Tiff", maindir + platename + "_preprocessed.tif");
-		close(platename + "_preprocessed.tif");
+	saveAs("Tiff", preprocessingsubdir + platename + "_preprocessed.tif");
+	close(platename + "_preprocessed.tif");
+	
+	for (x=0; x<tempdirsegmentedlist.length; x++) {
+		if (File.exists(tempdirsegmented+tempdirsegmentedlist[x])) {
+			File.delete(tempdirsegmented+tempdirsegmentedlist[x]);
+		}
 	}
-	for (x=0; x<sublist.length; x++) {
-		if (indexOf(sublist[x], "segment") > 0)
-		File.delete(maindir + sublist[x]);
-	}
-	print(i+1 + "/" + list.length + " folders processed.");
+	File.delete(tempdirsegmented);
 }
 
 function scale() {
@@ -179,8 +189,8 @@ function register(segmented) {
     if (segmented) {
         open(subdir + sublist[0]); //open first time point
         crop();
-        tempini = getTitle();
         run("8-bit");
+        tempini = getTitle();
         //stick first time point to stack, to enable more accurate registration for later time points
         run("Concatenate...", "  image1=[" + tempini + "] image2=[" + stack1 + "]");
         stack1 = getTitle();
@@ -189,17 +199,16 @@ function register(segmented) {
     run("Duplicate...", "duplicate");
     stack2 = getTitle();
     run("Subtract Background...", "rolling=30 stack");
-    tfn = maindir + "/Transformation Matrices/";
+    tfn = preprocessingsubdir + "Transformation";
     run("MultiStackReg", "stack_1=" + stack2 + " action_1=Align file_1=" + tfn +
         " stack_2=None action_2=Ignore file_2=[] transformation=Translation save");
     close(stack2);
     run("MultiStackReg", "stack_1=" + stack1 + " action_1=[Load Transformation File] file_1=" + tfn +
         " stack_2=None action_2=Ignore file_2=[] transformation=[Translation]");
+    File.delete(tfn);
     selectWindow(stack1);
-    saveAs("Tiff", maindir + platename + "_preprocessed.tif");
     if (segmented) {
         run("Slice Remover", "first=1 last=1 increment=1"); //remove temporary first slice
-        saveAs("Tiff", maindir + platename + "_segment" + x+1 + "_preprocessed.tif");
+        saveAs("Tiff", tempdirsegmented + x + ".tif");
     }
-    close();
 }
