@@ -380,11 +380,11 @@ function rootStart(subdir) {
 				for(x=0; x<roicount; x++) {
 					xisp = getResult("X", x); //xisp is x initial seed position
 					xlb = xisp - 0.4;
-					xrb = xisp + 0.04;
+					xrb = xisp + 0.05;
 					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.4cm to the left of initial xm
 					Table.set("xrb", x, xrb, xref); //x (right border) cannot be more than xisp
 					yisp = getResult("Y", x);
-					rightoffset = 0.03; //needed to include a little more of the right bit from the centre of mass
+					rightoffset = 0.05; //needed to include a little more of the right bit from the centre of mass
 					xroi = xisp - (0.18-rightoffset); //xroi is top+leftmost xcoordinate of roi
 					yroi = yisp - 0.06; //yroi is top+leftmost ycoordinate of roi
 					toUnscaled(xroi, yroi);
