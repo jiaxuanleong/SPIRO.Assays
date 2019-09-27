@@ -8,7 +8,7 @@ showMessage("Please locate and open your experiment folder containing preprocess
 maindir = getDirectory("Choose a Directory");
 list = getFileList(maindir);
 resultsdir = maindir + "/Results/";
-rootgrowthmaindir = resultsdir + "/RootGrowth/";
+rootgrowthmaindir = resultsdir + "/Root growth assay/";
 if (!File.isDirectory(rootgrowthmaindir)) {
 	File.makeDirectory(rootgrowthmaindir);
 }
@@ -52,9 +52,7 @@ function processMain2(maindir) {
 function processSub2(subdir) {
 	platename = File.getName(subdir);
 	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";	
-	rootgrowthcroppeddir = rootgrowthsubdir + "/CroppedGroups/";
-	croplist = getFileList(rootgrowthcroppeddir);
-	
+	croplist = getFileList(rootgrowthsubdir);
 	seedPosition(subdir);
 }
 
@@ -73,8 +71,7 @@ function processMain21(maindir) {
 function processSub21(subdir) {
 	platename = File.getName(subdir);
 	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
-	rootgrowthcroppeddir = rootgrowthsubdir + "/CroppedGroups/";
-	croplist = getFileList(rootgrowthcroppeddir);
+	croplist = getFileList(rootgrowthsubdir);
 	
 	rootStart(subdir);
 }
@@ -95,8 +92,7 @@ function processMain3(maindir) {
 function processSub3(subdir) {
 	platename = File.getName(subdir);
 	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
-	rootgrowthcroppeddir = rootgrowthsubdir + "/CroppedGroups/";
-	croplist = getFileList(rootgrowthcroppeddir);
+	croplist = getFileList(rootgrowthsubdir);
 	rootlength(subdir);
 };
 
@@ -107,11 +103,7 @@ function cropGroup(subdir) {
 	if (!File.isDirectory(rootgrowthsubdir)) {
 		File.makeDirectory(rootgrowthsubdir);
 	}
-	rootgrowthcroppeddir = rootgrowthsubdir + "/CroppedGroups/";
-	if (!File.isDirectory(rootgrowthcroppeddir)) {
-		File.makeDirectory(rootgrowthcroppeddir);
-	}
-	croplist = getFileList(rootgrowthcroppeddir);
+	croplist = getFileList(rootgrowthsubdir);
 	setBatchMode(false);
 	open(preprocessingsubdir+platename+"_preprocessed.tif");
 	reg = getTitle();
@@ -145,7 +137,7 @@ function cropGroup(subdir) {
     		waitForUser("ROI names cannot contain dashes '-'! Please modify the name.");
     		roiname = Roi.getName;
     	}
-    	genodir = rootgrowthcroppeddir + "/"+roiname+"/";
+    	genodir = rootgrowthsubdir + "/"+roiname+"/";
     	File.makeDirectory(genodir);	
 		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
     	run("Duplicate...", "duplicate");
@@ -158,11 +150,12 @@ close();
 
 //PART2 finds seed position and saves ROI - looped through crops immediately for user friendliness
 function seedPosition(subdir) {
-	for (y = 0; y < croplist.length; ++y) {
+	for (y = 0; y < croplist.length-1; ++y) { //-1 for substack file
+		if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(false);
-		genodir = rootgrowthcroppeddir+"/"+croplist[y]+"/";	
+		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
-		print("Finding seedling positions for "+platename+genoname);
+		print("Finding seed positions for "+platename+genoname);
 		open(genodir+genoname+".tif");
 		img = getTitle();
 		
@@ -194,7 +187,7 @@ function seedPosition(subdir) {
 				for (x=0; x<nResults; x++) {
 				selectWindow("Results");
 				area = getResult("Area", x);
-					//if (area<0.0008 || area>0.01) {
+					//if (area<0.0008 || area>0.01) { 
 					if (area<0.0008) {
 						Table.set("Trash ROI", Table.size(tp), x, tp);
 					}
@@ -234,15 +227,16 @@ function seedPosition(subdir) {
 			a = a+1;
 		}
 		if (a>0) {
-			sdf = getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?");
-			if (sdf == 1) 
-				sdlingf();
+			seedlinginitialboolean = getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?");
+			if (seedlinginitialboolean == 1) 
+				seedlinginitial();
 		} else {
 		roiManager("save", genodir+genoname+"seedpositions.zip");
 		selectWindow(img);
 		saveAs("Tiff", genodir+genoname+"masked.tif");
 		close();
 		}
+	}
 	}
 }
 
@@ -258,7 +252,7 @@ function firstMask() {
     //run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
 
-function sdlingf() {
+function seedlinginitial() { //if seedlings instead of seeds are detected on first slice
 	roiManager("reset");
 	waitForUser("Please draw ROI encompassing all root starts, then add to ROI Manager.");
 	while (roiManager("count") <= 0) {
@@ -338,8 +332,9 @@ function sdlingf() {
 //PART2.1 finds root start coordinates per genotype/group
 function rootStart(subdir) {
 	for (y = 0; y < croplist.length; ++y) {
+		if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(true);
-		genodir = rootgrowthcroppeddir+"/"+croplist[y]+"/";	
+		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
 		open(genodir+genoname+"masked.tif");
@@ -438,7 +433,7 @@ function rootStart(subdir) {
 					Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
 					Table.set("YM", nr, ymprev, rsc); //ym as previous slice
 				} else { //erode then analyse particles for xm/ym
-					while (totalarea>0.0015) {
+					while (totalarea>0.0022) {
 					roiManager("select", x);
 					run("Options...", "iterations=1 count=1 do=Erode");
 					roiManager("select", x);
@@ -452,7 +447,7 @@ function rootStart(subdir) {
 						}
 					}
 			
-					while (totalarea>0.0012) {
+					while (totalarea>0.002) {
 					roiManager("select", x);
 					run("Options...", "iterations=1 count=3 do=Erode");
 					roiManager("select", x);
@@ -531,13 +526,15 @@ function rootStart(subdir) {
 		close(rsc);
 		File.delete(genodir+genoname+"masked.tif");
 	}
+	}
 }
 
 //PART3 skeleton analysis per group
 function rootlength(subdir) {
 	for (y = 0; y < croplist.length; ++y) {
+	if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(true);
-		genodir = rootgrowthcroppeddir+"/"+croplist[y]+"/";	
+		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Analyzing root growth of "+platename+genoname);
 		open(genodir+genoname+".tif");
@@ -698,6 +695,7 @@ function rootlength(subdir) {
 		File.delete(genodir+rsc);
 		
 }
+	}
 }
 
 

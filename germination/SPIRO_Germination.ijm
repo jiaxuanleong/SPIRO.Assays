@@ -7,7 +7,7 @@
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
 resultsdir = maindir + "/Results/";
-germnmaindir = resultsdir + "/Germination/";
+germnmaindir = resultsdir + "/Germination assay/";
 preprocessingmaindir = resultsdir + "/Preprocessing/";
 if (!File.isDirectory(germnmaindir)) {
 	File.makeDirectory(germnmaindir);
@@ -49,8 +49,7 @@ function processMain2(maindir) {
 function processSub2(subdir) {
 	platename = File.getName(subdir);
 	germnsubdir = germnmaindir+ "/" + platename + "/";
-	germncroppeddir = germnsubdir + "/CroppedGroups/";
-	croplist = getFileList(germncroppeddir);
+	croplist = getFileList(germnsubdir);
 	
 	seedAnalysis();
 }
@@ -60,10 +59,6 @@ function cropGroup(subdir) {
 	germnsubdir = germnmaindir+ "/" + platename + "/";
 	if (!File.isDirectory(germnsubdir)) {
 		File.makeDirectory(germnsubdir);
-	}
-	germncroppeddir = germnsubdir + "/CroppedGroups/";
-	if (!File.isDirectory(germncroppeddir)) {
-		File.makeDirectory(germncroppeddir);
 	}
 	preprocessingsubdir = preprocessingmaindir + "/" + platename + "/";
 
@@ -109,7 +104,7 @@ function cropGroup(subdir) {
 			waitForUser("ROI names cannot contain dashes '-'! Please modify the name.");
 			roiname = Roi.getName;
 		}
-		genodir = germncroppeddir + "/" + roiname + "/";
+		genodir = germnsubdir + "/" + roiname + "/";
 		if (!File.isDirectory(genodir)) {
 		File.makeDirectory(genodir);
 		}
@@ -125,9 +120,10 @@ function cropGroup(subdir) {
 //PART2 analyses seeds per genotype/group 
 function seedAnalysis() {
 	for (y = 0; y < croplist.length; ++y) {
+		if (indexOf(croplist[y], "substack")<0) {
 		print("Tracking germination of " + croplist[y]);
 		setBatchMode(false);
-		genodir = germncroppeddir + "/" + croplist[y] + "/";
+		genodir = germnsubdir + "/" + croplist[y] + "/";
 		genolist = getFileList(genodir);
 		genoname = File.getName(genodir);
 		open(genodir + genolist[0]);
@@ -253,6 +249,7 @@ function seedAnalysis() {
 		selectWindow("Results");
 		saveAs("Results", genodir + platename + " " + genoname + " seed germination analysis.tsv");
 		run("Close");
+	}
 	}
 }
 
