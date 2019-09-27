@@ -243,12 +243,14 @@ function seedPosition(subdir) {
 //PART2 creates a binary mask for seed/lings and reduces noise
 function firstMask() {
 	run("8-bit");
-	run("Subtract Background...", "rolling=30 stack");
-	run("Median...", "radius=1 stack");
+	run("Minimum...", "radius=2 stack");
+	//run("Subtract Background...", "rolling=30 stack");
+	//run("Enhance Contrast...", "saturated=0.2 normalize process_all");
+	//run("Median...", "radius=1 stack");
 	setAutoThreshold("MaxEntropy dark");
-	run("Convert to Mask", "method=MaxEntropy background=Dark");
-	run("Options...", "iterations=1 count=4 do=Dilate stack");
-    run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
+	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
+	//run("Options...", "iterations=1 count=4 do=Dilate stack");
+    //run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
     //run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
 
@@ -339,6 +341,8 @@ function rootStart(subdir) {
 		print("Finding root start coordinates for "+platename+genoname);
 		open(genodir+genoname+"masked.tif");
 		
+
+		
 		img = getTitle();
 
 		roiManager("reset");
@@ -376,7 +380,7 @@ function rootStart(subdir) {
 				for(x=0; x<roicount; x++) {
 					xisp = getResult("X", x); //xisp is x initial seed position
 					xlb = xisp - 0.4;
-					xrb = xisp + 0.03;
+					xrb = xisp + 0.04;
 					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.4cm to the left of initial xm
 					Table.set("xrb", x, xrb, xref); //x (right border) cannot be more than xisp
 					yisp = getResult("Y", x);
@@ -433,7 +437,7 @@ function rootStart(subdir) {
 					Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
 					Table.set("YM", nr, ymprev, rsc); //ym as previous slice
 				} else { //erode then analyse particles for xm/ym
-					while (totalarea>0.0022) {
+					while (totalarea>0.002) {
 					roiManager("select", x);
 					run("Options...", "iterations=1 count=1 do=Erode");
 					roiManager("select", x);
@@ -447,7 +451,7 @@ function rootStart(subdir) {
 						}
 					}
 			
-					while (totalarea>0.002) {
+					while (totalarea>0.012) {
 					roiManager("select", x);
 					run("Options...", "iterations=1 count=3 do=Erode");
 					roiManager("select", x);
@@ -697,7 +701,6 @@ function rootlength(subdir) {
 }
 	}
 }
-
 
 //PART3 creates a binary mask for roots and reduces noise
 function secondMask() {
