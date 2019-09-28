@@ -81,7 +81,7 @@ function processSubdirSegmented(subdir) {
 	}
 	setBatchMode(false);
 	print("Processing " + subdir + "...");
-	if (i == 0) {
+	if (platename = "plate1") {
 	    showMessage(sublist.length + " time points detected. Images will be preprocessed in batches of " +
 	        segmentsize + " to reduce RAM requirement.");
 	}
@@ -138,7 +138,7 @@ function processSubdirSegmented(subdir) {
 
 function scale() {
 	print("Setting scale...");
-	if (i == 0) {
+	if (platename == "plate1") {
 		run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
 		setTool("line");
         run("Set Measurements...", "area bounding display redirect=None decimal=3");
