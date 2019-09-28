@@ -116,7 +116,7 @@ function cropGroup(subdir) {
 	setTool("Rectangle");
 	if (i==0) {
 	roiManager("reset");
-	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.");
+	waitForUser("Select each group, and add to ROI manager. ROI names will be saved. Non-rectangular selections are possible.");
 	}
 	if (i>0)
 	waitForUser("Modify ROI and names if needed.");
@@ -140,7 +140,14 @@ function cropGroup(subdir) {
     	genodir = rootgrowthsubdir + "/"+roiname+"/";
     	File.makeDirectory(genodir);	
 		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
-    	run("Duplicate...", "duplicate");
+		roitype = Roi.getType;
+		if (roitype != "rectangle") {
+			run("Duplicate...", "duplicate");
+			run("Make Inverse");
+			run("Clear", "stack");
+		} else {
+			run("Duplicate...", "duplicate");
+		}
     	saveAs("Tiff", genodir+roiname+".tif");
     	close();
 	}

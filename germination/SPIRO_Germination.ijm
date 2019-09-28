@@ -110,7 +110,14 @@ function cropGroup(subdir) {
 		}
 		File.makeDirectory(genodir);
 		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
-		run("Duplicate...", "duplicate");
+		roitype = Roi.getType;
+		if (roitype != "rectangle") {
+			run("Duplicate...", "duplicate");
+			run("Make Inverse");
+			run("Clear", "stack");
+		} else {
+			run("Duplicate...", "duplicate");
+		}
 		saveAs("Tiff", genodir+roiname+".tif");
 		close();
 	}
@@ -132,10 +139,12 @@ function seedAnalysis() {
 		stack2 = getTitle();
 
 		selectWindow(stack1);
+		run("Select None");
 		seedMask();
 		roiManager("reset");
 		run("Rotate 90 Degrees Right");
 		setSlice(1);
+
 		run("Create Selection");
 		run("Colors...", "foreground=black background=black selection=red");
 
@@ -256,10 +265,11 @@ function seedAnalysis() {
 //creates a binary mask and reduces noise
 function seedMask() {
 	run("8-bit");
-	run("Subtract Background...", "rolling=30 stack");
+	//run("Subtract Background...", "rolling=30 stack");
+	run("Enhance Contrast...", "saturated=0.2 normalize process_all");
 	run("Median...", "radius=1 stack");
 	setAutoThreshold("MaxEntropy dark");
-	run("Convert to Mask", "method=MaxEntropy background=Dark");
+	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
 	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
 	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
