@@ -6,6 +6,8 @@
 //user selection of main directory
 showMessage("Please locate and open your experiment folder.");
 maindir = getDirectory("Choose a Directory");
+list = getFileList(maindir);
+
 resultsdir = maindir + "/Results/";
 if (!File.isDirectory(resultsdir)) {
 	File.makeDirectory(resultsdir);
@@ -16,7 +18,7 @@ if (!File.isDirectory(preprocessingmaindir)) {
 }
 regq = getBoolean("Would you like to carry out drift correction (registration)?\n" +
     "Please note that this step may take up a lot of time and computer memory for large datasets.");
-list = getFileList(maindir);
+
 segmentsize = 350;
 processMain1(maindir);
 
