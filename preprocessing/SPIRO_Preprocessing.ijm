@@ -7,6 +7,7 @@
 showMessage("Please locate and open your experiment folder.");
 maindir = getDirectory("Choose a Directory");
 list = getFileList(maindir);
+list = Array.deleteValue(list, "Results/"); //if results folder exists, do not process it
 
 resultsdir = maindir + "/Results/";
 if (!File.isDirectory(resultsdir)) {
@@ -32,7 +33,7 @@ for (i=0; i<list.length; i++) {
 ///set up recursive processing of a main directory which contains multiple subdirectories   
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
+		if (endsWith(list[i], "/")) {
 			subdir = maindir + list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
@@ -81,7 +82,7 @@ function processSubdirSegmented(subdir) {
 	}
 	setBatchMode(false);
 	print("Processing " + subdir + "...");
-	if (platename = "plate1") {
+	if (i==0) {
 	    showMessage(sublist.length + " time points detected. Images will be preprocessed in batches of " +
 	        segmentsize + " to reduce RAM requirement.");
 	}
@@ -138,7 +139,8 @@ function processSubdirSegmented(subdir) {
 
 function scale() {
 	print("Setting scale...");
-	if (platename == "plate1") {
+	
+	if (i == 0) {
 		run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
 		setTool("line");
         run("Set Measurements...", "area bounding display redirect=None decimal=3");
