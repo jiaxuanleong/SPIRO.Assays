@@ -19,8 +19,8 @@ germnmaindir = resultsdir + "/Germination assay/";
 if (!File.isDirectory(germnmaindir)) {
 	File.makeDirectory(germnmaindir);
 }
-processMain1(maindir);
-processMain2(maindir);
+processMain1();
+processMain2();
 
 list = getList("window.titles");
 	for (i=0; i<list.length; i++){
@@ -30,7 +30,7 @@ list = getList("window.titles");
 }
 
 //PART1 crop groups/genotypes per plate
-function processMain1(maindir) {
+function processMain1() {
 	for (i=0; i<preprocessingmaindirlist.length; i++) {
 		plateanalysisno = i;
 		platepreprocessedfile = preprocessingmaindirlist [i];
@@ -41,7 +41,7 @@ function processMain1(maindir) {
 }
 
 //PART2 analyses seeds per genotype/group per plate
-function processMain2(maindir) {
+function processMain2() {
 	for (i=0; i<preprocessingmaindirlist.length; i++) {
 		platepreprocessedfile = preprocessingmaindirlist [i];
 		preprocessedfilenameparts = split(platepreprocessedfile, "_");

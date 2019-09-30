@@ -20,10 +20,10 @@ if (!File.isDirectory(rootgrowthmaindir)) {
 	File.makeDirectory(rootgrowthmaindir);
 }
 
-processMain1(maindir);
-processMain2(maindir);
-processMain21(maindir);
-processMain3(maindir);
+processMain1();
+processMain2();
+processMain21();
+processMain3();
 
 list = getList("window.titles"); 
      for (i=0; i<list.length; i++){ 
@@ -33,7 +33,7 @@ list = getList("window.titles");
      }
 
 //PART1 crop groups/genotypes per plate
-function processMain1(maindir) {
+function processMain1() {
 	for (i=0; i<preprocessingmaindirlist.length; i++) {
 		plateanalysisno = i;
 		platepreprocessedfile = preprocessingmaindirlist [i];
@@ -44,7 +44,7 @@ function processMain1(maindir) {
 }
 
 //PART2 find seed positions per group per plate
-function processMain2(maindir) {
+function processMain2() {
 	for (i=0; i<preprocessingmaindirlist.length; i++) {
 		platepreprocessedfile = preprocessingmaindirlist [i];
 		preprocessedfilenameparts = split(platepreprocessedfile, "_");
@@ -60,7 +60,7 @@ function processSub2() {
 }
 
 //PART2.1 find root start coordinates per group per plate
-function processMain21(maindir) {
+function processMain21() {
 	for (i=0; i<preprocessingmaindirlist.length; i++) {
 		platepreprocessedfile = preprocessingmaindirlist [i];
 		preprocessedfilenameparts = split(platepreprocessedfile, "_");
@@ -78,7 +78,7 @@ function processSub21() {
 
 
 //PART3 skeleton analysis per group per plate
-function processMain3(maindir) {
+function processMain3() {
 	for (i=0; i<preprocessingmaindirlist.length; i++) {
 		platepreprocessedfile = preprocessingmaindirlist [i];
 		preprocessedfilenameparts = split(platepreprocessedfile, "_");

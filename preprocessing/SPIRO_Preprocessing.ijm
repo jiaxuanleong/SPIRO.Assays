@@ -2,8 +2,10 @@
 //main directory containing all images sorted by plate into subdirectories
 //requirements for image naming
 //plate1-date20190101-time000000-day
+//this macro requires that TurboReg (EPFL) and MultiStackReg (Brad Busse) macros are installed
 
 //user selection of main directory
+setBatchMode(false);
 showMessage("Please locate and open your experiment folder.");
 maindir = getDirectory("Choose a Directory");
 list = getFileList(maindir);
@@ -21,9 +23,11 @@ if (!File.isDirectory(preprocessingmaindir)) {
 }
 regq = getBoolean("Would you like to carry out drift correction (registration)?\n" +
     "Please note that this step may take up a lot of time and computer memory for large datasets.");
-
 segmentsize = 350;
-processMain1(maindir);
+
+scale();
+getCropCoordinates();
+processMain1();
 
 list = getList("window.titles");
 for (i=0; i<list.length; i++) {
@@ -33,33 +37,124 @@ for (i=0; i<list.length; i++) {
 }
 
 ///set up recursive processing of a main directory which contains multiple subdirectories   
-function processMain1(maindir) {
+function processMain1() {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
-			platefolderno = i;
-			subdir = maindir + list[i];
-			sublist = getFileList(subdir);
-			platename = File.getName(subdir);
-			if (sublist.length < segmentsize) {
-			    processSubdir(subdir);
-			} else {
-			if (platefolderno == 0) {
-			    showMessage(sublist.length + " time points detected. Images will be preprocessed in batches of " +
-			        segmentsize + " to reduce RAM requirement.");
+		plateanalysisno = i;
+		subdir = maindir + list[i];
+		sublist = getFileList(subdir);
+		platename = File.getName(subdir);
+		if (sublist.length < segmentsize) {
+			processSubdir();
+		} else {
+			if (plateanalysisno == 0) {
+			   showMessage(sublist.length + " time points detected. Images will be preprocessed in batches of " +
+			   segmentsize + " to reduce RAM requirement.");
 			}
-				processSubdirSegmented(subdir);
-			}
+			processSubdirSegmented();
 		}
 	}
 }
 
+function scale() {
+	print("Setting scale...");
+	for (i=0; i<list.length; i++) {
+		plateanalysisno = i;
+		subdir = maindir + list[i];
+		sublist = getFileList(subdir);
+		platename = File.getName(subdir);
+		open(subdir + sublist[0]);
+		
+		if (plateanalysisno == 0) {
+			run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
+			setTool("line");
+	        run("Set Measurements...", "area bounding display redirect=None decimal=3");
+	        waitForUser("Setting the scale." +
+	            "Please zoom in on the scale bar and hold the SHIFT key while drawing a line corresponding to 1cm.");
+	        run("Measure");
+	        length = getResult('Length', nResults - 1);
+	        while (length == 0 || isNaN(length)) {
+	            waitForUser("Line selection required.");
+	            run("Measure");
+	            length = getResult('Length', nResults - 1);
+	        }
+	        angle  = getResult('Angle', nResults - 1);
+	        while (angle != 0 && angle != 180) {
+	            waitForUser("Line must not be at an angle! Please correct then click OK.");
+	            run("Measure");
+	            angle  = getResult('Angle', nResults - 1);
+	        }
+	        Table.rename("Results", "Positions");
+	        waitForUser("1 cm corresponds to " + length + " pixels. Click OK if correct.");
+	        run("Set Scale...", "distance=" + length + " known=1 unit=cm global");
+	    } else {
+	        length = Table.get("Length", 0, "Positions");
+	        run("Set Scale...","distance=" + length + " known=1 unit=cm global");
+	    }
+	    close();
+	}
+}
+
+function getCropCoordinates() {
+	print("Getting crop coordinates...");
+	for (i=0; i<list.length; i++) {
+		plateanalysisno = i;
+		subdir = maindir + list[i];
+		sublist = getFileList(subdir);
+		platename = File.getName(subdir);
+		open(subdir+sublist[0]);
+		//automatically calculates the relevant area of SPIRO-acquired images, based on the position of scale bar drawn
+
+		if (plateanalysisno == 0) {
+		nR = Table.size("Positions");
+		bx = Table.get("BX", nR - 1, "Positions");
+		by = Table.get("BY", nR - 1, "Positions");
+		length = Table.get("Length", nR - 1, "Positions");
+		xmid = (bx + length/2);
+		dx = 13;
+		dy = 10.5;
+		toUnscaled(dx, dy);
+		x1 = xmid - dx;
+		y1 = by - dy;
+		width = 14;
+		height = 12.5;
+		toUnscaled(width, height);
+		makeRectangle(x1, y1, width, height);
+		} else {
+			makeRectangle(x1, y1, width, height);
+		}
+		waitForUser("If needed, please correct the selected area for crop, then click OK.");
+		if (plateanalysisno == 0) {
+			cropcoord = "Crop Coordinates";
+			Table.create(cropcoord);
+		}
+		roibounds = Roi.getBounds(roiboundx, roiboundy, roiboundwidth, roiboundheight);
+		nr = plateanalysisno;
+		Table.set("X", nr, roiboundx, cropcoord);
+		Table.set("Y", nr, roiboundy, cropcoord);
+		Table.set("Width", nr, roiboundwidth, cropcoord);
+		Table.set("Height", nr, roiboundheight, cropcoord);
+		close();
+	}
+}
+
+
+function crop() {
+		nr = plateanalysisno;
+		cropcoord = "Crop Coordinates";
+		roiboundx = Table.get("X", nr, cropcoord);
+		roiboundy = Table.get("Y", nr, cropcoord);
+		roiboundwidth = Table.get("Width", nr, cropcoord);
+		roiboundheight = Table.get("Height", nr, cropcoord);
+		makeRectangle(roiboundx, roiboundy, roiboundwidth, roiboundheight);
+		run("Crop");
+}
+
+
 // process files in a subdirectory
-function processSubdir(subdir) {
-	print("Processing " + subdir + "...");
-	setBatchMode(false);
+function processSubdir() {
+	print("Processing " + platename + "...");
 	run("Image Sequence...", "open=[" + subdir + sublist[0] + "]+convert sort use");
 	stack1 = getTitle();
-	scale();
 	crop();
 	if (regq) {
 	    // calling register with argument 'false' means non-segmented registration
@@ -74,7 +169,7 @@ function processSubdir(subdir) {
 }
 
 // process files in a subdirectory, dividing images into separate batches
-function processSubdirSegmented(subdir) {
+function processSubdirSegmented() {
 	tempdirsegmented = preprocessingmaindir + "/temp/";
 	if (!File.isDirectory(tempdirsegmented)) {
 	    File.makeDirectory(tempdirsegmented);
@@ -98,12 +193,6 @@ function processSubdirSegmented(subdir) {
 		        " starting=" + initial+1 + " convert sort use");
 		}
 		stack1 = getTitle();
-		if (x == 0) {
-			scale();
-		} else {
-			length = Table.get("Length", 0, "Positions");
-			run("Set Scale...", "distance=" + length + " known=1 unit=cm global");
-		}
 		crop();
 		if (regq) {
 		    // calling register() with argument 'true' runs it in segmented mode
@@ -131,58 +220,6 @@ function processSubdirSegmented(subdir) {
 		}
 	}
 	File.delete(tempdirsegmented);
-}
-
-function scale() {
-	print("Setting scale...");
-	
-	if (platefolderno == 0) {
-		run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
-		setTool("line");
-        run("Set Measurements...", "area bounding display redirect=None decimal=3");
-        waitForUser("Setting the scale." +
-            "Please zoom in on the scale bar and hold the SHIFT key while drawing a line corresponding to 1cm.");
-        run("Measure");
-        length = getResult('Length', nResults - 1);
-        while (length == 0 || isNaN(length)) {
-            waitForUser("Line selection required.");
-            run("Measure");
-            length = getResult('Length', nResults - 1);
-        }
-        angle  = getResult('Angle', nResults - 1);
-        while (angle != 0 && angle != 180) {
-            waitForUser("Line must not be at an angle! Please correct then click OK.");
-            run("Measure");
-            angle  = getResult('Angle', nResults - 1);
-        }
-        Table.rename("Results", "Positions");
-        waitForUser("1 cm corresponds to " + length + " pixels. Click OK if correct.");
-        run("Set Scale...", "distance=" + length + " known=1 unit=cm global");
-    } else {
-        length = Table.get("Length", 0, "Positions");
-        run("Set Scale...","distance=" + length + " known=1 unit=cm global");
-    }
-}
-
-//for cropping of images into a smaller area to allow faster processing
-function crop() {
-	print("Cropping...");
-	nR = Table.size;
-	bx = Table.get("BX", nR - 1, "Positions");
-	by = Table.get("BY", nR - 1, "Positions");
-	length = Table.get("Length", nR - 1, "Positions");
-	xmid = (bx + length/2);
-	dx = 13;
-	dy = 10.5;
-	toUnscaled(dx, dy);
-	x1 = xmid - dx;
-	y1 = by - dy;
-	width = 14;
-	height = 12.5;
-	toUnscaled(width, height);
-	makeRectangle(x1, y1, width, height);
-	waitForUser("If needed, please correct the selected area for crop, then click OK.");
-	run("Crop");
 }
 
 function register(segmented) {
