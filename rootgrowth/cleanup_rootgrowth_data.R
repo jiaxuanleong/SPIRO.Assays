@@ -120,8 +120,11 @@ if (.Platform$OS.type == 'unix') {
   dir <- choose.dir(getwd(), "Choose folder to process")
 }
 
+resultsdir <- paste0(dir, '/Results')
+outdir <- paste0(resultsdir, '/Root growth assay')
+
 # get all .tsv files in the directory
-files <- list.files(path = dir, pattern = 'root analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
+files <- list.files(path = outdir, pattern = 'root analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
 allout <- NULL
 
@@ -130,8 +133,8 @@ for (f in files) {
   allout <- rbind(allout, out)
 }
 
-write.table(allout, file=paste0(dir, "/root-output.tsv"), sep='\t', row.names=FALSE)
-write.table(step1, file=paste0(dir, "/step1.tsv"), sep='\t', row.names=FALSE)
-write.table(step2, file=paste0(dir, "/step2.tsv"), sep='\t', row.names=FALSE)
-write.table(step3, file=paste0(dir, "/step3.tsv"), sep='\t', row.names=FALSE)
-write.table(step4, file=paste0(dir, "/step4.tsv"), sep='\t', row.names=FALSE)
+write.table(allout, file=paste0(outdir, "/root-output.tsv"), sep='\t', row.names=FALSE)
+write.table(step1, file=paste0(outdir, "/step1.tsv"), sep='\t', row.names=FALSE)
+write.table(step2, file=paste0(outdir, "/step2.tsv"), sep='\t', row.names=FALSE)
+write.table(step3, file=paste0(outdir, "/step3.tsv"), sep='\t', row.names=FALSE)
+write.table(step4, file=paste0(outdir, "/step4.tsv"), sep='\t', row.names=FALSE)
