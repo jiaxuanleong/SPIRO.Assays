@@ -6,21 +6,24 @@
 //user selection of main directory
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
-list = getFileList(maindir);
-for (a=0; a<list.length; a++) {
-	if (indexOf(list[a], "plate") < 0)
-		list = Array.deleteValue(list, list[a]); //makes sure any non-plate folder isnt processed
-}
 resultsdir = maindir + "/Results/";
+preprocessingmaindir = resultsdir + "/Preprocessing/";
+
+preprocessingmaindirlist = getFileList(preprocessingmaindir);
+for (a=0; a<preprocessingmaindirlist.length; a++) {
+	if (indexOf(preprocessingmaindirlist[a], "plate") < 0)
+		preprocessingmaindirlist = Array.deleteValue(preprocessingmaindirlist, preprocessingmaindirlist[a]); //makes sure any non-plate folder isnt processed
+}
+
 rootgrowthmaindir = resultsdir + "/Root growth assay/";
 if (!File.isDirectory(rootgrowthmaindir)) {
 	File.makeDirectory(rootgrowthmaindir);
 }
-preprocessingmaindir = resultsdir + "/Preprocessing/";
-processMain1(maindir);
-processMain2(maindir);
-processMain21(maindir);
-processMain3(maindir);
+
+processMain1();
+processMain2();
+processMain21();
+processMain3();
 
 list = getList("window.titles"); 
      for (i=0; i<list.length; i++){ 
@@ -30,79 +33,69 @@ list = getList("window.titles");
      }
 
 //PART1 crop groups/genotypes per plate
-function processMain1(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
-			platefolderno = i;
-			subdir = preprocessingmaindir+list[i];
-			sublist = getFileList(subdir);
-			platename = File.getName(subdir);
-			cropGroup(subdir);
-		}
+function processMain1() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		plateanalysisno = i;
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		cropGroup();
 	}
 }
 
 //PART2 find seed positions per group per plate
-function processMain2(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
-			subdir = preprocessingmaindir+list[i];
-			sublist = getFileList(subdir);
-			platename = File.getName(subdir);
-			processSub2(subdir);
-		}
+function processMain2() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		processSub2();	
 	}
 }
 
-function processSub2(subdir) {
-	platename = File.getName(subdir);
+function processSub2() {
 	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";	
 	croplist = getFileList(rootgrowthsubdir);
-	seedPosition(subdir);
+	seedPosition();
 }
 
 //PART2.1 find root start coordinates per group per plate
-function processMain21(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
-			subdir = preprocessingmaindir+list[i];
-			sublist = getFileList(subdir);
-			platename = File.getName(subdir);
-			processSub21(subdir);
-		}
+function processMain21() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		processSub21();
 	}
 }
 
-function processSub21(subdir) {
-	platename = File.getName(subdir);
+function processSub21() {
 	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
 	
-	rootStart(subdir);
+	rootStart();
 }
 
 
 //PART3 skeleton analysis per group per plate
-function processMain3(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
-			subdir = preprocessingmaindir+list[i];
-			sublist = getFileList(subdir);
-			print("Getting root measurements of "+subdir);
-			processSub3(subdir);
-		}
+function processMain3() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		print("Getting root measurements of "+platename);
+		processSub3();
 	}
 }
 
-function processSub3(subdir) {
-	platename = File.getName(subdir);
+function processSub3() {
 	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
-	rootlength(subdir);
+	rootlength();
 };
 
 //PART1 crop genotypes/group 
-function cropGroup(subdir) {
+function cropGroup() {
 	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
 	if (!File.isDirectory(rootgrowthsubdir)) {
 		File.makeDirectory(rootgrowthsubdir);
@@ -118,12 +111,12 @@ function cropGroup(subdir) {
 	print("Cropping genotypes/groups in "+platename);
 	run("ROI Manager...");
 	setTool("Rectangle");
-	if (platefolderno == 0) {
+	if (plateanalysisno == 0) {
 	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
 		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
 		"ROIs cannot share names.");
 	}
-	if (platefolderno > 0)
+	if (plateanalysisno > 0)
 	waitForUser("Modify ROI and names if needed.");
 	while (roiManager("count") <= 0) {
 	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
@@ -164,7 +157,7 @@ close();
 
 
 //PART2 finds seed position and saves ROI - looped through crops immediately for user friendliness
-function seedPosition(subdir) {
+function seedPosition() {
 	for (y = 0; y < croplist.length-1; ++y) { //-1 for substack file
 		if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(false);
@@ -347,7 +340,7 @@ function seedlinginitial() { //if seedlings instead of seeds are detected on fi
 
 
 //PART2.1 finds root start coordinates per genotype/group
-function rootStart(subdir) {
+function rootStart() {
 	for (y = 0; y < croplist.length; ++y) {
 		if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(true);
@@ -549,7 +542,7 @@ function rootStart(subdir) {
 }
 
 //PART3 skeleton analysis per group
-function rootlength(subdir) {
+function rootlength() {
 	for (y = 0; y < croplist.length; ++y) {
 	if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(true);

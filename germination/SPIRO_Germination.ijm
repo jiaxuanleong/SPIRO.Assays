@@ -6,20 +6,21 @@
 //user selection of main directory
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
-list = getFileList(maindir);
-for (a=0; a<list.length; a++) {
-	if (indexOf(list[a], "plate") < 0)
-		list = Array.deleteValue(list, list[a]); //makes sure any non-plate folder isnt processed
-}
 resultsdir = maindir + "/Results/";
+preprocessingmaindir = resultsdir + "/Preprocessing/";
+
+preprocessingmaindirlist = getFileList(preprocessingmaindir);
+for (a=0; a<preprocessingmaindirlist.length; a++) {
+	if (indexOf(preprocessingmaindirlist[a], "plate") < 0)
+		preprocessingmaindirlist = Array.deleteValue(preprocessingmaindirlist, preprocessingmaindirlist[a]); //makes sure any non-plate folder isnt processed
+}
 
 germnmaindir = resultsdir + "/Germination assay/";
-preprocessingmaindir = resultsdir + "/Preprocessing/";
 if (!File.isDirectory(germnmaindir)) {
 	File.makeDirectory(germnmaindir);
 }
-processMain1(maindir);
-processMain2(maindir);
+processMain1();
+processMain2();
 
 list = getList("window.titles");
 	for (i=0; i<list.length; i++){
@@ -29,44 +30,38 @@ list = getList("window.titles");
 }
 
 //PART1 crop groups/genotypes per plate
-function processMain1(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
-			platefolderno = i;
-			subdir = preprocessingmaindir+list[i];
-			sublist = getFileList(subdir);
-			platename = File.getName(subdir);
-			cropGroup(subdir);
-		}
+function processMain1() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		plateanalysisno = i;
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		cropGroup();
 	}
 }
 
 //PART2 analyses seeds per genotype/group per plate
-function processMain2(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")) {
-			subdir = preprocessingmaindir+list[i];
-			sublist = getFileList(subdir);
-			processSub2(subdir);
-		}
+function processMain2() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		processSub2();
 	}
 }
 
-function processSub2(subdir) {
-	platename = File.getName(subdir);
+function processSub2() {
 	germnsubdir = germnmaindir+ "/" + platename + "/";
 	croplist = getFileList(germnsubdir);
-	
 	seedAnalysis();
 }
 
 //PART1 crops groups/genotypes
-function cropGroup(subdir) {
+function cropGroup() {
 	germnsubdir = germnmaindir+ "/" + platename + "/";
 	if (!File.isDirectory(germnsubdir)) {
 		File.makeDirectory(germnsubdir);
 	}
-
 	setBatchMode(false);
 	open(preprocessingmaindir + platename + "_preprocessed.tif");
 	oristack = getTitle();
@@ -74,18 +69,18 @@ function cropGroup(subdir) {
 	run("Make Substack...");
 	saveAs("Tiff", germnsubdir + platename + "_germinationsubstack.tif");
 	close(oristack);
-	print("Cropping genotypes/groups of " + subdir);
+	print("Cropping genotypes/groups of " + platename);
 	run("ROI Manager...");
 	setTool("Rectangle");
 
-	if (platefolderno == 0) {
+	if (plateanalysisno == 0) {
 		roiManager("reset");
 		waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
 		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
 		"ROIs cannot share names.");
 	}
 
-	if (platefolderno > 0) {
+	if (plateanalysisno > 0) {
 		waitForUser("Modify ROI and names if needed.");
 	}
 
