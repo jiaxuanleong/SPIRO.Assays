@@ -6,13 +6,18 @@
 //user selection of main directory
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
+list = getFileList(maindir);
+for (a=0; a<list.length; a++) {
+	if (indexOf(list[a], "plate") < 0)
+		list = Array.deleteValue(list, list[a]); //makes sure any non-plate folder isnt processed
+}
 resultsdir = maindir + "/Results/";
+
 germnmaindir = resultsdir + "/Germination assay/";
 preprocessingmaindir = resultsdir + "/Preprocessing/";
 if (!File.isDirectory(germnmaindir)) {
 	File.makeDirectory(germnmaindir);
 }
-list = getFileList(maindir);
 processMain1(maindir);
 processMain2(maindir);
 
@@ -26,8 +31,9 @@ list = getList("window.titles");
 //PART1 crop groups/genotypes per plate
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
-			subdir = maindir+list[i];
+		if (endsWith(list[i], "/")) {
+			platefolderno = i;
+			subdir = preprocessingmaindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
 			cropGroup(subdir);
@@ -38,8 +44,8 @@ function processMain1(maindir) {
 //PART2 analyses seeds per genotype/group per plate
 function processMain2(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
-			subdir = maindir+list[i];
+		if (endsWith(list[i], "/")) {
+			subdir = preprocessingmaindir+list[i];
 			sublist = getFileList(subdir);
 			processSub2(subdir);
 		}
@@ -60,10 +66,9 @@ function cropGroup(subdir) {
 	if (!File.isDirectory(germnsubdir)) {
 		File.makeDirectory(germnsubdir);
 	}
-	preprocessingsubdir = preprocessingmaindir + "/" + platename + "/";
 
 	setBatchMode(false);
-	open(preprocessingsubdir + platename + "_preprocessed.tif");
+	open(preprocessingmaindir + platename + "_preprocessed.tif");
 	oristack = getTitle();
     waitForUser("Create substack", "Please note first and last slice to be included for germination analysis, and indicate it in the next step.");	
 	run("Make Substack...");
@@ -73,14 +78,14 @@ function cropGroup(subdir) {
 	run("ROI Manager...");
 	setTool("Rectangle");
 
-	if (i == 0) {
+	if (platefolderno == 0) {
 		roiManager("reset");
 		waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
 		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
 		"ROIs cannot share names.");
 	}
 
-	if (i > 0) {
+	if (platefolderno > 0) {
 		waitForUser("Modify ROI and names if needed.");
 	}
 
@@ -100,8 +105,9 @@ function cropGroup(subdir) {
 	for (x=0; x<roicount; ++x) {
 		roiManager("Select", x);
 		roiname = Roi.getName;
-		if (indexOf(roiname, "-") > 0) {
-			waitForUser("ROI names cannot contain dashes '-'! Please modify the name.");
+		while (indexOf(roiname, "-") > 0) {
+			waitForUser("ROI names cannot contain dashes '-'! Please modify the name, then click OK.");
+			roiManager("Select", x);
 			roiname = Roi.getName;
 		}
 		genodir = germnsubdir + "/" + roiname + "/";

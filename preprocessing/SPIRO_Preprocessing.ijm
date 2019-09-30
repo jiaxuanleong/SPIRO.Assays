@@ -7,8 +7,10 @@
 showMessage("Please locate and open your experiment folder.");
 maindir = getDirectory("Choose a Directory");
 list = getFileList(maindir);
-list = Array.deleteValue(list, "Results/"); //if results folder exists, do not process it
-
+for (a=0; a<list.length; a++) {
+	if (indexOf(list[a], "plate") < 0)
+		list = Array.deleteValue(list, list[a]); //makes sure any non-plate folder isnt processed
+}
 resultsdir = maindir + "/Results/";
 if (!File.isDirectory(resultsdir)) {
 	File.makeDirectory(resultsdir);
@@ -34,12 +36,17 @@ for (i=0; i<list.length; i++) {
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
 		if (endsWith(list[i], "/")) {
+			platefolderno = i;
 			subdir = maindir + list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
 			if (sublist.length < segmentsize) {
 			    processSubdir(subdir);
 			} else {
+			if (platefolderno == 0) {
+			    showMessage(sublist.length + " time points detected. Images will be preprocessed in batches of " +
+			        segmentsize + " to reduce RAM requirement.");
+			}
 				processSubdirSegmented(subdir);
 			}
 		}
@@ -49,10 +56,6 @@ function processMain1(maindir) {
 // process files in a subdirectory
 function processSubdir(subdir) {
 	print("Processing " + subdir + "...");
-	preprocessingsubdir = preprocessingmaindir+ "/" + platename + "/";
-	if (!File.isDirectory(preprocessingsubdir)) {
-		File.makeDirectory(preprocessingsubdir);
-	}
 	setBatchMode(false);
 	run("Image Sequence...", "open=[" + subdir + sublist[0] + "]+convert sort use");
 	stack1 = getTitle();
@@ -61,31 +64,24 @@ function processSubdir(subdir) {
 	if (regq) {
 	    // calling register with argument 'false' means non-segmented registration
         register(false);
-        saveAs("Tiff", preprocessingsubdir + platename + "_preprocessed.tif");
+        saveAs("Tiff", preprocessingmaindir + platename + "_preprocessed.tif");
         close(platename + "_preprocessed.tif");
 	} else {
 		selectWindow(stack1);
-		saveAs("Tiff", preprocessingsubdir + platename + "_preprocessed.tif");
+		saveAs("Tiff", preprocessingmaindir + platename + "_preprocessed.tif");
 		close(platename + "_preprocessed.tif");
 	}
 }
 
 // process files in a subdirectory, dividing images into separate batches
 function processSubdirSegmented(subdir) {
-	preprocessingsubdir = preprocessingmaindir+ "/" + platename + "/";
-	tempdirsegmented = preprocessingsubdir + "/temp/";
-	if (!File.isDirectory(preprocessingsubdir)) {
-		File.makeDirectory(preprocessingsubdir);
-	}
+	tempdirsegmented = preprocessingmaindir + "/temp/";
 	if (!File.isDirectory(tempdirsegmented)) {
 	    File.makeDirectory(tempdirsegmented);
 	}
 	setBatchMode(false);
 	print("Processing " + subdir + "...");
-	if (i==0) {
-	    showMessage(sublist.length + " time points detected. Images will be preprocessed in batches of " +
-	        segmentsize + " to reduce RAM requirement.");
-	}
+	
 	numloops = sublist.length / segmentsize; // number of loops
 
 	rnl = floor(numloops) + 1; //returns closest integer rounded down
@@ -126,7 +122,7 @@ function processSubdirSegmented(subdir) {
 		}
 	}
 	selectWindow("Untitled");
-	saveAs("Tiff", preprocessingsubdir + platename + "_preprocessed.tif");
+	saveAs("Tiff", preprocessingmaindir + platename + "_preprocessed.tif");
 	close(platename + "_preprocessed.tif");
 	
 	for (x=0; x<tempdirsegmentedlist.length; x++) {
@@ -140,7 +136,7 @@ function processSubdirSegmented(subdir) {
 function scale() {
 	print("Setting scale...");
 	
-	if (i == 0) {
+	if (platefolderno == 0) {
 		run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
 		setTool("line");
         run("Set Measurements...", "area bounding display redirect=None decimal=3");
@@ -155,7 +151,7 @@ function scale() {
         }
         angle  = getResult('Angle', nResults - 1);
         while (angle != 0 && angle != 180) {
-            waitForUser("Line must not be at an angle.");
+            waitForUser("Line must not be at an angle! Please correct then click OK.");
             run("Measure");
             angle  = getResult('Angle', nResults - 1);
         }
@@ -185,6 +181,7 @@ function crop() {
 	height = 12.5;
 	toUnscaled(width, height);
 	makeRectangle(x1, y1, width, height);
+	waitForUser("If needed, please correct the selected area for crop, then click OK.");
 	run("Crop");
 }
 
@@ -203,7 +200,7 @@ function register(segmented) {
     run("Duplicate...", "duplicate");
     stack2 = getTitle();
     run("Subtract Background...", "rolling=30 stack");
-    tfn = preprocessingsubdir + "Transformation";
+    tfn = preprocessingmaindir + "Transformation";
     run("MultiStackReg", "stack_1=" + stack2 + " action_1=Align file_1=" + tfn +
         " stack_2=None action_2=Ignore file_2=[] transformation=Translation save");
     close(stack2);

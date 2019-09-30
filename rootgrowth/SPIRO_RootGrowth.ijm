@@ -7,6 +7,10 @@
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
 list = getFileList(maindir);
+for (a=0; a<list.length; a++) {
+	if (indexOf(list[a], "plate") < 0)
+		list = Array.deleteValue(list, list[a]); //makes sure any non-plate folder isnt processed
+}
 resultsdir = maindir + "/Results/";
 rootgrowthmaindir = resultsdir + "/Root growth assay/";
 if (!File.isDirectory(rootgrowthmaindir)) {
@@ -28,8 +32,9 @@ list = getList("window.titles");
 //PART1 crop groups/genotypes per plate
 function processMain1(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
-			subdir = maindir+list[i];
+		if (endsWith(list[i], "/")) {
+			platefolderno = i;
+			subdir = preprocessingmaindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
 			cropGroup(subdir);
@@ -40,8 +45,8 @@ function processMain1(maindir) {
 //PART2 find seed positions per group per plate
 function processMain2(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/")  && !endsWith(list[i], "Results/")) {
-			subdir = maindir+list[i];
+		if (endsWith(list[i], "/")) {
+			subdir = preprocessingmaindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
 			processSub2(subdir);
@@ -59,8 +64,8 @@ function processSub2(subdir) {
 //PART2.1 find root start coordinates per group per plate
 function processMain21(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
-			subdir = maindir+list[i];
+		if (endsWith(list[i], "/")) {
+			subdir = preprocessingmaindir+list[i];
 			sublist = getFileList(subdir);
 			platename = File.getName(subdir);
 			processSub21(subdir);
@@ -80,8 +85,8 @@ function processSub21(subdir) {
 //PART3 skeleton analysis per group per plate
 function processMain3(maindir) {
 	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && !endsWith(list[i], "Results/")) {
-			subdir = maindir+list[i];
+		if (endsWith(list[i], "/")) {
+			subdir = preprocessingmaindir+list[i];
 			sublist = getFileList(subdir);
 			print("Getting root measurements of "+subdir);
 			processSub3(subdir);
@@ -98,14 +103,13 @@ function processSub3(subdir) {
 
 //PART1 crop genotypes/group 
 function cropGroup(subdir) {
-	preprocessingsubdir = preprocessingmaindir + "/" + platename + "/";
 	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
 	if (!File.isDirectory(rootgrowthsubdir)) {
 		File.makeDirectory(rootgrowthsubdir);
 	}
 	croplist = getFileList(rootgrowthsubdir);
 	setBatchMode(false);
-	open(preprocessingsubdir+platename+"_preprocessed.tif");
+	open(preprocessingmaindir+platename+"_preprocessed.tif");
 	reg = getTitle();
 	waitForUser("Create substack", "Please note first and last slice to be included for root length analysis, and indicate it in the next step.");	
 	run("Make Substack...");
@@ -114,14 +118,17 @@ function cropGroup(subdir) {
 	print("Cropping genotypes/groups in "+platename);
 	run("ROI Manager...");
 	setTool("Rectangle");
-	if (i==0) {
-	roiManager("reset");
-	waitForUser("Select each group, and add to ROI manager. ROI names will be saved. Non-rectangular selections are possible.");
+	if (platefolderno == 0) {
+	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
+		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
+		"ROIs cannot share names.");
 	}
-	if (i>0)
+	if (platefolderno > 0)
 	waitForUser("Modify ROI and names if needed.");
 	while (roiManager("count") <= 0) {
-		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
+	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
+		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
+		"ROIs cannot share names.");
 	}
 	run("Select None");
 	
@@ -133,8 +140,9 @@ function cropGroup(subdir) {
 	for (x=0; x<roicount; ++x) {
     	roiManager("Select", x);
     	roiname = Roi.getName;
-    	if (indexOf(roiname, "-") > 0) {
-    		waitForUser("ROI names cannot contain dashes '-'! Please modify the name.");
+    	while (indexOf(roiname, "-") > 0) {
+    		waitForUser("ROI names cannot contain dashes '-'! Please modify the name, then click OK.");
+    		roiManager("Select", x);
     		roiname = Roi.getName;
     	}
     	genodir = rootgrowthsubdir + "/"+roiname+"/";
