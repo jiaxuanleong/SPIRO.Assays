@@ -126,6 +126,9 @@ if (.Platform$OS.type == 'unix') {
   dir <- choose.dir(getwd(), "Choose folder to process")
 }
 
+resultsdir <- paste0(dir, '/Results')
+outdir <- paste0(resultsdir, '/Germination assay')
+
 # get all matching .tsv files in the directory
 files <- list.files(path = dir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
@@ -141,5 +144,5 @@ if ("X.1" %in% names(allout)) {
   allout <- select(allout, -X.1)
 }
 
-write.table(allout, file=paste0(dir, "/germination.postQC.tsv"), sep='\t', row.names=F)
-print(paste0("Saving cleaned and collated data to '", dir, "/germination.postQC.tsv", "'. Please edit that file to set up correct grouping for your experiment."))
+write.table(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t', row.names=F)
+print(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'. Please edit that file to set up correct grouping for your experiment."))
