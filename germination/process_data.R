@@ -7,6 +7,7 @@
 library(dplyr)
 library(reshape2)
 library(germinationmetrics)
+library(zoo)
 
 # TUNABLES:
 # lookahead_slices:
@@ -43,10 +44,9 @@ for(uid in unique(data$UID)) {
   # seed size is average of first 5 slices
   seedsize <- mean(ds$`Perim.`[1:5])
   
-  # loop through all lines. need 4 slices reserved at the end due to how the algorithm works.
-  for (i in seq(1, nrow(ds) - 4)) {
-    ds$dPerim[i] <- mean(ds$`Perim.`[seq(i,i+4)]) - seedsize
-  }
+  # create moving average perimeter increase (dPerim)
+  ds$dPerim <- rollapply(ds$`Perim.`, 5, mean, na.rm=T, align="left", partial=FALSE, fill=NA)
+  ds$dPerim <- ds$dPerim - seedsize
   
   # set delta delta perimeter (rate of change of perimeter)
   ds$ddPerim[2:nrow(ds)] <- ds$dPerim[2:nrow(ds)] - ds$dPerim[1:nrow(ds) - 1]
