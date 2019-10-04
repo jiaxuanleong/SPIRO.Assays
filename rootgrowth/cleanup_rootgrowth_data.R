@@ -1,5 +1,10 @@
 # cleanup_rootgrowth_data.R -
+#
+#   imports data from root growth macro and cleans it up a bit.
+#   after running this script, adjust the groups in the file output.tsv, 
+#   then run process_rootgrowth_data.R to get statistics.
 
+# pixel_radius is the distance from primary coords that determine whether a branch is a primary root
 pixel_radius <- 5
 
 library(dplyr)
@@ -16,10 +21,6 @@ elapsed <- function(from, to) {
   return(as.numeric(difftime(t, f, units='hours')))
 }
 
-minus <- function(vals) {
-  return(vals[2] - vals[1])
-} 
-
 # pickymean returns a mean if less than 40% of the values are NA's, otherwise it returns NA
 pickymean <- function(vals) {
   if (length(which(is.na(vals))) > 0.4*length(vals)) {
@@ -28,8 +29,6 @@ pickymean <- function(vals) {
       return(mean(vals, na.rm=T))
   }
 }
-
-step1 <<- step1.5 <<- step2 <<- step2.5 <<- step3 <<- step4 <<- NULL
 
 processfile <- function(file) {
   r <- read.delim(file, stringsAsFactors=FALSE)
@@ -54,15 +53,11 @@ processfile <- function(file) {
   r %>% group_by(UID, elapsed, Skeleton.ID) %>%
     mutate(PR = max(PR)) -> r
   
-  step1 <<- rbind(step1, r)
-  
   r$outofroi <- NA
   r$outofroi[which(r$V1.x <= 5 | r$V2.x <= 5)] <- TRUE
   r$outofroi[which(r$V1.y <= 5 | r$V2.y <= 5)] <- TRUE
   r$outofroi[which(r$V1.y >= 2*r$Primary.Y - 5 | r$V2.y >= 2*r$Primary.Y - 5)] <- TRUE
   r$outofroi[which(r$PR == FALSE)] <- NA
-  
-  step1.5 <<- rbind(step1.5, r)
   
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
@@ -95,9 +90,8 @@ processfile <- function(file) {
     group_by(UID) %>%
     mutate(signsum = rollapply(mablsign, 8, sum, na.rm=T, align="left", fill=NA)) -> r
   
-  r$growing <- NA
-  
   # if we have more than six consecutive increases of average root length, we assume growth has started
+  r$growing <- NA
   r$growing[r$signsum > 6] <- TRUE
   
   # if root starts to grow, it is considered to be growing for the remaining datapoints
@@ -105,8 +99,6 @@ processfile <- function(file) {
     group_by(UID) %>%
     mutate(growing = na.locf(growing, na.rm=F)) -> r
   
-  step2 <<- rbind(step2, r)
-
   # remove timepoints before root growth start
   r %>% group_by(UID) %>%
     filter(growing == TRUE) -> r
@@ -118,30 +110,21 @@ processfile <- function(file) {
   # remove data points with several PR's
   r$Branch.length[r$Skeletons != 1] <- NA
 
-  step2.5 <<- rbind(step2.5, r)
-  
-  #r %>% filter(abs(Branch.length - mablright) < 0.2) -> r
-  #r$Branch.length[which(abs(r$Branch.length - r$mablright) > 0.2)] <- NA
-
-  # add difference to previous
+  # difference to previous point
   r$diff <- ave(r$Branch.length, r$UID, FUN=function(x) c(0, diff(x)))
-  r$pctchange <- r$diff / r$Branch.length
-  step3 <<- rbind(step3, r)
-  
+
+  # if an absolute difference of >0.3 cm is detected, remove all following data points
+  # it is often caused by another root growing into the roi
   r[which(abs(r$diff) > 0.3),] -> suspects
-  
   if (length(suspects$UID) > 0) {
     suspects %>%
       group_by(UID) %>%
       summarize(elapsed=min(elapsed)) -> suspects
     for (i in seq(1, length(suspects$UID))) {
       s <- suspects[i,]
-      print(paste0('Removing anomalous values from UID ', s$UID, ' starting at timepoint ', s$elapsed))
       r$Branch.length[which(r$UID == s$UID & r$elapsed >= s$elapsed)] <- NA
     }
   }
-
-  step4 <<- rbind(step4, r)
 
   return(r)
 }
@@ -176,8 +159,4 @@ for (gid in unique(allout$GID)) {
   suppressWarnings(ggsave(filename=paste0(outdir, "/perseedling-", gid, ".pdf"), width=25, height=15, units='cm'))
 }
     
-write.table(allout, file=paste0(outdir, "/root-output.tsv"), sep='\t', row.names=FALSE)
-write.table(step1, file=paste0(outdir, "/step1.tsv"), sep='\t', row.names=FALSE)
-write.table(step2, file=paste0(outdir, "/step2.tsv"), sep='\t', row.names=FALSE)
-write.table(step3, file=paste0(outdir, "/step3.tsv"), sep='\t', row.names=FALSE)
-write.table(step4, file=paste0(outdir, "/step4.tsv"), sep='\t', row.names=FALSE)
+write.table(allout, file=paste0(outdir, "/rootgrowth.postQC.tsv"), sep='\t', row.names=FALSE)
