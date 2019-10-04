@@ -4,6 +4,7 @@ pixel_radius <- 5
 
 library(dplyr)
 library(zoo)
+library(ggplot2)
 
 # debug stuff:
 rawfile <- step1 <- step2 <- step3 <- NULL
@@ -17,9 +18,18 @@ elapsed <- function(from, to) {
 
 minus <- function(vals) {
   return(vals[2] - vals[1])
+} 
+
+# pickymean returns a mean if less than 40% of the values are NA's, otherwise it returns NA
+pickymean <- function(vals) {
+  if (length(which(is.na(vals))) > 0.4*length(vals)) {
+    return(NA)
+    } else {
+      return(mean(vals, na.rm=T))
+  }
 }
 
-step1 <<- step2 <<- step2.5 <<- step3 <<- step4 <<- NULL
+step1 <<- step1.5 <<- step2 <<- step2.5 <<- step3 <<- step4 <<- NULL
 
 processfile <- function(file) {
   r <- read.delim(file, stringsAsFactors=FALSE)
@@ -46,6 +56,20 @@ processfile <- function(file) {
   
   step1 <<- rbind(step1, r)
   
+  r$outofroi <- NA
+  r$outofroi[which(r$V1.x <= 5 | r$V2.x <= 5)] <- TRUE
+  r$outofroi[which(r$V1.y <= 5 | r$V2.y <= 5)] <- TRUE
+  r$outofroi[which(r$V1.y >= 2*r$Primary.Y - 5 | r$V2.y >= 2*r$Primary.Y - 5)] <- TRUE
+  r$outofroi[which(r$PR == FALSE)] <- NA
+  
+  step1.5 <<- rbind(step1.5, r)
+  
+  r %>% arrange(elapsed) %>%
+    group_by(UID) %>%
+    mutate(outofroi = na.locf(outofroi, na.rm=F)) -> r
+  
+  r$Branch.length[which(r$outofroi == TRUE)] <- NA
+  
   r %>% filter(PR == TRUE) %>%
     group_by(UID, date) %>%
     summarize(Branches = n(), GID = GID[1], 
@@ -54,13 +78,16 @@ processfile <- function(file) {
               elapsed=elapsed[1],
               SliceNo = Slice.no.[1]) -> r
   
+  r$Branch.length[r$Branch.length < 0.1] <- NA
+  
   r %>% mutate(delta = Branch.length - lag(Branch.length),
                signdelta = sign(delta),
                absdelta = abs(delta)) -> r
   
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
-    mutate(mablright = rollapply(Branch.length, 5, mean, na.rm=T, align="left", fill=NA),
+    mutate(mablright = rollapply(Branch.length, 5, pickymean, align="left", fill=NA),
+           mablleft = rollapply(Branch.length, 5, pickymean, align="right", fill=NA),
            mabldelta = mablright - lag(mablright),
            mablsign = sign(mabldelta)) -> r
   
@@ -78,24 +105,30 @@ processfile <- function(file) {
     group_by(UID) %>%
     mutate(growing = na.locf(growing, na.rm=F)) -> r
   
-  # construct a normalized elapsed time value based on root growth start
-  r %>% group_by(UID) %>% mutate(normtime = elapsed - elapsed[1]) -> r
-  
   step2 <<- rbind(step2, r)
+
+  # remove timepoints before root growth start
+  r %>% group_by(UID) %>%
+    filter(growing == TRUE) -> r
+  
+  # construct a normalized elapsed time value based on root growth start
+  r %>% group_by(UID) %>% 
+    mutate(normtime = elapsed - elapsed[1], dbg=elapsed[1]) -> r
   
   # remove data points with several PR's
-  r %>% filter(Skeletons == 1) -> r
-  
+  r$Branch.length[r$Skeletons != 1] <- NA
+
   step2.5 <<- rbind(step2.5, r)
   
-  r %>% filter(Branch.length > mablright) -> r
-  
+  #r %>% filter(abs(Branch.length - mablright) < 0.2) -> r
+  #r$Branch.length[which(abs(r$Branch.length - r$mablright) > 0.2)] <- NA
+
   # add difference to previous
   r$diff <- ave(r$Branch.length, r$UID, FUN=function(x) c(0, diff(x)))
   r$pctchange <- r$diff / r$Branch.length
   step3 <<- rbind(step3, r)
   
-  r[abs(r$diff) > 0.5,] -> suspects
+  r[which(abs(r$diff) > 0.3),] -> suspects
   
   if (length(suspects$UID) > 0) {
     suspects %>%
@@ -104,7 +137,7 @@ processfile <- function(file) {
     for (i in seq(1, length(suspects$UID))) {
       s <- suspects[i,]
       print(paste0('Removing anomalous values from UID ', s$UID, ' starting at timepoint ', s$elapsed))
-      r$Branch.length[r$UID == s$UID & r$elapsed >= s$elapsed] <- NA
+      r$Branch.length[which(r$UID == s$UID & r$elapsed >= s$elapsed)] <- NA
     }
   }
 
@@ -133,6 +166,16 @@ for (f in files) {
   allout <- rbind(allout, out)
 }
 
+for (gid in unique(allout$GID)) {
+  p <- ggplot(allout[allout$GID == gid,], aes(x=elapsed, y=Branch.length, color=UID, group=UID)) +
+    geom_point(alpha=.5, size=.5) +
+    geom_line() +
+    labs(x="Time (h)", 
+         y="Primary root length (cm)",
+         title=paste0("Per-seedling graph for group ", gid))
+  suppressWarnings(ggsave(filename=paste0(outdir, "/perseedling-", gid, ".pdf"), width=25, height=15, units='cm'))
+}
+    
 write.table(allout, file=paste0(outdir, "/root-output.tsv"), sep='\t', row.names=FALSE)
 write.table(step1, file=paste0(outdir, "/step1.tsv"), sep='\t', row.names=FALSE)
 write.table(step2, file=paste0(outdir, "/step2.tsv"), sep='\t', row.names=FALSE)
