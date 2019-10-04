@@ -160,3 +160,5 @@ for (gid in unique(allout$GID)) {
 }
     
 write.table(allout, file=paste0(outdir, "/rootgrowth.postQC.tsv"), sep='\t', row.names=FALSE)
+print(paste0("Output saved to ", outdir, "/rootgrowth.postQC.tsv", 
+             ". Adjust groups and remove problematic seedlings from this file, then run process_rootgrowth_data.R"))
