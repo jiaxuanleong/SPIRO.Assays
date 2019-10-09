@@ -14,5 +14,74 @@ outdir <- paste0(resultsdir, '/Root growth assay')
 
 data <- read.delim(paste0(outdir, '/rootgrowth.postQC.tsv'), header=T, row.names=NULL)
 
-mod <- lm(Branch.length ~ GID + normtime - 1, data=data)
-print(summary(mod))
+# loop to ask the user to choose the control group
+groups <- as.character(unique(data$GID))
+ngroups <- length(groups)
+
+if (ngroups > 1) {
+  ctrl <- 0
+  while (ctrl<1) {
+    cat("More than one group detected in dataset. Please indicate which group is the control.\n\n")
+    i <- 0
+    for (group in groups) {
+      i <- i + 1
+      cat(paste0("[", i, "] ", group, "\n"))
+    }
+    cat("\n")
+    ctrl <- as.numeric(readline(prompt = "Enter the number of the control group: "))
+    if (is.na(ctrl)) {
+      ctrl <- 0
+    }
+  }
+  ctrlgroup <- groups[ctrl]
+  expgroups <- groups[!groups %in% ctrlgroup]
+} else 
+
+# plot all data points with polynomial fit overlaid
+p <- ggplot(data, aes(x=normtime, y=Branch.length, color=GID, group=GID)) + 
+  geom_point(size=.3, alpha=.5) +
+  geom_smooth(method="lm", formula= y ~ poly(x, 2, raw=T)) + 
+  labs(x="Time since root emergence (h)", 
+       y="Primary root length (cm)", 
+       title="Primary root growth per group")
+suppressWarnings(ggsave(p, filename=paste0(outdir, "/rootgrowth-allgroups.pdf"), width=25, height=15, units="cm"))
+
+# if we have more than one group, perform pairwise comparisons against control
+stats <- NULL
+if (ngroups > 1) {
+  pvals <- rss1s <- rss2s <- r2s <- NULL
+  for (group in expgroups) {
+    ds <- data[data$GID %in% c(group, ctrlgroup),]
+    mod1 <- lm(Branch.length ~ poly(normtime, 2, raw=T), data=ds)
+    mod2 <- lm(Branch.length ~ poly(normtime, 2, raw=T) * GID, data=ds)
+    a <- anova(mod1, mod2)
+    rss1s <- c(rss1s, a$RSS[1])
+    rss2s <- c(rss2s, a$RSS[2])
+    pvals <- c(pvals, a$`Pr(>F)`[2])
+
+    ds$GID <- factor(ds$GID, levels = c(group, ctrlgroup))
+    p <- ggplot(ds, aes(x=normtime, y=Branch.length, color=GID, group=GID)) + 
+      geom_point(size=.3, alpha=.5) + 
+      geom_smooth(method="lm", formula = y ~ poly(x, 2, raw=T)) +
+      labs(x="Relative time (h)",
+           y="Primary root length (cm)",
+           title=paste0("Model fit for group ", group, " compared to control"))
+    suppressWarnings(ggsave(p, filename = paste0(outdir, "/rootgrowth-", group, ".pdf"), width=25, height=15, units="cm"))
+  }
+
+  stats <- data.frame(Exp.Group = expgroups, Ctrl.Group = ctrlgroup, Model1.RSS = rss1s, Model2.RSS = rss2s, p.value = pvals)
+  cat(paste0("Writing statistics to ", outdir, "/modelfits.tsv.\n"))
+  write.table(stats, file=paste0(outdir, "/modelfits.tsv"), sep='\t', row.names = F)
+  
+  b0s <- b1s <- b2s <- NULL
+  for (group in groups) {
+    mod <- lm(Branch.length ~ poly(normtime, 2, raw=T), data=data[data$GID == group,])
+    c <- coef(mod)
+    b0s <- c(b0s, c[1])
+    b1s <- c(b1s, c[2])
+    b2s <- c(b2s, c[3])
+  }
+  coefs <- data.frame(Group = groups, b0 = b0s, b1 = b1s, b2 = b2s)
+  cat(paste0("Writing model coefficients to ", outdir, "/modelfits.tsv.\n"))
+  write.table(coefs, file=paste0(outdir, "/coefficients.tsv"), sep='\t', row.names = F)
+}
