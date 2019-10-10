@@ -54,15 +54,15 @@ for(uid in unique(data$UID)) {
   
   # loop over the values again...:\
   # we need a buffer of (4 + lookahead_slices) slices.
-  for (i in seq(1, nrow(ds) - (4 + lookahead_slices))) {
-    if (ds$dPerim[i] > 0) {
-      if (all(ds$ddPerim[seq(i + 1, i + lookahead_slices)] > 0)) {
+  for (i in seq(6, nrow(ds) - (4 + lookahead_slices))) {
+    if (ds$dPerim[i] > 1.05 * seedsize & all(ds$dPerim[seq(i-5, i-1)] > 0)) {
+      print("step 1 cleared")
+        print("germinated")
         ds$Germinated[i] <- TRUE
         break
-      }
     }
   }
-  
+
   # replace the data with the manipulated subset
   data <- subset(data, UID != uid)
   data <- rbind(data, ds)
