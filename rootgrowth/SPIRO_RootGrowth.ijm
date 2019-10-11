@@ -158,7 +158,7 @@ close();
 
 //PART2 finds seed position and saves ROI - looped through crops immediately for user friendliness
 function seedPosition() {
-	for (y = 0; y < croplist.length-1; ++y) { //-1 for substack file
+	for (y = 0; y < croplist.length; ++y) { //-1 for substack file
 		if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(false);
 		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
@@ -168,6 +168,11 @@ function seedPosition() {
 		img = getTitle();
 		
 		firstMask();
+		
+		xmax = getWidth;
+		ymax = getHeight;
+		frameproportions = xmax/ymax; 
+		if (frameproportions >= 1) //image is horizontal
 		run("Rotate 90 Degrees Right");
 		roiManager("reset");
 		run("Create Selection");
@@ -196,7 +201,7 @@ function seedPosition() {
 				selectWindow("Results");
 				area = getResult("Area", x);
 					//if (area<0.0008 || area>0.01) { 
-					if (area<0.0008) {
+					if (area<0.0005) {
 						Table.set("Trash ROI", Table.size(tp), x, tp);
 					}
 				
@@ -216,7 +221,7 @@ function seedPosition() {
 					roiManager("select", x);
 					roiManager("rename", x+1);
 				}
-		
+		Roi.setStrokeWidth(2);
 		waitForUser("Please delete any ROIs that should not be included into analysis, \n e.g. noise selection and seedlings that have overlapping roots");
 		roiarray = newArray(roiManager("count"));
 		for(x=0; x<roiManager("count"); x++){
@@ -317,7 +322,7 @@ function seedlinginitial() { //if seedlings instead of seeds are detected on fi
 					roiManager("select", x);
 					roiManager("rename", x+1);
 				}
-
+	Roi.setStrokeWidth(2);
 	waitForUser("Please delete any ROIs that should not be included into analysis, \n e.g. noise selection and seedlings that have overlapping roots");
 	roicount = roiManager("count");
 	for(x=0; x<roicount; x++){
@@ -505,6 +510,12 @@ function rootStart() {
 		close(img);
 		
 		open(genodir+genoname+".tif");
+		
+
+		xmax = getWidth;
+		ymax = getHeight;
+		frameproportions = xmax/ymax; 
+		if (frameproportions >= 1) //image is horizontal
 		run("Rotate 90 Degrees Right");
 		roiManager("reset");
 		
@@ -529,13 +540,16 @@ function rootStart() {
 		roiManager("Show All with labels");
 		run("Labels...", "color=white font=18 show use draw");
 		run("Flatten", "stack");
+		
+		if (frameproportions >= 1) //image is originally horizontal
 		run("Rotate 90 Degrees Left");
 		saveAs("Tiff", genodir+genoname+"_"+"rootstartlabelled.tif");
 		close();
 		
 		selectWindow(rsc);
 		saveAs("Results", genodir+genoname+"_"+rsc+".tsv");
-		close(rsc);
+		rsctablename=genoname+"_"+rsc+".tsv";
+		close(rsctablename);
 		File.delete(genodir+genoname+"masked.tif");
 	}
 	}
@@ -551,6 +565,11 @@ function rootlength() {
 		print("Analyzing root growth of "+platename+genoname);
 		open(genodir+genoname+".tif");
 		stack1 = getTitle();
+		
+		xmax = getWidth;
+		ymax = getHeight;
+		frameproportions = xmax/ymax; 
+		if (frameproportions >= 1) //image is horizontal
 		run("Rotate 90 Degrees Right");
 				
 		//process roots for skeletonization
@@ -638,7 +657,9 @@ function rootlength() {
 		}
 		close(bi);
 		Table.save(genodir+platename+" "+genoname+" root analysis.tsv", ra);
-
+		tableraname = platename+" "+genoname+" root analysis.tsv";
+		close(tableraname);
+		
 		selectWindow(stack1);
 		roiManager("reset");
 		roiManager("open", genodir+genoname+"rootstartrois.zip");
@@ -648,6 +669,8 @@ function rootlength() {
 		roiManager("Show All with labels");
 		run("Labels...", "color=white font=18 show use draw");
 		run("Flatten", "stack");
+		
+		if (frameproportions >= 1) //image is ORIGINALLY horizontal when opened
 		run("Rotate 90 Degrees Left");
 		saveAs("Tiff", genodir+genoname+"_"+"skeletonized.tif");
 		stack1 = getTitle();
@@ -655,15 +678,18 @@ function rootlength() {
 //Determine the cropped frame proportions to orient combining stacks horizontally or vertically
 		xmax = getWidth;
 		ymax = getHeight;
-		frameproportions=xmax/ymax; 
+		frameproportions = xmax/ymax; 
 		
 //Add label to each slice (time point). The window width for label is determined by frame proportions 
 		for (x = 0; x < nS; x++) {
 			selectWindow(stack1);
 			setSlice(x+1);
 			slicelabel = getMetadata("Label");
-			if (frameproportions > 1) {
+			if (frameproportions >= 1) { //if horizontal
 			newImage("Slice label", "RGB Color", xmax, 50, 1);
+			} else {
+			newImage("Slice label", "RGB Color", 2*xmax, 50, 1);
+			}
 			setFont("SansSerif", 20, " antialiased");
 			makeText(slicelabel, 0, 0);
 			setForegroundColor(0, 0, 0);
@@ -671,28 +697,16 @@ function rootlength() {
 			selectWindow(stack1);
 			run("Next Slice [>]");
 		 }
-		
-		if (frameproportions < 1) {
-			newImage("Slice label", "RGB Color", 2*xmax, 50, 1);
-			setFont("SansSerif", 20, " antialiased");
-			makeText(slicelabel, 0, 0);
-			setForegroundColor(0, 0, 0);
-			run("Draw", "slice");
-			selectWindow(stack1);
-			run("Next Slice [>]");
-		}
-}
 //Combine the cropped photos and binary masks with labels into one time-lapse stack. Combine vertically or horizontally depending on the frame proportions
 		run("Images to Stack");
 		label = getTitle();
 		open(genodir+genoname+"_"+"rootstartlabelled.tif");
 		rsl = getTitle();
 		
-		if (frameproportions > 1) {
+		if (frameproportions >= 1) {
 		run("Combine...", "stack1=["+rsl+"] stack2=["+stack1+"] combine");
 		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
-		}
-		if (frameproportions < 1) {
+		} else {
 		run("Combine...", "stack1=["+rsl+"] stack2=["+stack1+"]");
 		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
 		}
@@ -706,7 +720,7 @@ function rootlength() {
 		File.delete(genodir+genoname+"rootstartrois.zip");
 		File.delete(genodir+rsc);
 		
-}
+		}
 	}
 }
 
