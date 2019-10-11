@@ -156,20 +156,9 @@ for (gid in unique(allout$GID)) {
     labs(x="Time (h)", 
          y="Primary root length (cm)",
          title=paste0("Per-seedling graph for group ", gid))
-  suppressWarnings(ggsave(filename=paste0(outdir, "/preanalysis.rootgrowth-", gid, ".pdf"), width=25, height=15, units='cm'))
-
-  p <- ggplot(allout[allout$GID == gid,], aes(x=normtime, y=Branch.length, color=UID, group=UID)) +
-    geom_point(alpha=.5, size=.5) +
-    geom_line() +
-    labs(x="Time since root emergence (h)", 
-         y="Primary root length (cm)",
-         title=paste0("Per-seedling graph for group ", gid))
-  suppressWarnings(ggsave(filename=paste0(outdir, "/preanalysis.rootgrowth-normalized-", gid, ".pdf"), width=25, height=15, units='cm'))
+  suppressWarnings(ggsave(filename=paste0(outdir, "/perseedling-", gid, ".pdf"), width=25, height=15, units='cm'))
 }
-
-allout %>% arrange(GID, UID, normtime) %>% 
-  select(-c(dbg, diff, growing, signsum, mablsign, mablleft, mablright, mabldelta, absdelta, signdelta, delta, Skeletons, Branches)) -> allout
-
+    
 write.table(allout, file=paste0(outdir, "/rootgrowth.postQC.tsv"), sep='\t', row.names=FALSE)
 print(paste0("Output saved to ", outdir, "/rootgrowth.postQC.tsv", 
              ". Adjust groups and remove problematic seedlings from this file, then run process_rootgrowth_data.R"))
