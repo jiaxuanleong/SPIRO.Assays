@@ -26,7 +26,26 @@ if (.Platform$OS.type == 'unix') {
 resultsdir <- paste0(dir, '/Results')
 outdir <- paste0(resultsdir, '/Germination assay')
 
+# set up output dir
+if (dir.exists(paste0(outdir, '/Analysis output'))) {
+  runs <- list.dirs(paste0(outdir, '/Analysis output'), full.names=F, recursive=F)
+  runs <- as.numeric(runs)
+  run_number <- max(runs) + 1
+  if (run_number < 1) {
+    run_number <- 1
+  }
+} else {
+  dir.create(paste0(outdir, '/Analysis output'), recursive=T)
+  run_number <- 1
+}
+
+rundir <- paste0(outdir, '/Analysis output/', run_number)
+dir.create(rundir, showWarnings=F)
+
 data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T)
+
+# copy postQC input file to rundir for reference
+file.copy(paste0(outdir, "/germination.postQC.tsv"), rundir)
 
 data$dPerim <- data$ddPerim <- 0
 data$Germinated <- 0
@@ -93,7 +112,7 @@ data.peruid <- data.peruid %>% select(-num)
 
 names(data.peruid)[3] <- 'Germination Time (h)'
 names(data.peruid)[4] <- 'Germination detected on frame'
-write.table(data.peruid, file=paste0(outdir, "/germination-perseed.tsv"), sep='\t', row.names=F)
+write.table(data.peruid, file=paste0(rundir, "/germination-perseed.tsv"), sep='\t', row.names=F)
 
 # merge group and uid so we can keep both in the conversion long->wide->long
 data$GroupUID<-paste(data$Group, data$UID, sep="!")
@@ -148,7 +167,7 @@ for(group in unique(data.long$Group)) {
   nongerms <- c(nongerms, nongerm)
   
   # make germination graph
-  pdf(paste0(outdir, "/germinationplot-", group, ".pdf"), width=7, height=5)
+  pdf(paste0(rundir, "/germinationplot-", group, ".pdf"), width=7, height=5)
   graph <- FourPHFfit(germ.counts = germstats$GermCount[germstats$Group == group], 
                       intervals = germstats$ApproxTime[germstats$Group == group],
                       total.seeds = length(unique(data$UID[data$Group == group])),
@@ -159,4 +178,4 @@ for(group in unique(data.long$Group)) {
 
 germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts, 
                                  MeanGermTimeSE = mgtses, n = nseeds, Ungerminated = nongerms)
-write.table(germstats.pergroup, file=paste0(outdir, "/germinationstats.tsv"), sep='\t', row.names=F)
+write.table(germstats.pergroup, file=paste0(rundir, "/germinationstats.tsv"), sep='\t', row.names=F)

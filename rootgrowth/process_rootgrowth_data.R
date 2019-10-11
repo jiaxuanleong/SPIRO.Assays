@@ -18,7 +18,26 @@ if (.Platform$OS.type == 'unix') {
 resultsdir <- paste0(dir, '/Results')
 outdir <- paste0(resultsdir, '/Root growth assay')
 
+# set up output dir
+if (dir.exists(paste0(outdir, '/Analysis output'))) {
+  runs <- list.dirs(paste0(outdir, '/Analysis output'), full.names=F, recursive=F)
+  runs <- as.numeric(runs)
+  run_number <- max(runs) + 1
+  if (run_number < 1) {
+    run_number <- 1
+  }
+} else {
+  dir.create(paste0(outdir, '/Analysis output'), recursive=T)
+  run_number <- 1
+}
+
+rundir <- paste0(outdir, '/Analysis output/', run_number)
+dir.create(rundir, showWarnings=F)
+
 data <- read.delim(paste0(outdir, '/rootgrowth.postQC.tsv'), header=T, row.names=NULL)
+
+# copy postQC input file to rundir for reference
+file.copy(paste0(outdir, "/rootgrowth.postQC.tsv"), rundir)
 
 # loop to ask the user to choose the control group
 groups <- as.character(unique(data$GID))
@@ -50,7 +69,7 @@ p <- ggplot(data, aes(x=normtime, y=Branch.length, color=GID, group=GID)) +
   labs(x="Time since root emergence (h)", 
        y="Primary root length (cm)", 
        title="Primary root growth per group")
-suppressWarnings(ggsave(p, filename=paste0(outdir, "/rootgrowth-allgroups.pdf"), width=25, height=15, units="cm"))
+suppressWarnings(ggsave(p, filename=paste0(rundir, "/rootgrowth-allgroups.pdf"), width=25, height=15, units="cm"))
 
 # if we have more than one group, perform pairwise comparisons against control
 stats <- NULL
@@ -73,11 +92,11 @@ if (ngroups > 1) {
       labs(x="Relative time (h)",
            y="Primary root length (cm)",
            title=paste0("Model fit for group ", group, " compared to control"))
-    suppressWarnings(ggsave(p, filename = paste0(outdir, "/rootgrowth-", group, ".pdf"), width=25, height=15, units="cm"))
+    suppressWarnings(ggsave(p, filename = paste0(rundir, "/rootgrowth-", group, ".pdf"), width=25, height=15, units="cm"))
     
     # permutation test for exact p-value
     perm_uids <- unique(ds$UID)
-    perm_n <- length(uids)
+    perm_n <- length(perm_uids)
     
     basemod.1 <- lm(Branch.length ~ poly(normtime, 2, raw=T), data=ds)
     basemod.2 <- lm(Branch.length ~ poly(normtime, 2, raw=T) * GID, data=ds)
@@ -109,8 +128,8 @@ if (ngroups > 1) {
   }
 
   stats <- data.frame(Exp.Group = expgroups, Ctrl.Group = ctrlgroup, Exact.p.value = exactpvals, Model1.RSS = rss1s, Model2.RSS = rss2s)
-  cat(paste0("Writing statistics to ", outdir, "/modelfits.tsv.\n"))
-  write.table(stats, file=paste0(outdir, "/modelfits.tsv"), sep='\t', row.names = F)
+  cat(paste0("Writing statistics to ", rundir, "/modelfits.tsv.\n"))
+  write.table(stats, file=paste0(rundir, "/modelfits.tsv"), sep='\t', row.names = F)
   
   b0s <- b1s <- b2s <- NULL
   for (group in groups) {
@@ -121,6 +140,8 @@ if (ngroups > 1) {
     b2s <- c(b2s, c[3])
   }
   coefs <- data.frame(Group = groups, b0 = b0s, b1 = b1s, b2 = b2s)
-  cat(paste0("Writing model coefficients to ", outdir, "/coefficients.tsv.\n"))
-  write.table(coefs, file=paste0(outdir, "/coefficients.tsv"), sep='\t', row.names = F)
+  cat(paste0("Writing model coefficients to ", rundir, "/coefficients.tsv.\n"))
+  write.table(coefs, file=paste0(rundir, "/coefficients.tsv"), sep='\t', row.names = F)
+} else {
+  # if we only have one group
 }
