@@ -40,7 +40,7 @@ data <- read.delim(paste0(outdir, '/rootgrowth.postQC.tsv'), header=T, row.names
 file.copy(paste0(outdir, "/rootgrowth.postQC.tsv"), rundir)
 
 # loop to ask the user to choose the control group
-groups <- as.character(unique(data$GID))
+groups <- as.character(unique(data$Group))
 ngroups <- length(groups)
 
 if (ngroups > 1) {
@@ -63,13 +63,13 @@ if (ngroups > 1) {
 } else 
 
 # plot all data points with polynomial fit overlaid
-p <- ggplot(data, aes(x=normtime, y=Branch.length, color=GID, group=GID)) + 
+p <- ggplot(data, aes(x=RelativeElapsedHours, y=PrimaryRootLength, color=Group, group=Group)) + 
   geom_point(size=.3, alpha=.5) +
   geom_smooth(method="lm", formula= y ~ poly(x, 2, raw=T)) + 
   labs(x="Time since root emergence (h)", 
        y="Primary root length (cm)", 
        title="Primary root growth per group")
-suppressWarnings(ggsave(p, filename=paste0(rundir, "/rootgrowth-allgroups.pdf"), width=25, height=15, units="cm"))
+ggsave(p, filename=paste0(rundir, "/rootgrowth-allgroups.pdf"), width=25, height=15, units="cm")
 
 # if we have more than one group, perform pairwise comparisons against control
 stats <- NULL
@@ -77,16 +77,16 @@ if (ngroups > 1) {
   exactpvals <- pvals <- rss1s <- rss2s <- r2s <- NULL
   for (group in expgroups) {
     cat("Comparing ", group, " against ", ctrlgroup, "\n")
-    ds <- data[data$GID %in% c(group, ctrlgroup),]
-    mod1 <- lm(Branch.length ~ poly(normtime, 2, raw=T), data=ds)
-    mod2 <- lm(Branch.length ~ poly(normtime, 2, raw=T) * GID, data=ds)
+    ds <- data[data$Group %in% c(group, ctrlgroup),]
+    mod1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
+    mod2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=ds)
     a <- anova(mod1, mod2)
     rss1s <- c(rss1s, a$RSS[1])
     rss2s <- c(rss2s, a$RSS[2])
     pvals <- c(pvals, a$`Pr(>F)`[2])
 
-    ds$GID <- factor(ds$GID, levels = c(group, ctrlgroup))
-    p <- ggplot(ds, aes(x=normtime, y=Branch.length, color=GID, group=GID)) + 
+    ds$Group <- factor(ds$Group, levels = c(group, ctrlgroup))
+    p <- ggplot(ds, aes(x=RelativeElapsedHours, y=PrimaryRootLength, color=Group, group=Group)) + 
       geom_point(size=.3, alpha=.5) + 
       geom_smooth(method="lm", formula = y ~ poly(x, 2, raw=T)) +
       labs(x="Relative time (h)",
@@ -98,8 +98,8 @@ if (ngroups > 1) {
     perm_uids <- unique(ds$UID)
     perm_n <- length(perm_uids)
     
-    basemod.1 <- lm(Branch.length ~ poly(normtime, 2, raw=T), data=ds)
-    basemod.2 <- lm(Branch.length ~ poly(normtime, 2, raw=T) * GID, data=ds)
+    basemod.1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
+    basemod.2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=ds)
     basemod.aov <- anova(basemod.1, basemod.2)
     better <- 0
     
@@ -112,10 +112,10 @@ if (ngroups > 1) {
       k <- 0
       for (j in order) {
         k <- k + 1
-        newds$GID[which(ds$UID == perm_uids[k])] <- ds$GID[which(ds$UID == perm_uids[j])][1]
+        newds$Group[which(ds$UID == perm_uids[k])] <- ds$Group[which(ds$UID == perm_uids[j])][1]
       }
-      mod.1 <- lm(Branch.length ~ poly(normtime, 2, raw=T), data=newds)
-      mod.2 <- lm(Branch.length ~ poly(normtime, 2, raw=T) * GID, data=newds)
+      mod.1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=newds)
+      mod.2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=newds)
       mod.aov <- anova(mod.1, mod.2)
       
       # check if p-value of ANOVA model comparison is lower than or equal to the original
@@ -133,7 +133,7 @@ if (ngroups > 1) {
   
   b0s <- b1s <- b2s <- NULL
   for (group in groups) {
-    mod <- lm(Branch.length ~ poly(normtime, 2, raw=T), data=data[data$GID == group,])
+    mod <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=data[data$Group == group,])
     c <- coef(mod)
     b0s <- c(b0s, c[1])
     b1s <- c(b1s, c[2])
