@@ -1,8 +1,8 @@
 # cleanup_germination_data.R -
 #
 #   imports data from germination macro and cleans it up a bit.
-#   after running this script, adjust the groups in the file output.tsv, 
-#   then run process_data.R to get statistics.
+#   after running this script, adjust the groups in the file germination.postQC.tsv, 
+#   then run process_germination_data.R to get statistics.
 
 library(dplyr)
 
@@ -106,13 +106,13 @@ check_duplicates <- function(data) {
     
     # if there are anomalous objects in the first slice, remove the seed from analysis
     if(length(which(ds$Area < lower_area_threshold & ds$Area > upper_area_threshold))) {
-      print(paste("Removing UID", uid, "as it contains an anomalous object in the first slice."))
+      cat(paste("Removing UID", uid, "as it contains an anomalous object in the first slice."))
     } else {
       if(dupes == 0) {
         # keep the seed only if there were no duplicate measurements left
         data <- rbind(data, ds)
       } else {
-        print(paste("Removing UID", uid, "as it contains multiple objects."))
+        cat(paste("Removing UID", uid, "as it contains multiple objects."))
       }
     }
   }
@@ -133,7 +133,7 @@ outdir <- paste0(resultsdir, '/Germination assay')
 files <- list.files(path = dir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
 allout <- NULL
-print("Processing files and performing basic quality control. This may take a little while...")
+cat("Processing files and performing basic quality control. This may take a little while...")
 for (f in files) {
   out <- processfile(f)
   out <- check_duplicates(out)
@@ -145,4 +145,4 @@ if ("X.1" %in% names(allout)) {
 }
 
 write.table(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t', row.names=F)
-print(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'. Please edit that file to set up correct grouping for your experiment."))
+cat(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'. Please edit that file to set up correct grouping for your experiment."))
