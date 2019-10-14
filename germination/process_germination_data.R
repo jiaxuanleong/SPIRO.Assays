@@ -42,6 +42,8 @@ if (dir.exists(paste0(outdir, '/Analysis output'))) {
 rundir <- paste0(outdir, '/Analysis output/', run_number)
 dir.create(rundir, showWarnings=F)
 
+cat("Processing germination data. This will take a little while...\n")
+
 data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T)
 
 # copy postQC input file to rundir for reference
@@ -56,7 +58,7 @@ for(uid in unique(data$UID)) {
   ds <- subset(data, UID == uid)
   
   if (nrow(ds) < lookahead_slices + 4) {
-    print(paste0("Too few data points for UID ", uid, ", removing from analysis."))
+    cat(paste0("Too few data points for UID ", uid, ", removing from analysis.\n"))
     next
   }
 
@@ -179,3 +181,5 @@ for(group in unique(data.long$Group)) {
 germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts, 
                                  MeanGermTimeSE = mgtses, n = nseeds, Ungerminated = nongerms)
 write.table(germstats.pergroup, file=paste0(rundir, "/germinationstats.tsv"), sep='\t', row.names=F)
+
+cat(paste0("Statistics have been written to the directory ", rundir, "\n"))
