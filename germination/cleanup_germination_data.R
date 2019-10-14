@@ -27,7 +27,7 @@ elapsed <- function(from, to) {
 }
 
 # main function for extracting data from files
-processfile <- function(file) {
+processfile <- function(file, logdir) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
 
   # need to suppress warnings here as imagej saves row numbers as unnamed first column
@@ -69,13 +69,13 @@ processfile <- function(file) {
   data$Group <- paste0(plates[1], '_', ImgSource[1])
   resultfile <- select(resultfile, -Label)
   data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
-  check_duplicates(data)
+  check_duplicates(data, paste0(logdir, '/', basename(file), '.log'))
   return(data)
 }
 
-check_duplicates <- function(data) {
+check_duplicates <- function(data, logfile) {
   # check for rois with duplicate measurements
-  toolarge <- NULL
+  error_uids <- error_types <- NULL
 
   for(uid in unique(data$UID)) {
     # check data per uid (will only be one group per file)
@@ -87,8 +87,8 @@ check_duplicates <- function(data) {
     if (length(largearea)) {
       ds <- ds[1:largearea[1]-1,]
       if(largearea[1] < 50) {
-        toolarge <- c(toolarge, uid)
-        #cat(paste(uid, " - large area detected in early slice, please check.\n"))
+        error_uids <- c(error_uids, uid)
+        error_types <- c(error_types, 'EARLY_LARGE_AREA')
       }
     }
     
@@ -103,7 +103,6 @@ check_duplicates <- function(data) {
       areas <- ds$Area[ds$Slice == slice]
       # remove largest area from list of areas
       areas <- areas[-which.max(areas)]
-      #print(paste0("Slice ", slice, ": Removing ", length(areas), " entries with areas ", areas))
       # remove entries with these areas
       if(length(areas)) {
         x <- which(ds$Slice == slice & ds$Area %in% areas)
@@ -113,7 +112,6 @@ check_duplicates <- function(data) {
         #print("Same areas")
         dupes <- dupes + 1
       }
-      #ds <- ds[ds$Slice == slice,][! ds$Area %in% areas,]
     }
     # remove this uid from data, then add modified subset in its place
     data <- data[data$UID != uid,]
@@ -121,23 +119,25 @@ check_duplicates <- function(data) {
     # if there are anomalous objects in the first slice, remove the seed from analysis
     if(length(which(ds$Area < lower_area_threshold & ds$Area > upper_area_threshold))) {
       cat(paste("Removing UID", uid, "as it contains an anomalous object in the first slice.\n"))
+      error_uids <- c(error_uids, uid)
+      error_types <- c(error_types, 'ANOMALOUS_OBJECT')
     } else {
       if(dupes == 0) {
         # keep the seed only if there were no duplicate measurements left
         data <- rbind(data, ds)
       } else {
         cat(paste("Removing UID", uid, "as it contains multiple objects.\n"))
+        error_uids <- c(error_uids, uid)
+        error_types <- c(error_types, 'DUPE')
       }
     }
   }
   
-  if (length(toolarge) > 0) {
-    cat("Objects too large to be seeds were detected in early slices of some ROIs, truncating the data. ")
-    cat("The following seeds were affected: \n")
-    cat(toolarge)
-    cat("\n")
+  if (length(error_uids > 0)) {
+    errors <- data.frame(UID=error_uids, Type=error_types)
+    write_tsv(errors, path=logfile)
   }
-  
+
   return(data)
 }
 
@@ -152,7 +152,7 @@ resultsdir <- paste0(dir, '/Results')
 outdir <- paste0(resultsdir, '/Germination assay')
 
 # get all matching .tsv files in the directory
-files <- list.files(path = dir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
+files <- list.files(path = outdir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
 allout <- toolarge <- NULL
 
@@ -169,16 +169,37 @@ if (length(files) > 0) {
   cat(paste0("Processing files and performing basic quality control, using ", 
              length(cl), ' ', core_plural, ". This may take a little while...\n"))
 
-  allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'readr')) %dopar% 
-    processfile(f)
+  allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'readr')) %dopar%
+    processfile(f, outdir)
   
   stopCluster(cl)
+  
+  # check the logs
+  logfiles <- list.files(path = outdir, pattern = 'seed germination analysis.tsv.log$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
+  log <- NULL
+  for (f in logfiles) {
+    logfile <- read_tsv(f, col_types=c(UID=col_character(), Type=col_character()))
+    log <- rbind(log, logfile)
+    file.remove(f)
+  }
 
-  if (length(toolarge) > 0) {
-    cat("Objects too large to be seeds were detected in early slices of some ROIs, truncating the data.\n")
-    cat("The following seeds were affected: ")
-    cat(toolarge)
-    cat("\n")
+  for (errtype in unique(log$Type)) {
+    if (errtype == 'EARLY_LARGE_AREA') {
+      cat('Large non-seed object detected in ROI. Time range has been truncated.\n')
+      cat('Affected seeds: ')
+      cat(log$UID[log$Type == 'EARLY_LARGE_AREA'])
+      cat('\n')
+    } else if (errtype == 'ANOMALOUS_OBJECT') {
+      cat('An anomalous object was detected in the first slice. Affected seeds were removed from analysis.\n')
+      cat('Affected seeds: ')
+      cat(log$UID[log$Type == 'ANOMALOUS_OBJECT'])
+      cat('\n')
+    } else if (errtype == 'DUPE') {
+      cat('Duplicated seedlike objects were detected. Affected seeds were removed from analysis.\n')
+      cat('Affected seeds: ')
+      cat(log$UID[log$Type == 'DUPE'])
+      cat('\n')
+    }
   }
 }
 
