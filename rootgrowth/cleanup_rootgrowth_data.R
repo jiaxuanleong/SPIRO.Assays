@@ -144,6 +144,8 @@ files <- list.files(path = outdir, pattern = 'root analysis.tsv$', full.names = 
 
 allout <- NULL
 
+cat("Processing files, please wait...\n")
+
 for (f in files) {
   out <- processfile(f)
   allout <- rbind(allout, out)
@@ -171,5 +173,5 @@ allout %>% arrange(GID, UID, normtime) %>%
   select(-c(dbg, diff, growing, signsum, mablsign, mablleft, mablright, mabldelta, absdelta, signdelta, delta, Skeletons, Branches)) -> allout
 
 write.table(allout, file=paste0(outdir, "/rootgrowth.postQC.tsv"), sep='\t', row.names=FALSE)
-print(paste0("Output saved to ", outdir, "/rootgrowth.postQC.tsv", 
-             ". Adjust groups and remove problematic seedlings from this file, then run process_rootgrowth_data.R"))
+cat(paste0("Output saved to ", outdir, "/rootgrowth.postQC.tsv", 
+             ". Adjust groups and remove problematic seedlings from this file, then run process_rootgrowth_data.R\n"))
