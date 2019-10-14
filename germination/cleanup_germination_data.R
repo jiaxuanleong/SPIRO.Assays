@@ -5,9 +5,11 @@
 #   then run process_germination_data.R to get statistics.
 
 library(dplyr)
+library(foreach)
+library(doParallel)
 
 # below are cutoffs for area filtering
-upper_area_threshold = 0.01
+upper_area_threshold = 0.012
 lower_area_threshold = 0.0012
 
 # extract datetime from strings such as "plate1-20190602-082944-day"
@@ -27,8 +29,16 @@ elapsed <- function(from, to) {
 # main function for extracting data from files
 processfile <- function(file) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
-  resultfile <- read.delim(file, row.names=1, stringsAsFactors = FALSE)
-  #resultfile <- resultfile[resultfile$Area <= 2 * upper_area_threshold,]
+
+  # need to suppress warnings here as imagej saves row numbers as unnamed first column
+  suppressWarnings(resultfile <- read_tsv(file, 
+                                          col_types=c(Area=col_double(), `Perim.`=col_double(), Slice=col_integer()), 
+                                          progress=FALSE))
+
+  if ("X1" %in% names(resultfile)) {
+    resultfile <- select(resultfile, -X1)
+  }
+
   for (i in 1:nrow(resultfile)) {
     row <- resultfile[i,]
     # first, go through the file and make a list of rois and timepoints
@@ -59,11 +69,14 @@ processfile <- function(file) {
   data$Group <- paste0(plates[1], '_', ImgSource[1])
   resultfile <- select(resultfile, -Label)
   data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
+  check_duplicates(data)
   return(data)
 }
 
 check_duplicates <- function(data) {
   # check for rois with duplicate measurements
+  toolarge <- NULL
+
   for(uid in unique(data$UID)) {
     # check data per uid (will only be one group per file)
     # ds = data subset
@@ -74,7 +87,8 @@ check_duplicates <- function(data) {
     if (length(largearea)) {
       ds <- ds[1:largearea[1]-1,]
       if(largearea[1] < 50) {
-        cat(paste(uid, " - large area detected in early slice, please check.\n"))
+        toolarge <- c(toolarge, uid)
+        #cat(paste(uid, " - large area detected in early slice, please check.\n"))
       }
     }
     
@@ -116,6 +130,14 @@ check_duplicates <- function(data) {
       }
     }
   }
+  
+  if (length(toolarge) > 0) {
+    cat("Objects too large to be seeds were detected in early slices of some ROIs, truncating the data. ")
+    cat("The following seeds were affected: \n")
+    cat(toolarge)
+    cat("\n")
+  }
+  
   return(data)
 }
 
@@ -132,17 +154,41 @@ outdir <- paste0(resultsdir, '/Germination assay')
 # get all matching .tsv files in the directory
 files <- list.files(path = dir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
-allout <- NULL
-cat("Processing files and performing basic quality control. This may take a little while...\n")
-for (f in files) {
-  out <- processfile(f)
-  out <- check_duplicates(out)
-  allout <- rbind(allout, out)
+allout <- toolarge <- NULL
+
+if (length(files) > 0) {
+  num_cores <- max(1, detectCores() - 1)
+  cl <- makeCluster(num_cores)
+  registerDoParallel(cl)
+  
+  if (num_cores > 1) {
+    core_plural <- 'cores'
+  } else {
+    core_plural <- 'core'
+  }
+  cat(paste0("Processing files and performing basic quality control, using ", 
+             length(cl), ' ', core_plural, ". This may take a little while...\n"))
+
+  allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'readr')) %dopar% 
+    processfile(f)
+  
+  stopCluster(cl)
+
+  if (length(toolarge) > 0) {
+    cat("Objects too large to be seeds were detected in early slices of some ROIs, truncating the data.\n")
+    cat("The following seeds were affected: ")
+    cat(toolarge)
+    cat("\n")
+  }
 }
 
-if ("X.1" %in% names(allout)) {
-  allout <- select(allout, -X.1)
+if (length(files) > 0) {
+  # round off ElapsedHours to ensure compatibility with spreadsheet software
+  allout$ElapsedHours <- round(allout$ElapsedHours, 4)
+  allout <- allout[,c(1:2, 8, 3:7)]
+  
+  write.table(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t', row.names=F)
+  cat(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'.\nPlease edit that file to set up correct grouping for your experiment.\n"))
+} else {
+  cat("No seed germination analysis files found in that directory.\n")
 }
-
-write.table(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t', row.names=F)
-cat(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'. Please edit that file to set up correct grouping for your experiment.\n"))
