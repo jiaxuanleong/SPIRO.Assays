@@ -8,6 +8,8 @@ library(dplyr)
 library(reshape2)
 library(germinationmetrics)
 library(zoo)
+library(doParallel)
+library(foreach)
 
 # TUNABLES:
 # lookahead_slices:
@@ -15,7 +17,37 @@ library(zoo)
 #   number of slices. default is 10.
 lookahead_slices <- 10
 
-# there is no support for directory picker under non-windows platforms
+detect_germination <- function(ds, lookahead_slices) {
+  if (nrow(ds) < lookahead_slices + 4) {
+    cat(paste0("Too few data points for UID ", uid, ", removing from analysis.\n"))
+    next
+  }
+  
+  # seed size is average of first 5 slices
+  seedsize <- mean(ds$`Perim.`[1:5])
+  
+  # create moving average perimeter increase (dPerim)
+  ds$dPerim <- rollapply(ds$`Perim.`, 5, mean, na.rm=T, align="left", partial=FALSE, fill=NA)
+  ds$dPerim <- ds$dPerim - seedsize
+  
+  # set delta delta perimeter (rate of change of perimeter)
+  ds$ddPerim[2:nrow(ds)] <- ds$dPerim[2:nrow(ds)] - ds$dPerim[1:nrow(ds) - 1]
+  ds$ddPerim[1] <- 0
+  
+  # loop over the values again...:\
+  # we need a buffer of (4 + lookahead_slices) slices.
+  for (i in seq(1, nrow(ds) - (4 + lookahead_slices))) {
+    if (ds$dPerim[i] > 0) {
+      if (all(ds$ddPerim[seq(i + 1, i + lookahead_slices)] > 0)) {
+        ds$Germinated[i] <- TRUE
+        break
+      }
+    }
+  }
+  
+  return(ds)
+}
+
 # there is no support for directory picker under non-windows platforms
 if (.Platform$OS.type == 'unix') {
   dir <- readline(prompt = "Enter directory: ")
@@ -42,7 +74,17 @@ if (dir.exists(paste0(outdir, '/Analysis output'))) {
 rundir <- paste0(outdir, '/Analysis output/', run_number)
 dir.create(rundir, showWarnings=F)
 
-cat("Processing germination data. This will take a little while...\n")
+num_cores <- max(1, detectCores() - 1)
+cl <- makeCluster(num_cores)
+registerDoParallel(cl)
+
+if (num_cores > 1) {
+  core_plural <- 'threads'
+} else {
+  core_plural <- 'thread'
+}
+cat(paste0("Processing germination data, using ", 
+           length(cl), ' ', core_plural, ". This may take a little while...\n"))
 
 data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T)
 
@@ -53,41 +95,10 @@ data$dPerim <- data$ddPerim <- 0
 data$Germinated <- 0
 data$pav <- groups <- uids <- perims <- NULL
 
-for(uid in unique(data$UID)) {
-  # ds = data subset
-  ds <- subset(data, UID == uid)
-  
-  if (nrow(ds) < lookahead_slices + 4) {
-    cat(paste0("Too few data points for UID ", uid, ", removing from analysis.\n"))
-    next
-  }
+processed_data <- foreach(uid=unique(data$UID), .combine=rbind, .multicombine=T, .packages=c('zoo')) %dopar%
+  detect_germination(data[data$UID == uid,], lookahead_slices)
 
-  # seed size is average of first 5 slices
-  seedsize <- mean(ds$`Perim.`[1:5])
-  
-  # create moving average perimeter increase (dPerim)
-  ds$dPerim <- rollapply(ds$`Perim.`, 5, mean, na.rm=T, align="left", partial=FALSE, fill=NA)
-  ds$dPerim <- ds$dPerim - seedsize
-  
-  # set delta delta perimeter (rate of change of perimeter)
-  ds$ddPerim[2:nrow(ds)] <- ds$dPerim[2:nrow(ds)] - ds$dPerim[1:nrow(ds) - 1]
-  ds$ddPerim[1] <- 0
-  
-  # loop over the values again...:\
-  # we need a buffer of (4 + lookahead_slices) slices.
-  for (i in seq(1, nrow(ds) - (4 + lookahead_slices))) {
-    if (ds$dPerim[i] > 0) {
-      if (all(ds$ddPerim[seq(i + 1, i + lookahead_slices)] > 0)) {
-        ds$Germinated[i] <- TRUE
-        break
-      }
-    }
-  }
-  
-  # replace the data with the manipulated subset
-  data <- subset(data, UID != uid)
-  data <- rbind(data, ds)
-}
+data <- processed_data
 
 data.peruid <- data %>% 
   group_by(Group, UID) %>%
