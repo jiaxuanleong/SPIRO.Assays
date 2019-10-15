@@ -14,7 +14,7 @@ determination algorithm and outputs some statistics and nice graphs.
 To use the scripts, first install the required packages:
 
 ```
-install.packages(c('dplyr', 'reshape2', 'devtools', 'zoo'))
+install.packages(c('dplyr', 'reshape2', 'devtools', 'zoo', 'doParallel', 'foreach'))
 # we need the development version of germinationmetrics:
 devtools::install_github("aravind-j/germinationmetrics")
 ```
