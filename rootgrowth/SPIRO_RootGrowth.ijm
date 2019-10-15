@@ -6,11 +6,24 @@
 //user selection of main directory
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
-list = getFileList(maindir);
-processMain1(maindir);
-processMain2(maindir);
-processMain21(maindir);
-processMain3(maindir);
+resultsdir = maindir + "/Results/";
+preprocessingmaindir = resultsdir + "/Preprocessing/";
+
+preprocessingmaindirlist = getFileList(preprocessingmaindir);
+for (a=0; a<preprocessingmaindirlist.length; a++) {
+	if (indexOf(preprocessingmaindirlist[a], "plate") < 0)
+		preprocessingmaindirlist = Array.deleteValue(preprocessingmaindirlist, preprocessingmaindirlist[a]); //makes sure any non-plate folder isnt processed
+}
+
+rootgrowthmaindir = resultsdir + "/Root growth assay/";
+if (!File.isDirectory(rootgrowthmaindir)) {
+	File.makeDirectory(rootgrowthmaindir);
+}
+
+processMain1();
+processMain2();
+processMain21();
+processMain3();
 
 list = getList("window.titles"); 
      for (i=0; i<list.length; i++){ 
@@ -20,110 +33,98 @@ list = getList("window.titles");
      }
 
 //PART1 crop groups/genotypes per plate
-function processMain1(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
-			subdir = maindir+list[i];
-			sublist = getFileList(subdir);
-			platename = File.getName(subdir);
-			cropGroup(subdir);
-		}
+function processMain1() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		plateanalysisno = i;
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		cropGroup();
 	}
 }
 
 //PART2 find seed positions per group per plate
-function processMain2(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
-			subdir = maindir+list[i];
-			sublist = getFileList(subdir);
-			platename = File.getName(subdir);
-			processSub2(subdir);
-		}
+function processMain2() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		processSub2();	
 	}
 }
 
-function processSub2(subdir) {
-	platename = File.getName(subdir);
-	
-	outcrop = subdir + "/rootcropped/";
-	croplist = getFileList(outcrop);
-	
-	seedPosition(subdir);
-	print(i+1 +"/"+list.length + " folders processed.");
+function processSub2() {
+	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";	
+	croplist = getFileList(rootgrowthsubdir);
+	seedPosition();
 }
 
 //PART2.1 find root start coordinates per group per plate
-function processMain21(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
-			subdir = maindir+list[i];
-			sublist = getFileList(subdir);
-			platename = File.getName(subdir);
-			processSub21(subdir);
-		}
+function processMain21() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		processSub21();
 	}
 }
 
-function processSub21(subdir) {
-	platename = File.getName(subdir);
+function processSub21() {
+	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	croplist = getFileList(rootgrowthsubdir);
 	
-	outcrop = subdir + "/rootcropped/";
-	croplist = getFileList(outcrop);
-	
-	rootStart(subdir);
-	print(i+1 +"/"+list.length + " folders processed.");
+	rootStart();
 }
 
 
 //PART3 skeleton analysis per group per plate
-function processMain3(maindir) {
-	for (i=0; i<list.length; i++) {
-		if (endsWith(list[i], "/") && indexOf(list[i], "cropped")<0) {
-			subdir = maindir+list[i];
-			sublist = getFileList(subdir);
-			print("Getting root measurements of "+subdir);
-			processSub3(subdir);
-		}
+function processMain3() {
+	for (i=0; i<preprocessingmaindirlist.length; i++) {
+		platepreprocessedfile = preprocessingmaindirlist [i];
+		preprocessedfilenameparts = split(platepreprocessedfile, "_");
+		platename = preprocessedfilenameparts[0];
+		print("Getting root measurements of "+platename);
+		processSub3();
 	}
 }
 
-function processSub3(subdir) {
-	platename = File.getName(subdir);
-	
-	outcrop = subdir + "/rootcropped/";
-	croplist = getFileList(outcrop);
-	
-	rootlength(subdir);
-	print(i+1 +"/"+list.length + " folders processed.");
+function processSub3() {
+	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	croplist = getFileList(rootgrowthsubdir);
+	rootlength();
 };
 
 //PART1 crop genotypes/group 
-function cropGroup(subdir) {
+function cropGroup() {
+	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	if (!File.isDirectory(rootgrowthsubdir)) {
+		File.makeDirectory(rootgrowthsubdir);
+	}
+	croplist = getFileList(rootgrowthsubdir);
 	setBatchMode(false);
-	open(subdir+platename+"_registered.tif");
+	open(preprocessingmaindir+platename+"_preprocessed.tif");
 	reg = getTitle();
 	waitForUser("Create substack", "Please note first and last slice to be included for root length analysis, and indicate it in the next step.");	
 	run("Make Substack...");
-	saveAs("Tiff", subdir+platename+"_rootlengthsubstack.tif");
+	saveAs("Tiff", rootgrowthsubdir+platename+"_rootlengthsubstack.tif");
 	close(reg);
 	print("Cropping genotypes/groups in "+platename);
 	run("ROI Manager...");
 	setTool("Rectangle");
-	if (i==0) {
-	roiManager("reset");
-	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.");
+	if (plateanalysisno == 0) {
+	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
+		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
+		"ROIs cannot share names.");
 	}
-	if (i>0)
+	if (plateanalysisno > 0)
 	waitForUser("Modify ROI and names if needed.");
 	while (roiManager("count") <= 0) {
-		waitForUser("Select each group and add to ROI manager. ROI names will be saved.");
+	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
+		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
+		"ROIs cannot share names.");
 	}
 	run("Select None");
-
-	outcrop = subdir + "/rootcropped/";
-	File.makeDirectory(outcrop);
-
+	
 	setBatchMode(true);
 	
 	//loop enables cropping of ROI(s) followed by saving of cropped stacks
@@ -132,33 +133,46 @@ function cropGroup(subdir) {
 	for (x=0; x<roicount; ++x) {
     	roiManager("Select", x);
     	roiname = Roi.getName;
-    	if (indexOf(roiname, "-") > 0) {
-    		waitForUser("ROI names cannot contain dashes '-'! Please modify the name.");
+    	while (indexOf(roiname, "-") > 0) {
+    		waitForUser("ROI names cannot contain dashes '-'! Please modify the name, then click OK.");
+    		roiManager("Select", x);
     		roiname = Roi.getName;
     	}
-    	genodir = outcrop + "/"+roiname+"/";
+    	genodir = rootgrowthsubdir + "/"+roiname+"/";
     	File.makeDirectory(genodir);	
 		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
-    	run("Duplicate...", "duplicate");
+		roitype = Roi.getType;
+		if (roitype != "rectangle") {
+			run("Duplicate...", "duplicate");
+			run("Make Inverse");
+			run("Clear", "stack");
+		} else {
+			run("Duplicate...", "duplicate");
+		}
     	saveAs("Tiff", genodir+roiname+".tif");
     	close();
 	}
 close();
-print(i+1 +"/"+list.length + " folders processed.");
 }
 
 
 //PART2 finds seed position and saves ROI - looped through crops immediately for user friendliness
-function seedPosition(subdir) {
-	for (y = 0; y < croplist.length; ++y) {
+function seedPosition() {
+	for (y = 0; y < croplist.length; ++y) { //-1 for substack file
+		if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(false);
-		genodir = outcrop+"/"+croplist[y]+"/";	
+		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
-		print("Finding seedling positions for "+platename+genoname);
+		print("Finding seed positions for "+platename+genoname);
 		open(genodir+genoname+".tif");
 		img = getTitle();
 		
 		firstMask();
+		
+		xmax = getWidth;
+		ymax = getHeight;
+		frameproportions = xmax/ymax; 
+		if (frameproportions >= 1) //image is horizontal
 		run("Rotate 90 Degrees Right");
 		roiManager("reset");
 		run("Create Selection");
@@ -186,7 +200,8 @@ function seedPosition(subdir) {
 				for (x=0; x<nResults; x++) {
 				selectWindow("Results");
 				area = getResult("Area", x);
-					if (area<0.0008 || area>0.01) {
+					//if (area<0.0008 || area>0.01) { 
+					if (area<0.0005) {
 						Table.set("Trash ROI", Table.size(tp), x, tp);
 					}
 				
@@ -206,7 +221,7 @@ function seedPosition(subdir) {
 					roiManager("select", x);
 					roiManager("rename", x+1);
 				}
-		
+		Roi.setStrokeWidth(2);
 		waitForUser("Please delete any ROIs that should not be included into analysis, \n e.g. noise selection and seedlings that have overlapping roots");
 		roiarray = newArray(roiManager("count"));
 		for(x=0; x<roiManager("count"); x++){
@@ -224,10 +239,10 @@ function seedPosition(subdir) {
 			if (area>0.02)
 			a = a+1;
 		}
-		if (a>2) {
-			sdf = getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?");
-			if (sdf == 1) 
-				sdlingf();
+		if (a>0) {
+			seedlinginitialboolean = getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?");
+			if (seedlinginitialboolean == 1) 
+				seedlinginitial();
 		} else {
 		roiManager("save", genodir+genoname+"seedpositions.zip");
 		selectWindow(img);
@@ -235,21 +250,23 @@ function seedPosition(subdir) {
 		close();
 		}
 	}
+	}
 }
 
 //PART2 creates a binary mask for seed/lings and reduces noise
 function firstMask() {
-	run("8-bit");
-	run("Subtract Background...", "rolling=30 stack");
+		run("8-bit");
+	//run("Subtract Background...", "rolling=30 stack");
+	run("Enhance Contrast...", "saturated=0.2 normalize process_all");
 	run("Median...", "radius=1 stack");
 	setAutoThreshold("MaxEntropy dark");
-	run("Convert to Mask", "method=MaxEntropy background=Dark");
+	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
-    run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-    //run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
+	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
+	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
 
-function sdlingf() {
+function seedlinginitial() { //if seedlings instead of seeds are detected on first slice
 	roiManager("reset");
 	waitForUser("Please draw ROI encompassing all root starts, then add to ROI Manager.");
 	while (roiManager("count") <= 0) {
@@ -304,7 +321,7 @@ function sdlingf() {
 					roiManager("select", x);
 					roiManager("rename", x+1);
 				}
-
+	Roi.setStrokeWidth(2);
 	waitForUser("Please delete any ROIs that should not be included into analysis, \n e.g. noise selection and seedlings that have overlapping roots");
 	roicount = roiManager("count");
 	for(x=0; x<roicount; x++){
@@ -327,13 +344,16 @@ function sdlingf() {
 
 
 //PART2.1 finds root start coordinates per genotype/group
-function rootStart(subdir) {
+function rootStart() {
 	for (y = 0; y < croplist.length; ++y) {
+		if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(true);
-		genodir = outcrop+"/"+croplist[y]+"/";	
+		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
 		open(genodir+genoname+"masked.tif");
+		
+
 		
 		img = getTitle();
 
@@ -356,7 +376,7 @@ function rootStart(subdir) {
 		roicount = roiManager("count");
 
 		w = 0.18; //width of ROI is 0.18cm
-		h = 0.2; //height
+		h = 0.12; //height
 		toUnscaled(w, h);
 		
 		nS = nSlices;
@@ -368,17 +388,19 @@ function rootStart(subdir) {
 			if (z==0) { //if first slice, obtain XY coordinates from Results to make ROI
 				roiManager("reset");
 				xref = "XRef";
-				Table.create(xref);
+				Table.create(xref); //table for "x references" which are the left and right borders
 				for(x=0; x<roicount; x++) {
-					xm0 = getResult("X", x); //xm0 is xm of initial seed
-					xlb = xm0 - 0.1;
-					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.5cm to the left of initial xm
-					Table.set("xrb", x, xm0, xref); //x (right border) cannot be more than xm0
-					y0 = getResult("Y", x);
-					x2 = xm0 - 0.12; //shift centre of mass 0.12cm to the left
-					y2 = y0 - 0.1; //to the top
-					toUnscaled(x2, y2);
-					makeRectangle(x2, y2, w, h);
+					xisp = getResult("X", x); //xisp is x initial seed position
+					xlb = xisp - 0.4;
+					xrb = xisp + 0.05;
+					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.4cm to the left of initial xm
+					Table.set("xrb", x, xrb, xref); //x (right border) cannot be more than xisp
+					yisp = getResult("Y", x);
+					rightoffset = 0.05; //needed to include a little more of the right bit from the centre of mass
+					xroi = xisp - (0.18-rightoffset); //xroi is top+leftmost xcoordinate of roi
+					yroi = yisp - 0.06; //yroi is top+leftmost ycoordinate of roi
+					toUnscaled(xroi, yroi);
+					makeRectangle(xroi, yroi, w, h);
 					roiManager("add");
 				}
 			} else { //if subsequent slices, obtain XY coordinates from rsc
@@ -386,22 +408,27 @@ function rootStart(subdir) {
 				for(x=0; x<roicount; x++) {
 					zprev = z-1;
 					rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
-					x1 = Table.get("XM", rowIndex, rsc); //x1 now is xm of prev slice
-					y1 = Table.get("YM", rowIndex, rsc); 
-					toScaled(x1, y1);
+					//xm, ym are coordinates for the centre of mass obtained through erosion
+					xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
+					ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
+					toScaled(xmprev, ymprev);
 					xlb = Table.get("xlb", x, xref);
 					xrb = Table.get("xrb", x, xref);
-					if (x1>xrb){
-						x1=xrb;
+					xroi = xmprev - (0.18-rightoffset); //xroi is top+leftmost xcoordinate of roi
+					yroi = ymprev - 0.06; //yroi is top+leftmost ycoordinate of roi and 0.06 is half of h (height)
+					scaledw = w;
+					tempcoord = 1; //needed as toScaled only works with 2 coordinates
+					toScaled(scaledw, tempcoord);
+					xroiright = xroi + scaledw;
+					if (xroi < xlb) { //left border exceeded 
+						xroi = xlb; //left side of roi becomes x left border
 					}
-					if (x1<xlb){
-						x1=xlb;
+					if (xroiright > xrb) { //right border exceeded by right side of roi
+						exceededdistance = xroiright - xrb;
+						xroi = xroi - exceededdistance;
 					}
-					Table.set("xrb", x, x1, xref); //set right border 
-					x2 = x1 - 0.12;
-					y2 = y1 - 0.1;
-					toUnscaled(x2, y2);
-					makeRectangle(x2, y2, w, h);
+					toUnscaled(xroi, yroi);
+					makeRectangle(xroi, yroi, w, h);
 					roiManager("add");
 				}
 			}
@@ -415,66 +442,65 @@ function rootStart(subdir) {
 				totalarea = Table.get("Total Area", Table.size("Summary of "+img)-1, "Summary of "+img);
  
 				if (count==0) { //firstMask() erased seed (rarely happens)
-					toUnscaled(x1,y1);
+					toUnscaled(xmprev, ymprev);
 					nr = Table.size(rsc);
 					Table.set("Slice", nr, z+1, rsc);
 					Table.set("ROI", nr, x+1, rsc);
-					Table.set("XM", nr, x1, rsc); //set xm as previous slice
-					Table.set("YM", nr, y1, rsc); //ym as previous slice
+					Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
+					Table.set("YM", nr, ymprev, rsc); //ym as previous slice
 				} else { //erode then analyse particles for xm/ym
+					while (totalarea>0.002) {
+					roiManager("select", x);
+					run("Options...", "iterations=1 count=1 do=Erode");
+					roiManager("select", x);
+					run("Analyze Particles...", "display summarize slice");
+			
+					count = Table.get("Count", Table.size-1, "Summary of "+img);
+						if (count==0) { //erode went too far, particle disappeared
+							totalarea=0; //to get out of the while loop
+						} else {
+						totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+						}
+					}
+			
+					while (totalarea>0.012) {
+					roiManager("select", x);
+					run("Options...", "iterations=1 count=3 do=Erode");
+					roiManager("select", x);
+					run("Analyze Particles...", "display clear summarize slice");
+			
+					count = Table.get("Count", Table.size-1, "Summary of "+img);
+						if (count==0) { //erode went too far, particle disappeared
+							totalarea=0; //to get out of the while loop
+						} else {
+						totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+						}
+					}
+			
+					if (count>1) {
+						area = newArray(count);
+						for (v=0; v<count; v++){
+							area[v] = getResult("Area", nResults-(v+1));
+						}
+						areaasc = Array.rankPositions(area);
+						areadesc = Array.invert(areaasc);
+						maxarea = areadesc[0];
+		
+								xm = getResult("XM", nResults-(maxarea+1));
+								ym = getResult("YM", nResults-(maxarea+1));
+					} else {
+						xm = getResult("XM", nResults-1);
+						ym = getResult("YM", nResults-1);
+					}
 					
-				while (totalarea>0.0015) {
-				roiManager("select", x);
-				run("Options...", "iterations=1 count=1 do=Erode");
-				roiManager("select", x);
-				run("Analyze Particles...", "display summarize slice");
-		
-				count = Table.get("Count", Table.size-1, "Summary of "+img);
-					if (count==0) { //erode went too far, particle disappeared
-						totalarea=0; //to get out of the while loop
-					} else {
-					totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+					toUnscaled(xm, ym);
+			
+					nr = Table.size(rsc);
+					Table.set("Slice", nr, z+1, rsc);
+					Table.set("ROI", nr, x+1, rsc);
+					Table.set("XM", nr, xm, rsc);
+					Table.set("YM", nr, ym, rsc);
 					}
-				}
-		
-				while (totalarea>0.0012) {
-				roiManager("select", x);
-				run("Options...", "iterations=1 count=3 do=Erode");
-				roiManager("select", x);
-				run("Analyze Particles...", "display clear summarize slice");
-		
-				count = Table.get("Count", Table.size-1, "Summary of "+img);
-					if (count==0) { //erode went too far, particle disappeared
-						totalarea=0; //to get out of the while loop
-					} else {
-					totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
-					}
-				}
-		
-				if (count>1) {
-					area = newArray(count);
-					for (v=0; v<count; v++){
-						area[v] = getResult("Area", nResults-(v+1));
-					}
-					areaasc = Array.rankPositions(area);
-					areadesc = Array.invert(areaasc);
-					maxarea = areadesc[0];
-	
-							xm = getResult("XM", nResults-(maxarea+1));
-							ym = getResult("YM", nResults-(maxarea+1));
-				} else {
-					xm = getResult("XM", nResults-1);
-					ym = getResult("YM", nResults-1);
-				}
-				
-				toUnscaled(xm, ym);
-		
-				nr = Table.size(rsc);
-				Table.set("Slice", nr, z+1, rsc);
-				Table.set("ROI", nr, x+1, rsc);
-				Table.set("XM", nr, xm, rsc);
-				Table.set("YM", nr, ym, rsc);
-				}
 		}
 		}
 		close(xref);
@@ -483,6 +509,12 @@ function rootStart(subdir) {
 		close(img);
 		
 		open(genodir+genoname+".tif");
+		
+
+		xmax = getWidth;
+		ymax = getHeight;
+		frameproportions = xmax/ymax; 
+		if (frameproportions >= 1) //image is horizontal
 		run("Rotate 90 Degrees Right");
 		roiManager("reset");
 		
@@ -507,26 +539,38 @@ function rootStart(subdir) {
 		roiManager("Show All with labels");
 		run("Labels...", "color=white font=18 show use draw");
 		run("Flatten", "stack");
+		
+		if (frameproportions >= 1) //image is originally horizontal
 		run("Rotate 90 Degrees Left");
 		saveAs("Tiff", genodir+genoname+"_"+"rootstartlabelled.tif");
 		close();
 		
 		selectWindow(rsc);
 		saveAs("Results", genodir+genoname+"_"+rsc+".tsv");
-		close(rsc);
+		rsctablename=genoname+"_"+rsc+".tsv";
+		close(rsctablename);
+		call("java.lang.System.gc");
 		File.delete(genodir+genoname+"masked.tif");
+		call("java.lang.System.gc");
+	}
 	}
 }
 
 //PART3 skeleton analysis per group
-function rootlength(subdir) {
+function rootlength() {
 	for (y = 0; y < croplist.length; ++y) {
+	if (indexOf(croplist[y], "substack")<0) {
 		setBatchMode(true);
-		genodir = outcrop+"/"+croplist[y]+"/";	
+		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Analyzing root growth of "+platename+genoname);
 		open(genodir+genoname+".tif");
 		stack1 = getTitle();
+		
+		xmax = getWidth;
+		ymax = getHeight;
+		frameproportions = xmax/ymax; 
+		if (frameproportions >= 1) //image is horizontal
 		run("Rotate 90 Degrees Right");
 				
 		//process roots for skeletonization
@@ -614,7 +658,9 @@ function rootlength(subdir) {
 		}
 		close(bi);
 		Table.save(genodir+platename+" "+genoname+" root analysis.tsv", ra);
-
+		tableraname = platename+" "+genoname+" root analysis.tsv";
+		close(tableraname);
+		
 		selectWindow(stack1);
 		roiManager("reset");
 		roiManager("open", genodir+genoname+"rootstartrois.zip");
@@ -624,6 +670,8 @@ function rootlength(subdir) {
 		roiManager("Show All with labels");
 		run("Labels...", "color=white font=18 show use draw");
 		run("Flatten", "stack");
+		
+		if (frameproportions >= 1) //image is ORIGINALLY horizontal when opened
 		run("Rotate 90 Degrees Left");
 		saveAs("Tiff", genodir+genoname+"_"+"skeletonized.tif");
 		stack1 = getTitle();
@@ -631,15 +679,18 @@ function rootlength(subdir) {
 //Determine the cropped frame proportions to orient combining stacks horizontally or vertically
 		xmax = getWidth;
 		ymax = getHeight;
-		frameproportions=xmax/ymax; 
+		frameproportions = xmax/ymax; 
 		
 //Add label to each slice (time point). The window width for label is determined by frame proportions 
 		for (x = 0; x < nS; x++) {
 			selectWindow(stack1);
 			setSlice(x+1);
 			slicelabel = getMetadata("Label");
-			if (frameproportions > 1) {
+			if (frameproportions >= 1) { //if horizontal
 			newImage("Slice label", "RGB Color", xmax, 50, 1);
+			} else {
+			newImage("Slice label", "RGB Color", 2*xmax, 50, 1);
+			}
 			setFont("SansSerif", 20, " antialiased");
 			makeText(slicelabel, 0, 0);
 			setForegroundColor(0, 0, 0);
@@ -647,28 +698,16 @@ function rootlength(subdir) {
 			selectWindow(stack1);
 			run("Next Slice [>]");
 		 }
-		
-		if (frameproportions < 1) {
-			newImage("Slice label", "RGB Color", 2*xmax, 50, 1);
-			setFont("SansSerif", 20, " antialiased");
-			makeText(slicelabel, 0, 0);
-			setForegroundColor(0, 0, 0);
-			run("Draw", "slice");
-			selectWindow(stack1);
-			run("Next Slice [>]");
-		}
-}
 //Combine the cropped photos and binary masks with labels into one time-lapse stack. Combine vertically or horizontally depending on the frame proportions
 		run("Images to Stack");
 		label = getTitle();
 		open(genodir+genoname+"_"+"rootstartlabelled.tif");
 		rsl = getTitle();
 		
-		if (frameproportions > 1) {
+		if (frameproportions >= 1) {
 		run("Combine...", "stack1=["+rsl+"] stack2=["+stack1+"] combine");
 		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
-		}
-		if (frameproportions < 1) {
+		} else {
 		run("Combine...", "stack1=["+rsl+"] stack2=["+stack1+"]");
 		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
 		}
@@ -682,9 +721,9 @@ function rootlength(subdir) {
 		File.delete(genodir+genoname+"rootstartrois.zip");
 		File.delete(genodir+rsc);
 		
+		}
+	}
 }
-}
-
 
 //PART3 creates a binary mask for roots and reduces noise
 function secondMask() {
