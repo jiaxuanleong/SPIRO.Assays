@@ -7,6 +7,9 @@
 library(dplyr)
 library(reshape2)
 library(germinationmetrics)
+library(zoo)
+library(doParallel)
+library(foreach)
 
 # TUNABLES:
 # lookahead_slices:
@@ -14,35 +17,18 @@ library(germinationmetrics)
 #   number of slices. default is 10.
 lookahead_slices <- 10
 
-# there is no support for directory picker under non-windows platforms
-if (.Platform$OS.type == 'unix') {
-  dir <- readline(prompt = "Enter directory containing germination.postQC.tsv: ")
-} else {
-  dir <- choose.dir(getwd(), "Choose folder containing germination.postQC.tsv")
-}
-
-data <- read.table(paste0(dir, "/germination.postQC.tsv"), header=T)
-
-data$dPerim <- data$ddPerim <- 0
-data$Germinated <- 0
-data$pav <- groups <- uids <- perims <- NULL
-
-for(uid in unique(data$UID)) {
-  # ds = data subset
-  ds <- subset(data, UID == uid)
-  
+detect_germination <- function(ds, lookahead_slices) {
   if (nrow(ds) < lookahead_slices + 4) {
-    print(paste0("Too few data points for UID ", uid, ", removing from analysis."))
+    cat(paste0("Too few data points for UID ", uid, ", removing from analysis.\n"))
     next
   }
-
+  
   # seed size is average of first 5 slices
   seedsize <- mean(ds$`Perim.`[1:5])
   
-  # loop through all lines. need 4 slices reserved at the end due to how the algorithm works.
-  for (i in seq(1, nrow(ds) - 4)) {
-    ds$dPerim[i] <- mean(ds$`Perim.`[seq(i,i+4)]) - seedsize
-  }
+  # create moving average perimeter increase (dPerim)
+  ds$dPerim <- rollapply(ds$`Perim.`, 5, mean, na.rm=T, align="left", partial=FALSE, fill=NA)
+  ds$dPerim <- ds$dPerim - seedsize
   
   # set delta delta perimeter (rate of change of perimeter)
   ds$ddPerim[2:nrow(ds)] <- ds$dPerim[2:nrow(ds)] - ds$dPerim[1:nrow(ds) - 1]
@@ -59,10 +45,60 @@ for(uid in unique(data$UID)) {
     }
   }
   
-  # replace the data with the manipulated subset
-  data <- subset(data, UID != uid)
-  data <- rbind(data, ds)
+  return(ds)
 }
+
+# there is no support for directory picker under non-windows platforms
+if (.Platform$OS.type == 'unix') {
+  dir <- readline(prompt = "Enter directory: ")
+} else {
+  dir <- choose.dir(getwd(), "Choose folder to process")
+}
+
+resultsdir <- paste0(dir, '/Results')
+outdir <- paste0(resultsdir, '/Germination assay')
+
+# set up output dir
+if (dir.exists(paste0(outdir, '/Analysis output'))) {
+  runs <- list.dirs(paste0(outdir, '/Analysis output'), full.names=F, recursive=F)
+  runs <- as.numeric(runs)
+  run_number <- max(runs) + 1
+  if (run_number < 1) {
+    run_number <- 1
+  }
+} else {
+  dir.create(paste0(outdir, '/Analysis output'), recursive=T)
+  run_number <- 1
+}
+
+rundir <- paste0(outdir, '/Analysis output/', run_number)
+dir.create(rundir, showWarnings=F)
+
+num_cores <- max(1, detectCores() - 1)
+cl <- makeCluster(num_cores)
+registerDoParallel(cl)
+
+if (num_cores > 1) {
+  core_plural <- 'threads'
+} else {
+  core_plural <- 'thread'
+}
+cat(paste0("Processing germination data, using ", 
+           length(cl), ' ', core_plural, ". This may take a little while...\n"))
+
+data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T)
+
+# copy postQC input file to rundir for reference
+file.copy(paste0(outdir, "/germination.postQC.tsv"), rundir)
+
+data$dPerim <- data$ddPerim <- 0
+data$Germinated <- 0
+data$pav <- groups <- uids <- perims <- NULL
+
+processed_data <- foreach(uid=unique(data$UID), .combine=rbind, .multicombine=T, .packages=c('zoo')) %dopar%
+  detect_germination(data[data$UID == uid,], lookahead_slices)
+
+data <- processed_data
 
 data.peruid <- data %>% 
   group_by(Group, UID) %>%
@@ -89,7 +125,7 @@ data.peruid <- data.peruid %>% select(-num)
 
 names(data.peruid)[3] <- 'Germination Time (h)'
 names(data.peruid)[4] <- 'Germination detected on frame'
-write.table(data.peruid, file=paste0(dir, "/germination-perseed.tsv"), sep='\t', row.names=F)
+write.table(data.peruid, file=paste0(rundir, "/germination-perseed.tsv"), sep='\t', row.names=F)
 
 # merge group and uid so we can keep both in the conversion long->wide->long
 data$GroupUID<-paste(data$Group, data$UID, sep="!")
@@ -144,7 +180,7 @@ for(group in unique(data.long$Group)) {
   nongerms <- c(nongerms, nongerm)
   
   # make germination graph
-  pdf(paste0(dir, "/germinationplot-", group, ".pdf"), width=7, height=5)
+  pdf(paste0(rundir, "/germinationplot-", group, ".pdf"), width=7, height=5)
   graph <- FourPHFfit(germ.counts = germstats$GermCount[germstats$Group == group], 
                       intervals = germstats$ApproxTime[germstats$Group == group],
                       total.seeds = length(unique(data$UID[data$Group == group])),
@@ -155,4 +191,6 @@ for(group in unique(data.long$Group)) {
 
 germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts, 
                                  MeanGermTimeSE = mgtses, n = nseeds, Ungerminated = nongerms)
-write.table(germstats.pergroup, file=paste0(dir, "/germinationstats.tsv"), sep='\t', row.names=F)
+write.table(germstats.pergroup, file=paste0(rundir, "/germinationstats.tsv"), sep='\t', row.names=F)
+
+cat(paste0("Statistics have been written to the directory ", rundir, "\n"))

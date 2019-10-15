@@ -1,9 +1,15 @@
 # cleanup_rootgrowth_data.R -
+#
+#   imports data from root growth macro and cleans it up a bit.
+#   after running this script, adjust the groups in the file output.tsv, 
+#   then run process_rootgrowth_data.R to get statistics.
 
+# pixel_radius is the distance from primary coords that determine whether a branch is a primary root
 pixel_radius <- 5
 
 library(dplyr)
 library(zoo)
+library(ggplot2)
 
 # debug stuff:
 rawfile <- step1 <- step2 <- step3 <- NULL
@@ -15,8 +21,13 @@ elapsed <- function(from, to) {
   return(as.numeric(difftime(t, f, units='hours')))
 }
 
-minus <- function(vals) {
-  return(vals[2] - vals[1])
+# pickymean returns a mean if less than 40% of the values are NA's, otherwise it returns NA
+pickymean <- function(vals) {
+  if (length(which(is.na(vals))) > 0.4*length(vals)) {
+    return(NA)
+    } else {
+      return(mean(vals, na.rm=T))
+  }
 }
 
 processfile <- function(file) {
@@ -32,56 +43,89 @@ processfile <- function(file) {
   # check if root coords match primary x/y and set PR variable accordingly
   r$PR[abs(r$Primary.X - r$V1.x) < pixel_radius & abs(r$Primary.Y - r$V1.y) < pixel_radius] <- TRUE
   r$PR[abs(r$Primary.X - r$V2.x) < pixel_radius & abs(r$Primary.Y - r$V2.y) < pixel_radius] <- TRUE
-
+  
   # add elapsed times
   r %>% group_by(UID) %>%
     arrange(date) %>%
     mutate(elapsed=elapsed(date[1], date)) -> r
-  step1 <<- r
-  
+
   # the entire skeleton is a PR if any branch is a PR
   r %>% group_by(UID, elapsed, Skeleton.ID) %>%
     mutate(PR = max(PR)) -> r
+  
+  r$outofroi <- NA
+  r$outofroi[which(r$V1.x <= 5 | r$V2.x <= 5)] <- TRUE
+  r$outofroi[which(r$V1.y <= 5 | r$V2.y <= 5)] <- TRUE
+  r$outofroi[which(r$V1.y >= 2*r$Primary.Y - 5 | r$V2.y >= 2*r$Primary.Y - 5)] <- TRUE
+  r$outofroi[which(r$PR == FALSE)] <- NA
+  
+  r %>% arrange(elapsed) %>%
+    group_by(UID) %>%
+    mutate(outofroi = na.locf(outofroi, na.rm=F)) -> r
+  
+  r$Branch.length[which(r$outofroi == TRUE)] <- NA
   
   r %>% filter(PR == TRUE) %>%
     group_by(UID, date) %>%
     summarize(Branches = n(), GID = GID[1], 
               Skeletons = length(unique(Skeleton.ID)), 
-              BranchLength = sum(Branch.length), 
+              Branch.length = sum(Branch.length), 
               elapsed=elapsed[1],
               SliceNo = Slice.no.[1]) -> r
-  # r %>% group_by(ROI, date, Skeleton.ID) %>%
-  #   filter(PR == TRUE) %>%
-  #   filter(Branch.length == max(Branch.length)) %>%
-  #   mutate(n=n(), maxlength = max(Branch.length)) -> r
-  step2 <<- r
   
-  # remove data points with several PR's
-  r$BranchLength[r$Skeletons > 1] <- NA
+  r$Branch.length[r$Branch.length < 0.1] <- NA
+  
+  r %>% mutate(delta = Branch.length - lag(Branch.length),
+               signdelta = sign(delta),
+               absdelta = abs(delta)) -> r
   
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
-    mutate(mabl=rollapply(BranchLength, 10, mean, na.rm=T, align="right", fill=NA)) %>%
-    filter(BranchLength > mabl) -> r
+    mutate(mablright = rollapply(Branch.length, 5, pickymean, align="left", fill=NA),
+           mablleft = rollapply(Branch.length, 5, pickymean, align="right", fill=NA),
+           mabldelta = mablright - lag(mablright),
+           mablsign = sign(mabldelta)) -> r
   
-  # add difference to previous
-  r$diff <- ave(r$BranchLength, r$UID, FUN=function(x) c(0, diff(x)))
-  r$pctchange <- r$diff / r$BranchLength
-  step3 <<- r
+  r %>% arrange(elapsed) %>%
+    group_by(UID) %>%
+    mutate(signsum = rollapply(mablsign, 8, sum, na.rm=T, align="left", fill=NA)) -> r
+  
+  # if we have more than six consecutive increases of average root length, we assume growth has started
+  r$growing <- NA
+  r$growing[r$signsum > 6] <- TRUE
+  
+  # if root starts to grow, it is considered to be growing for the remaining datapoints
+  r %>% arrange(elapsed) %>%
+    group_by(UID) %>%
+    mutate(growing = na.locf(growing, na.rm=F)) -> r
+  
+  # remove timepoints before root growth start
+  r %>% group_by(UID) %>%
+    filter(growing == TRUE) -> r
+  
+  # construct a normalized elapsed time value based on root growth start
+  r %>% group_by(UID) %>% 
+    mutate(normtime = elapsed - elapsed[1], dbg=elapsed[1]) -> r
+  
+  # remove data points with several PR's
+  r$Branch.length[r$Skeletons != 1] <- NA
 
-  r[abs(r$diff) > 0.5,] -> suspects
+  # difference to previous point
+  r$diff <- ave(r$Branch.length, r$UID, FUN=function(x) c(0, diff(x)))
 
+  # if an absolute difference of >0.3 cm is detected, remove all following data points
+  # it is often caused by another root growing into the roi
+  r[which(abs(r$diff) > 0.3),] -> suspects
   if (length(suspects$UID) > 0) {
     suspects %>%
       group_by(UID) %>%
       summarize(elapsed=min(elapsed)) -> suspects
     for (i in seq(1, length(suspects$UID))) {
       s <- suspects[i,]
-      print(paste0('Removing anomalous value from UID ', s$UID, ' at timepoint ', s$elapsed))
-      r$BranchLength[r$UID == s$UID & r$elapsed >= s$elapsed] <- NA
+      r$Branch.length[which(r$UID == s$UID & r$elapsed >= s$elapsed)] <- NA
     }
   }
-  step4 <<- r
+
   return(r)
 }
 
@@ -92,18 +136,49 @@ if (.Platform$OS.type == 'unix') {
   dir <- choose.dir(getwd(), "Choose folder to process")
 }
 
+resultsdir <- paste0(dir, '/Results')
+outdir <- paste0(resultsdir, '/Root growth assay')
+
 # get all .tsv files in the directory
-files <- list.files(path = dir, pattern = 'root analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
+files <- list.files(path = outdir, pattern = 'root analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
 allout <- NULL
+
+cat("Processing files, please wait...\n")
 
 for (f in files) {
   out <- processfile(f)
   allout <- rbind(allout, out)
 }
 
-write.table(allout, file=paste0(dir, "/root-output.tsv"), sep='\t', row.names=FALSE)
-write.table(step1, file=paste0(dir, "/step1.tsv"), sep='\t', row.names=FALSE)
-write.table(step2, file=paste0(dir, "/step2.tsv"), sep='\t', row.names=FALSE)
-write.table(step3, file=paste0(dir, "/step3.tsv"), sep='\t', row.names=FALSE)
-write.table(step4, file=paste0(dir, "/step4.tsv"), sep='\t', row.names=FALSE)
+for (gid in unique(allout$GID)) {
+  p <- ggplot(allout[allout$GID == gid,], aes(x=elapsed, y=Branch.length, color=UID, group=UID)) +
+    geom_point(alpha=.5, size=.5) +
+    geom_line() +
+    labs(x="Time (h)", 
+         y="Primary root length (cm)",
+         title=paste0("Per-seedling graph for group ", gid))
+  suppressWarnings(ggsave(p, filename=paste0(outdir, "/preanalysis.rootgrowth-", gid, ".pdf"), width=25, height=15, units='cm'))
+
+  p <- ggplot(allout[allout$GID == gid,], aes(x=normtime, y=Branch.length, color=UID, group=UID)) +
+    geom_point(alpha=.5, size=.5) +
+    geom_line() +
+    labs(x="Time since root emergence (h)", 
+         y="Primary root length (cm)",
+         title=paste0("Per-seedling graph for group ", gid))
+  suppressWarnings(ggsave(p, filename=paste0(outdir, "/preanalysis.rootgrowth-normalized-", gid, ".pdf"), width=25, height=15, units='cm'))
+}
+
+allout %>% arrange(GID, UID, normtime) %>% 
+  select(-c(dbg, diff, growing, signsum, mablsign, mablleft, mablright, mabldelta, absdelta, signdelta, delta, Skeletons, Branches)) -> allout
+
+names(allout)[2] <- 'Date'
+names(allout)[3] <- 'Group'
+names(allout)[4] <- 'PrimaryRootLength'
+names(allout)[5] <- 'ElapsedHours'
+names(allout)[7] <- 'RelativeElapsedHours'
+allout <- allout[,c(1, 3, 5, 7, 4, 2)]
+
+write.table(allout, file=paste0(outdir, "/rootgrowth.postQC.tsv"), sep='\t', row.names=FALSE)
+cat(paste0("Output saved to ", outdir, "/rootgrowth.postQC.tsv", 
+           ". Adjust groups and remove problematic seedlings from this file, then run process_rootgrowth_data.R.\n"))

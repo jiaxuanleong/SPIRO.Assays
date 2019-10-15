@@ -1,13 +1,15 @@
 # cleanup_germination_data.R -
 #
 #   imports data from germination macro and cleans it up a bit.
-#   after running this script, adjust the groups in the file output.tsv, 
-#   then run process_data.R to get statistics.
+#   after running this script, adjust the groups in the file germination.postQC.tsv, 
+#   then run process_germination_data.R to get statistics.
 
 library(dplyr)
+library(foreach)
+library(doParallel)
 
 # below are cutoffs for area filtering
-upper_area_threshold = 0.01
+upper_area_threshold = 0.012
 lower_area_threshold = 0.0012
 
 # extract datetime from strings such as "plate1-20190602-082944-day"
@@ -25,10 +27,18 @@ elapsed <- function(from, to) {
 }
 
 # main function for extracting data from files
-processfile <- function(file) {
+processfile <- function(file, logdir) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
-  resultfile <- read.delim(file, row.names=1, stringsAsFactors = FALSE)
-  #resultfile <- resultfile[resultfile$Area <= 2 * upper_area_threshold,]
+
+  # need to suppress warnings here as imagej saves row numbers as unnamed first column
+  suppressWarnings(resultfile <- read_tsv(file, 
+                                          col_types=c(Area=col_double(), `Perim.`=col_double(), Slice=col_integer()), 
+                                          progress=FALSE))
+
+  if ("X1" %in% names(resultfile)) {
+    resultfile <- select(resultfile, -X1)
+  }
+
   for (i in 1:nrow(resultfile)) {
     row <- resultfile[i,]
     # first, go through the file and make a list of rois and timepoints
@@ -59,11 +69,14 @@ processfile <- function(file) {
   data$Group <- paste0(plates[1], '_', ImgSource[1])
   resultfile <- select(resultfile, -Label)
   data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
+  check_duplicates(data, paste0(logdir, '/', basename(file), '.log'))
   return(data)
 }
 
-check_duplicates <- function(data) {
+check_duplicates <- function(data, logfile) {
   # check for rois with duplicate measurements
+  error_uids <- error_types <- NULL
+
   for(uid in unique(data$UID)) {
     # check data per uid (will only be one group per file)
     # ds = data subset
@@ -74,7 +87,8 @@ check_duplicates <- function(data) {
     if (length(largearea)) {
       ds <- ds[1:largearea[1]-1,]
       if(largearea[1] < 50) {
-        print(paste(uid, " - large area detected in early slice, please check."))
+        error_uids <- c(error_uids, uid)
+        error_types <- c(error_types, 'EARLY_LARGE_AREA')
       }
     }
     
@@ -89,7 +103,6 @@ check_duplicates <- function(data) {
       areas <- ds$Area[ds$Slice == slice]
       # remove largest area from list of areas
       areas <- areas[-which.max(areas)]
-      #print(paste0("Slice ", slice, ": Removing ", length(areas), " entries with areas ", areas))
       # remove entries with these areas
       if(length(areas)) {
         x <- which(ds$Slice == slice & ds$Area %in% areas)
@@ -99,23 +112,32 @@ check_duplicates <- function(data) {
         #print("Same areas")
         dupes <- dupes + 1
       }
-      #ds <- ds[ds$Slice == slice,][! ds$Area %in% areas,]
     }
     # remove this uid from data, then add modified subset in its place
     data <- data[data$UID != uid,]
     
     # if there are anomalous objects in the first slice, remove the seed from analysis
     if(length(which(ds$Area < lower_area_threshold & ds$Area > upper_area_threshold))) {
-      print(paste("Removing UID", uid, "as it contains an anomalous object in the first slice."))
+      cat(paste("Removing UID", uid, "as it contains an anomalous object in the first slice.\n"))
+      error_uids <- c(error_uids, uid)
+      error_types <- c(error_types, 'ANOMALOUS_OBJECT')
     } else {
       if(dupes == 0) {
         # keep the seed only if there were no duplicate measurements left
         data <- rbind(data, ds)
       } else {
-        print(paste("Removing UID", uid, "as it contains multiple objects."))
+        cat(paste("Removing UID", uid, "as it contains multiple objects.\n"))
+        error_uids <- c(error_uids, uid)
+        error_types <- c(error_types, 'DUPE')
       }
     }
   }
+  
+  if (length(error_uids > 0)) {
+    errors <- data.frame(UID=error_uids, Type=error_types)
+    write_tsv(errors, path=logfile)
+  }
+
   return(data)
 }
 
@@ -126,20 +148,68 @@ if (.Platform$OS.type == 'unix') {
   dir <- choose.dir(getwd(), "Choose folder to process")
 }
 
+resultsdir <- paste0(dir, '/Results')
+outdir <- paste0(resultsdir, '/Germination assay')
+
 # get all matching .tsv files in the directory
-files <- list.files(path = dir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
+files <- list.files(path = outdir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
-allout <- NULL
-print("Processing files and performing basic quality control. This may take a little while...")
-for (f in files) {
-  out <- processfile(f)
-  out <- check_duplicates(out)
-  allout <- rbind(allout, out)
+allout <- toolarge <- NULL
+
+if (length(files) > 0) {
+  num_cores <- max(1, detectCores() - 1)
+  cl <- makeCluster(num_cores)
+  registerDoParallel(cl)
+  
+  if (num_cores > 1) {
+    core_plural <- 'threads'
+  } else {
+    core_plural <- 'thread'
+  }
+  cat(paste0("Processing files and performing basic quality control, using ", 
+             length(cl), ' ', core_plural, ". This may take a little while...\n"))
+
+  allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'readr')) %dopar%
+    processfile(f, outdir)
+  
+  stopCluster(cl)
+  
+  # check the logs
+  logfiles <- list.files(path = outdir, pattern = 'seed germination analysis.tsv.log$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
+  log <- NULL
+  for (f in logfiles) {
+    logfile <- read_tsv(f, col_types=c(UID=col_character(), Type=col_character()))
+    log <- rbind(log, logfile)
+    file.remove(f)
+  }
+
+  for (errtype in unique(log$Type)) {
+    if (errtype == 'EARLY_LARGE_AREA') {
+      cat('Large non-seed object detected in ROI. Time range has been truncated.\n')
+      cat('Affected seeds: ')
+      cat(log$UID[log$Type == 'EARLY_LARGE_AREA'])
+      cat('\n')
+    } else if (errtype == 'ANOMALOUS_OBJECT') {
+      cat('An anomalous object was detected in the first slice. Affected seeds were removed from analysis.\n')
+      cat('Affected seeds: ')
+      cat(log$UID[log$Type == 'ANOMALOUS_OBJECT'])
+      cat('\n')
+    } else if (errtype == 'DUPE') {
+      cat('Duplicated seedlike objects were detected. Affected seeds were removed from analysis.\n')
+      cat('Affected seeds: ')
+      cat(log$UID[log$Type == 'DUPE'])
+      cat('\n')
+    }
+  }
 }
 
-if ("X.1" %in% names(allout)) {
-  allout <- select(allout, -X.1)
+if (length(files) > 0) {
+  # round off ElapsedHours to ensure compatibility with spreadsheet software
+  allout$ElapsedHours <- round(allout$ElapsedHours, 4)
+  allout <- allout[,c(1:2, 8, 3:7)]
+  
+  write.table(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t', row.names=F)
+  cat(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'.\nPlease edit that file to set up correct grouping for your experiment.\n"))
+} else {
+  cat("No seed germination analysis files found in that directory.\n")
 }
-
-write.table(allout, file=paste0(dir, "/germination.postQC.tsv"), sep='\t', row.names=F)
-print(paste0("Saving cleaned and collated data to '", dir, "/germination.postQC.tsv", "'. Please edit that file to set up correct grouping for your experiment."))
