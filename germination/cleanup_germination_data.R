@@ -162,9 +162,9 @@ if (length(files) > 0) {
   registerDoParallel(cl)
   
   if (num_cores > 1) {
-    core_plural <- 'cores'
+    core_plural <- 'threads'
   } else {
-    core_plural <- 'core'
+    core_plural <- 'thread'
   }
   cat(paste0("Processing files and performing basic quality control, using ", 
              length(cl), ' ', core_plural, ". This may take a little while...\n"))
