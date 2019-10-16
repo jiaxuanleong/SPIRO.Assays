@@ -83,6 +83,7 @@ if (num_cores > 1) {
 } else {
   core_plural <- 'thread'
 }
+
 cat(paste0("Processing germination data, using ", 
            length(cl), ' ', core_plural, ". This may take a little while...\n"))
 
@@ -97,6 +98,8 @@ data$pav <- groups <- uids <- perims <- NULL
 
 processed_data <- foreach(uid=unique(data$UID), .combine=rbind, .multicombine=T, .packages=c('zoo')) %dopar%
   detect_germination(data[data$UID == uid,], lookahead_slices)
+
+stopCluster(cl)
 
 data <- processed_data
 
@@ -192,5 +195,18 @@ for(group in unique(data.long$Group)) {
 germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts, 
                                  MeanGermTimeSE = mgtses, n = nseeds, Ungerminated = nongerms)
 write.table(germstats.pergroup, file=paste0(rundir, "/germinationstats.tsv"), sep='\t', row.names=F)
+
+# generate table for t-test results
+expand.grid(unique(data.long$Group), unique(data.long$Group)) -> pvals
+pvals <- pvals[-which(pvals$Var1 == pvals$Var2),]
+colnames(pvals) <- c('Group.1', 'Group.2')
+pvals$p.value <- NA
+
+for (i in seq(1, nrow(pvals))) {
+  t <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
+              data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
+  pvals$p.value[i] <- t$p.value
+}
+write.table(pvals, file=paste0(rundir, "/t-tests.tsv"), sep='\t', row.names=F)
 
 cat(paste0("Statistics have been written to the directory ", rundir, "\n"))
