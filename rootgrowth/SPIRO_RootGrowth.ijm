@@ -255,16 +255,15 @@ function seedPosition() {
 
 //PART2 creates a binary mask for seed/lings and reduces noise
 function firstMask() {
-	run("8-bit");
-	run("Minimum...", "radius=2 stack");
+		run("8-bit");
 	//run("Subtract Background...", "rolling=30 stack");
-	//run("Enhance Contrast...", "saturated=0.2 normalize process_all");
-	//run("Median...", "radius=1 stack");
+	run("Enhance Contrast...", "saturated=0.2 normalize process_all");
+	run("Median...", "radius=1 stack");
 	setAutoThreshold("MaxEntropy dark");
 	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
-	//run("Options...", "iterations=1 count=4 do=Dilate stack");
-    //run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-    //run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
+	run("Options...", "iterations=1 count=4 do=Dilate stack");
+	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
+	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
 
 function seedlinginitial() { //if seedlings instead of seeds are detected on first slice
@@ -550,7 +549,9 @@ function rootStart() {
 		saveAs("Results", genodir+genoname+"_"+rsc+".tsv");
 		rsctablename=genoname+"_"+rsc+".tsv";
 		close(rsctablename);
+		call("java.lang.System.gc");
 		File.delete(genodir+genoname+"masked.tif");
+		call("java.lang.System.gc");
 	}
 	}
 }
