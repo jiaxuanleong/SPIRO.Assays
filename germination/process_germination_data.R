@@ -20,7 +20,7 @@ lookahead_slices <- 10
 detect_germination <- function(ds, lookahead_slices) {
   if (nrow(ds) < lookahead_slices + 4) {
     cat(paste0("Too few data points for UID ", uid, ", removing from analysis.\n"))
-    next
+    return(NULL)
   }
   
   # seed size is average of first 5 slices
