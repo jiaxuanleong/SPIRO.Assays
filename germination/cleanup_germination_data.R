@@ -32,13 +32,15 @@ processfile <- function(file, logdir) {
 
   # need to suppress warnings here as imagej saves row numbers as unnamed first column
   suppressWarnings(resultfile <- read_tsv(file, 
-                                          col_types=c(Area=col_double(), `Perim.`=col_double(), Slice=col_integer()), 
+                                          col_types=c(Area=col_double(), `Perim.`=col_double(), Slice=col_integer(),
+                                                      UID=col_character(), Group=col_character()), 
                                           progress=FALSE))
 
   if ("X1" %in% names(resultfile)) {
     resultfile <- select(resultfile, -X1)
   }
-
+  resultfile <- as.data.frame(resultfile)
+  print(str(resultfile))
   for (i in 1:nrow(resultfile)) {
     row <- resultfile[i,]
     # first, go through the file and make a list of rois and timepoints
@@ -69,7 +71,7 @@ processfile <- function(file, logdir) {
   data$Group <- paste0(plates[1], '_', ImgSource[1])
   resultfile <- select(resultfile, -Label)
   data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
-  check_duplicates(data, paste0(logdir, '/', basename(file), '.log'))
+  data <- check_duplicates(data, paste0(logdir, '/', basename(file), '.log'))
   return(data)
 }
 
@@ -80,9 +82,9 @@ check_duplicates <- function(data, logfile) {
   for(uid in unique(data$UID)) {
     # check data per uid (will only be one group per file)
     # ds = data subset
-    ds <- data[data$UID == uid,]
-    
-    # remove data after first occurence of large area
+    ds <- data[which(data$UID == uid),]
+
+    # trim data to first occurence of large area
     largearea <- which(ds$Area > upper_area_threshold)
     if (length(largearea)) {
       ds <- ds[1:largearea[1]-1,]
@@ -91,45 +93,25 @@ check_duplicates <- function(data, logfile) {
         error_types <- c(error_types, 'EARLY_LARGE_AREA')
       }
     }
+
+    # filter out large and small objects
+    ds %>% filter(Area >= lower_area_threshold) %>% filter(Area <= upper_area_threshold) -> ds
     
-    # d = list of slices with multiple measurements
-    d <- ds$Slice[duplicated(ds$Slice)]
-    d <- unique(d)
-    
-    # some stats
-    dupes <- cleaned <- 0
-    
-    for(slice in d) {
-      areas <- ds$Area[ds$Slice == slice]
-      # remove largest area from list of areas
-      areas <- areas[-which.max(areas)]
-      # remove entries with these areas
-      if(length(areas)) {
-        x <- which(ds$Slice == slice & ds$Area %in% areas)
-        ds <- ds[-x,]
-        cleaned <- cleaned + 1
-      } else {
-        #print("Same areas")
-        dupes <- dupes + 1
-      }
-    }
-    # remove this uid from data, then add modified subset in its place
+    # we want remove this seed if there are multiple measurements left for any slice
+    ds %>% group_by(Slice) %>% mutate(n=n()) -> ds
+
+    # remove this uid from data, so we can add modified subset in its place
     data <- data[data$UID != uid,]
-    
+
     # if there are anomalous objects in the first slice, remove the seed from analysis
-    if(length(which(ds$Area < lower_area_threshold & ds$Area > upper_area_threshold))) {
-      cat(paste("Removing UID", uid, "as it contains an anomalous object in the first slice.\n"))
+    if(max(ds$n) > 1) {
+      # we have some slices left with multiple measurements -- remove the seed
       error_uids <- c(error_uids, uid)
-      error_types <- c(error_types, 'ANOMALOUS_OBJECT')
+      error_types <- c(error_types, 'DUPE')
     } else {
-      if(dupes == 0) {
-        # keep the seed only if there were no duplicate measurements left
-        data <- rbind(data, ds)
-      } else {
-        cat(paste("Removing UID", uid, "as it contains multiple objects.\n"))
-        error_uids <- c(error_uids, uid)
-        error_types <- c(error_types, 'DUPE')
-      }
+      ds <- select(ds, -n)
+      # need to cast to data frame or this fails
+      data <- rbind(as.data.frame(data), as.data.frame(ds))
     }
   }
   
@@ -189,13 +171,8 @@ if (length(files) > 0) {
       cat('Affected seeds: ')
       cat(log$UID[log$Type == 'EARLY_LARGE_AREA'])
       cat('\n')
-    } else if (errtype == 'ANOMALOUS_OBJECT') {
-      cat('An anomalous object was detected in the first slice. Affected seeds were removed from analysis.\n')
-      cat('Affected seeds: ')
-      cat(log$UID[log$Type == 'ANOMALOUS_OBJECT'])
-      cat('\n')
     } else if (errtype == 'DUPE') {
-      cat('Duplicated seedlike objects were detected. Affected seeds were removed from analysis.\n')
+      cat('Multiple objects remained after filtering. Affected seeds were removed from analysis.\n')
       cat('Affected seeds: ')
       cat(log$UID[log$Type == 'DUPE'])
       cat('\n')
