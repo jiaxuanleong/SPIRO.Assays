@@ -11,23 +11,30 @@ library(zoo)
 library(doParallel)
 library(foreach)
 
-# TUNABLES:
-# lookahead_slices:
-#   germination is determined as the point where the seed perimeter is increasing for <lookahead_slices> 
-#   number of slices. default is 10.
-lookahead_slices <- 10
-
-detect_germination <- function(ds, lookahead_slices) {
-  if (nrow(ds) < lookahead_slices + 4) {
-    cat(paste0("Too few data points for UID ", uid, ", removing from analysis.\n"))
-    return(NULL)
-  }
+detect_germination <- function(ds) {
+  # figure out the imaging frequency
+  TimePerSlice <- ds$ElapsedHours / ds$Slice
+  TimePerSlice <- TimePerSlice[!is.infinite(TimePerSlice)]
+  avgTimePerSlice <- mean(TimePerSlice)
   
-  # seed size is average of first 5 slices
-  seedsize <- mean(ds$`Perim.`[1:5])
+  # range for averages is either 2.5 h, or 5 slices (whichever is highest)
+  rollrange <- round(max(5, 2.5 / avgTimePerSlice), 0)
+  
+  # number of positive ddPerims is either 5 h or 10 slices
+  ddprange <- round(max(10, 5 / avgTimePerSlice), 0)
+  
+
+  # we need a buffer of (ddprange + rollrange + 1) slices for germination detection
+  if (nrow(ds) < ddprange + rollrange + 1) {
+    cat(paste0("Too few data points for UID ", uid, ", removing from analysis.\n"))
+    return(data.frame(row.names=names(ds)))
+  }
+
+  # determine initial seed size
+  seedsize <- mean(ds$`Perim.`[seq(1, rollrange)])
   
   # create moving average perimeter increase (dPerim)
-  ds$dPerim <- rollapply(ds$`Perim.`, 5, mean, na.rm=T, align="left", partial=FALSE, fill=NA)
+  ds$dPerim <- rollapply(ds$`Perim.`, rollrange, mean, na.rm=T, align="left", partial=FALSE, fill=NA)
   ds$dPerim <- ds$dPerim - seedsize
   
   # set delta delta perimeter (rate of change of perimeter)
@@ -36,15 +43,15 @@ detect_germination <- function(ds, lookahead_slices) {
   
   # loop over the values again...:\
   # we need a buffer of (4 + lookahead_slices) slices.
-  for (i in seq(1, nrow(ds) - (4 + lookahead_slices))) {
+  for (i in seq(1, nrow(ds) - (rollrange + ddprange + 1))) {
     if (ds$dPerim[i] > 0) {
-      if (all(ds$ddPerim[seq(i + 1, i + lookahead_slices)] > 0)) {
+      if (all(ds$ddPerim[seq(i + 1, i + ddprange)] > 0)) {
         ds$Germinated[i] <- TRUE
         break
       }
     }
   }
-  
+
   return(ds)
 }
 
@@ -96,9 +103,10 @@ data$dPerim <- data$ddPerim <- 0
 data$Germinated <- 0
 data$pav <- groups <- uids <- perims <- NULL
 
-processed_data <- foreach(uid=unique(data$UID), .combine=rbind, .multicombine=T, .packages=c('zoo')) %dopar%
-  detect_germination(data[data$UID == uid,], lookahead_slices)
-
+processed_data <- foreach(uid=unique(data$UID),
+                          .combine=rbind, 
+                          .multicombine=T, 
+                          .packages='zoo') %dopar% detect_germination(data[data$UID == uid,])
 stopCluster(cl)
 
 data <- processed_data
