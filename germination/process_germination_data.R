@@ -60,6 +60,7 @@ if (.Platform$OS.type == 'unix') {
   dir <- readline(prompt = "Enter directory: ")
 } else {
   dir <- choose.dir(getwd(), "Choose folder to process")
+  dir <- gsub('\\\\', '/', dir)
 }
 
 resultsdir <- paste0(dir, '/Results')
