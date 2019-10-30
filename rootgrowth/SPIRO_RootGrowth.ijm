@@ -432,75 +432,93 @@ function rootStart() {
 					roiManager("add");
 				}
 			}
-		
-			for (x=0; x<roiManager("count"); x++) { //for number of rois
-				run("Set Measurements...", "area center display redirect=None decimal=5");
+			
+			run("Set Measurements...", "area center display redirect=None decimal=5");
+			for (x=0; x<roicount; x++) { //for number of rois
 				roiManager("select", x);
 				run("Analyze Particles...", "display clear summarize slice");
 			
 				count = Table.get("Count", Table.size("Summary of "+img)-1, "Summary of "+img);
 				totalarea = Table.get("Total Area", Table.size("Summary of "+img)-1, "Summary of "+img);
  
-				if (count==0) { //firstMask() erased seed (rarely happens)
-					toUnscaled(xmprev, ymprev);
+				if (count == 0) { //no object detected, masking erased seed due to seed too small - copy xm/ym from previous slice
+					rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
+					//xm, ym are coordinates for the centre of mass obtained through erosion
+					xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
+					ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
 					nr = Table.size(rsc);
 					Table.set("Slice", nr, z+1, rsc);
 					Table.set("ROI", nr, x+1, rsc);
 					Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
 					Table.set("YM", nr, ymprev, rsc); //ym as previous slice
-				} else { //erode then analyse particles for xm/ym
-					while (totalarea>0.002) {
+				} else { //object detected, erode then analyse particles for xm/ym
+					erosionround = 1;
+					while (totalarea>0.002 && erosionround < 15) { //if erosion is not working due to bad thresholding, total area never decreases, rsc is copied from previous slice.
 					roiManager("select", x);
 					run("Options...", "iterations=1 count=1 do=Erode");
 					roiManager("select", x);
 					run("Analyze Particles...", "display summarize slice");
 			
 					count = Table.get("Count", Table.size-1, "Summary of "+img);
-						if (count==0) { //erode went too far, particle disappeared
-							totalarea=0; //to get out of the while loop
+						if (count == 0) { //erode went too far, particle disappeared
+							totalarea = 0; //to get out of the while loop
 						} else {
 						totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
 						}
+					erosionround = erosionround + 1;
 					}
+					
+					if (erosionround < 15) {
+						while (totalarea>0.012) { 
+						roiManager("select", x);
+						run("Options...", "iterations=1 count=3 do=Erode");
+						roiManager("select", x);
+						run("Analyze Particles...", "display clear summarize slice");
+				
+						count = Table.get("Count", Table.size-1, "Summary of "+img);
+							if (count == 0) { //erode went too far, particle disappeared
+								totalarea = 0; //to get out of the while loop
+							} else {
+							totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+							}
+						}
+				
+						if (count > 1) {
+							area = newArray(count);
+							for (v=0; v<count; v++){
+								area[v] = getResult("Area", nResults-(v+1));
+							}
+							areaasc = Array.rankPositions(area);
+							areadesc = Array.invert(areaasc);
+							maxarea = areadesc[0];
 			
-					while (totalarea>0.012) {
-					roiManager("select", x);
-					run("Options...", "iterations=1 count=3 do=Erode");
-					roiManager("select", x);
-					run("Analyze Particles...", "display clear summarize slice");
-			
-					count = Table.get("Count", Table.size-1, "Summary of "+img);
-						if (count==0) { //erode went too far, particle disappeared
-							totalarea=0; //to get out of the while loop
+									xm = getResult("XM", nResults-(maxarea+1));
+									ym = getResult("YM", nResults-(maxarea+1));
 						} else {
-						totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+							xm = getResult("XM", nResults-1);
+							ym = getResult("YM", nResults-1);
 						}
-					}
-			
-					if (count>1) {
-						area = newArray(count);
-						for (v=0; v<count; v++){
-							area[v] = getResult("Area", nResults-(v+1));
+						
+						toUnscaled(xm, ym);
+				
+						nr = Table.size(rsc);
+						Table.set("Slice", nr, z+1, rsc);
+						Table.set("ROI", nr, x+1, rsc);
+						Table.set("XM", nr, xm, rsc);
+						Table.set("YM", nr, ym, rsc);
 						}
-						areaasc = Array.rankPositions(area);
-						areadesc = Array.invert(areaasc);
-						maxarea = areadesc[0];
-		
-								xm = getResult("XM", nResults-(maxarea+1));
-								ym = getResult("YM", nResults-(maxarea+1));
-					} else {
-						xm = getResult("XM", nResults-1);
-						ym = getResult("YM", nResults-1);
-					}
-					
-					toUnscaled(xm, ym);
-			
-					nr = Table.size(rsc);
-					Table.set("Slice", nr, z+1, rsc);
-					Table.set("ROI", nr, x+1, rsc);
-					Table.set("XM", nr, xm, rsc);
-					Table.set("YM", nr, ym, rsc);
-					}
+						if (erosionround == 15) {
+							rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
+							//xm, ym are coordinates for the centre of mass obtained through erosion
+							xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
+							ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
+							nr = Table.size(rsc);
+							Table.set("Slice", nr, z+1, rsc);
+							Table.set("ROI", nr, x+1, rsc);
+							Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
+							Table.set("YM", nr, ymprev, rsc); //ym as previous slice
+						}
+				}
 		}
 		}
 		close(xref);
@@ -660,6 +678,7 @@ function rootlength() {
 		Table.save(genodir+platename+" "+genoname+" root analysis.tsv", ra);
 		tableraname = platename+" "+genoname+" root analysis.tsv";
 		close(tableraname);
+		close(rsc);
 		
 		selectWindow(stack1);
 		roiManager("reset");
