@@ -577,38 +577,28 @@ function rootlength() {
 			nr = Table.size(rsctsv);
 			roicount = nr/nSlices;
 			roiManager("reset");
-
-			rowsofseeds = 1; //assuming one row of seeds to start
-			columnsofseeds =1; //assuming one column of seed to start
-
-			xmseedinitial = Table.get("XM", 0, rsctsv);
-			ymseedinitial = Table.get("YM", 0, rsctsv);
-			toScaled(xmseedinitial, ymseedinitial);
-			
-			for (seednumber = 1; seednumber < roicount; seednumber ++) {
-				xmseed = Table.get("XM", seednumbers, rsctsv);
-				ymseed = Table.get("YM", seednumbers, rsctsv);
-				toScaled(xmseed, ymseed);
-				if (abs(xmseed - xmseed0) > 1) {
-					rowsofseeds = rowsofseeds + 1; //BUT THERE WILL BE A PROBLEM HERE
+			roih = "ROI Heights";
+			Table.create(roih);
+			for (x=0; x<roicount; x++) {
+				setSlice(1);
+				roino = Table.get("ROI", x, rsctsv);
+				xm1 = Table.get("XM", x, rsctsv);
+				ym1 = Table.get("YM", x, rsctsv);
+				if (roino<roicount) {
+				ym2 = Table.get("YM", x+1, rsctsv);
+				y2 = 0.6*(ym2-ym1)+ym1;
+				h = 2*(y2-ym1); //height of ROI is distance to next seed *0.6 *2
+				Table.set("ROI height", x, h, roih);
+				} else { //if last ROI, no distance to next seed, copy last height
+				Table.set("ROI height", x, h, roih); 
 				}
-			}
-			////////INCOMPLETE HERE
-			for (
-			//roi height will be determined according to 0.6*distance between first two seeds
-			
-			ymseed2 = Table.get("YM", 1, rsctsv);
-			distancebetweenseeds = 0.6*(ymseed2-ymseed1)+ymseed1;
-			roiheight = 2*(distancebetweenseeds-ymseed1); //height of ROI is distance to next seed *0.6 *2
-
-		toScaled(xmseed1); 
-	
+			}	
 			for (x=0; x<nr; x++) {
 				slice = Table.get("Slice", x, rsctsv);
 				roino = Table.get("ROI", x, rsctsv);
 				xm = Table.get("XM", x, rsctsv);
 				ym = Table.get("YM", x, rsctsv);
-			
+				h = Table.get("ROI height", roino-1, roih); 
 				setSlice(slice);
 				roiytopright = ym - (0.5*roiheight);
 				makeRectangle(0, roiytopright, xm, h);
