@@ -113,14 +113,14 @@ function cropGroup() {
 	setTool("Rectangle");
 	if (plateanalysisno == 0) {
 	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
-		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
+		"Please do not use dashes in the ROI names. \n" +
 		"ROIs cannot share names.");
 	}
 	if (plateanalysisno > 0)
 	waitForUser("Modify ROI and names if needed.");
 	while (roiManager("count") <= 0) {
 	waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
-		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
+		"Please do not use dashes in the ROI names.\n" +
 		"ROIs cannot share names.");
 	}
 	run("Select None");
@@ -165,15 +165,8 @@ function seedPosition() {
 		genoname = File.getName(genodir);
 		print("Finding seed positions for "+platename+genoname);
 		open(genodir+genoname+".tif");
-		img = getTitle();
-		
+		img = getTitle();		
 		firstMask();
-		
-		xmax = getWidth;
-		ymax = getHeight;
-		frameproportions = xmax/ymax; 
-		if (frameproportions >= 1) //image is horizontal
-		run("Rotate 90 Degrees Right");
 		roiManager("reset");
 		run("Create Selection");
 		run("Colors...", "foreground=black background=black selection=red");
@@ -200,7 +193,7 @@ function seedPosition() {
 				for (x=0; x<nResults; x++) {
 				selectWindow("Results");
 				area = getResult("Area", x);
-					//if (area<0.0008 || area>0.01) { 
+					//if (area<0.0008 || area>0.01) upper limit doesnt work properly
 					if (area<0.0005) {
 						Table.set("Trash ROI", Table.size(tp), x, tp);
 					}
@@ -233,13 +226,13 @@ function seedPosition() {
 		roiManager("select", roiarray);
 		run("Set Measurements...", "area redirect=None decimal=5");
 		roiManager("multi-measure");
-		a = 0;
+		seedlingsdetected = 0;
 		for (x=0; x<nResults; x++){
 			area = getResult("Area", x);
 			if (area>0.02)
-			a = a+1;
+			seedlingsdetected = seedlingsdetected + 1;
 		}
-		if (a>0) {
+		if (seedlingsdetected > 0) {
 			seedlinginitialboolean = getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?");
 			if (seedlinginitialboolean == 1) 
 				seedlinginitial();
@@ -256,14 +249,14 @@ function seedPosition() {
 //PART2 creates a binary mask for seed/lings and reduces noise
 function firstMask() {
 		run("8-bit");
-	//run("Subtract Background...", "rolling=30 stack");
-	run("Enhance Contrast...", "saturated=0.2 normalize process_all");
-	run("Median...", "radius=1 stack");
-	setAutoThreshold("MaxEntropy dark");
-	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
-	run("Options...", "iterations=1 count=4 do=Dilate stack");
-	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
+		//run("Subtract Background...", "rolling=30 stack");
+		run("Enhance Contrast...", "saturated=0.2 normalize process_all");
+		run("Median...", "radius=1 stack");
+		setAutoThreshold("MaxEntropy dark");
+		run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
+		run("Options...", "iterations=1 count=4 do=Dilate stack");
+		run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
+		run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
 
 function seedlinginitial() { //if seedlings instead of seeds are detected on first slice
@@ -273,7 +266,7 @@ function seedlinginitial() { //if seedlings instead of seeds are detected on fi
 		waitForUser("Please draw ROI encompassing all root starts, then add to ROI Manager.");
 	}
 	roiManager("select", 0);
-	getBoundingRect(x1, y1, width, height);
+	getBoundingRect(boundingx, boundingy, width, height);
 	run("Duplicate...", "use");
 	rootstartroi = getTitle();
 	roiManager("reset");
@@ -306,8 +299,7 @@ function seedlinginitial() { //if seedlings instead of seeds are detected on fi
 						Table.set("Trash ROI", Table.size(tp), x, tp);
 					}
 				}
-			
-				
+				
 				if (Table.size(tp)>0) {
 				trasharray = Table.getColumn("Trash ROI", tp);
 				roiManager("select", trasharray);
@@ -325,14 +317,12 @@ function seedlinginitial() { //if seedlings instead of seeds are detected on fi
 	waitForUser("Please delete any ROIs that should not be included into analysis, \n e.g. noise selection and seedlings that have overlapping roots");
 	roicount = roiManager("count");
 	for(x=0; x<roicount; x++){
-		roiManager("select", 0);
-		Roi.getBounds(x2, y2, width, height);
+		roiManager("select", x);
+		Roi.getBounds(groupx, groupy, groupw, grouph);
 		selectWindow(img);
-		makeRectangle(x2+x1, y2+y1, width, height);
+		makeRectangle(boundingx+groupx, boundingy+groupy, groupw, grouph);
 		roiManager("add");
 		roiManager("rename", x+1);
-		roiManager("select", 0);
-		roiManager("delete");
 	}
 	close(rootstartroi);
 	roiManager("save", genodir+genoname+"initialpositions.zip");
@@ -352,11 +342,7 @@ function rootStart() {
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
 		open(genodir+genoname+"masked.tif");
-		
-
-		
 		img = getTitle();
-
 		roiManager("reset");
 		if (File.exists(genodir+genoname+"seedpositions.zip")==1) {
 			roiManager("open", genodir+genoname+"seedpositions.zip");
@@ -375,9 +361,11 @@ function rootStart() {
 		roiManager("multi-measure");
 		roicount = roiManager("count");
 
-		w = 0.18; //width of ROI is 0.18cm
-		h = 0.12; //height
-		toUnscaled(w, h);
+		scaledwroi = 0.12; //width of ROI for finding root start coordinates is 0.12cm
+		scaledhroi = 0.18; //height of ROI is 0.18cm
+		unscaledwroi = 0.12; 
+		unscaledhroi = 0.18; 
+		toUnscaled(unscaledwroi, unscaledhroi);
 		
 		nS = nSlices;
 		rsc = "Root start coordinates";
@@ -387,51 +375,60 @@ function rootStart() {
 			setSlice(z+1); //starting with first slice
 			if (z==0) { //if first slice, obtain XY coordinates from Results to make ROI
 				roiManager("reset");
-				xref = "XRef";
-				Table.create(xref); //table for "x references" which are the left and right borders
-				for(x=0; x<roicount; x++) {
-					xisp = getResult("X", x); //xisp is x initial seed position
-					xlb = xisp - 0.4;
-					xrb = xisp + 0.05;
-					Table.set("xlb", x, xlb, xref); //x (left border) cannot be more than 0.4cm to the left of initial xm
-					Table.set("xrb", x, xrb, xref); //x (right border) cannot be more than xisp
-					yisp = getResult("Y", x);
-					rightoffset = 0.05; //needed to include a little more of the right bit from the centre of mass
-					xroi = xisp - (0.18-rightoffset); //xroi is top+leftmost xcoordinate of roi
-					yroi = yisp - 0.06; //yroi is top+leftmost ycoordinate of roi
+				yref = "YRef";
+				Table.create(yref); //table for "y references" which contain the top and bottom borders
+				//the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc from jumping to hypocotyls or sliding down roots
+				for(positionnumber = 0; positionnumber < roicount; positionnumber ++) {
+					xisp = getResult("X", positionnumber); //xisp is x initial seed position
+					yisp = getResult("Y", positionnumber); //yisp is y initial seed position
+					ytb = yisp - 0.05; //y top border 
+					ybb = yisp + 0.4; //y bottom border 
+					Table.set("ytb", positionnumber, ytb, yref); //y (top border) cannot be more than 0.4cm to the top of initial xm
+					Table.set("ybb", positionnumber, ybb, yref); //y (bottom border) cannot be more than yisp
+					topoffset = 0.05; //needed to include a little more of the top bit from the centre of mass
+					//imagej takes top+leftmost coordinate to make rois 
+					yroi = yisp - topoffset; //yroi is top+leftmost ycoordinate of roi
+					xroi = xisp - 0.5*scaledwroi; //xroi is top+leftmost xcoordinate of roi
 					toUnscaled(xroi, yroi);
-					makeRectangle(xroi, yroi, w, h);
+					makeRectangle(xroi, yroi, unscaledwroi, unscaledhroi);
 					roiManager("add");
+					Table.save(genodir + "yref.tsv", yref);
 				}
-			} else { //if subsequent slices, obtain XY coordinates from rsc
+			} else { 
+				//for subsequent slices, obtain XY centre of mass coordinates from rsc 
+				//of previous slice
 				roiManager("reset");
-				for(x=0; x<roicount; x++) {
+				for(positionnumber = 0; positionnumber < roicount; positionnumber ++) {
 					zprev = z-1;
-					rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
+					rowIndex = (zprev*roicount)+positionnumber; //to reference same ROI from previous slice
 					//xm, ym are coordinates for the centre of mass obtained through erosion
 					xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
 					ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
 					toScaled(xmprev, ymprev);
-					xlb = Table.get("xlb", x, xref);
-					xrb = Table.get("xrb", x, xref);
-					xroi = xmprev - (0.18-rightoffset); //xroi is top+leftmost xcoordinate of roi
-					yroi = ymprev - 0.06; //yroi is top+leftmost ycoordinate of roi and 0.06 is half of h (height)
-					scaledw = w;
-					tempcoord = 1; //needed as toScaled only works with 2 coordinates
-					toScaled(scaledw, tempcoord);
-					xroiright = xroi + scaledw;
-					if (xroi < xlb) { //left border exceeded 
-						xroi = xlb; //left side of roi becomes x left border
+					ytb = Table.get("ytb", positionnumber, yref);
+					ybb = Table.get("ybb", positionnumber, yref);
+					yroi = ymprev - topoffset; //yroi is top+leftmost ycoordinate of roi
+					xroi = xmprev - 0.5*scaledwroi; //xroi is top+leftmost xcoordinate of roi and 0.06 is half of h (height)
+					//the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc from jumping to hypocotyls or sliding down roots 
+					if (yroi < ytb) { //top border exceeded by top of roi
+						yroi = ytb;
 					}
-					if (xroiright > xrb) { //right border exceeded by right side of roi
-						exceededdistance = xroiright - xrb;
-						xroi = xroi - exceededdistance;
+					yroibottom = yroi + scaledhroi; //bottom line of roi is y
+					if (yroibottom > ybb) { //lower limit of roi bottom border exceeded 
+						exceededverticaldistance = yroibottom - ybb;
+						shortenedhroi = scaledhroi - exceededverticaldistance;
 					}
 					toUnscaled(xroi, yroi);
-					makeRectangle(xroi, yroi, w, h);
+					if (yroibottom > ybb) {
+						toUnscaled(shortenedhroi);
+						makeRectangle(xroi, yroi, unscaledwroi, shortenedhroi);
+					} else {
+					makeRectangle(xroi, yroi, unscaledwroi, unscaledhroi);
+					}
 					roiManager("add");
 				}
 			}
+
 			
 			run("Set Measurements...", "area center display redirect=None decimal=5");
 			for (x=0; x<roicount; x++) { //for number of rois
@@ -521,19 +518,11 @@ function rootStart() {
 				}
 		}
 		}
-		close(xref);
+		close(yref);
 		close("Results");
 		close("Summary of "+img);
 		close(img);
-		
 		open(genodir+genoname+".tif");
-		
-
-		xmax = getWidth;
-		ymax = getHeight;
-		frameproportions = xmax/ymax; 
-		if (frameproportions >= 1) //image is horizontal
-		run("Rotate 90 Degrees Right");
 		roiManager("reset");
 		
 		nr = Table.size(rsc);
@@ -550,7 +539,6 @@ function rootStart() {
 		}
 
 		roiManager("save", genodir+genoname+"rootstartrois.zip");
-		
 		roiManager("Associate", "true");
 		roiManager("Centered", "false");
 		roiManager("UseNames", "true");
@@ -558,18 +546,13 @@ function rootStart() {
 		run("Labels...", "color=white font=18 show use draw");
 		run("Flatten", "stack");
 		
-		if (frameproportions >= 1) //image is originally horizontal
-		run("Rotate 90 Degrees Left");
 		saveAs("Tiff", genodir+genoname+"_"+"rootstartlabelled.tif");
 		close();
-		
 		selectWindow(rsc);
 		saveAs("Results", genodir+genoname+"_"+rsc+".tsv");
-		rsctablename=genoname+"_"+rsc+".tsv";
-		close(rsctablename);
-		call("java.lang.System.gc");
+		rsctsv=genoname+"_"+rsc+".tsv";
+		close(rsctsv);
 		File.delete(genodir+genoname+"masked.tif");
-		call("java.lang.System.gc");
 	}
 	}
 }
@@ -577,108 +560,102 @@ function rootStart() {
 //PART3 skeleton analysis per group
 function rootlength() {
 	for (y = 0; y < croplist.length; ++y) {
-	if (indexOf(croplist[y], "substack")<0) {
-		setBatchMode(true);
-		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
-		genoname = File.getName(genodir);
-		print("Analyzing root growth of "+platename+genoname);
-		open(genodir+genoname+".tif");
-		stack1 = getTitle();
-		
-		xmax = getWidth;
-		ymax = getHeight;
-		frameproportions = xmax/ymax; 
-		if (frameproportions >= 1) //image is horizontal
-		run("Rotate 90 Degrees Right");
-				
-		//process roots for skeletonization
-		secondMask();
-		rsc = "Root start coordinates";
-		rsc = genoname+"_"+rsc+".tsv";
-		open(genodir+rsc);
-		
-		nr = Table.size(rsc);
-		roicount = nr/nSlices;
-		roiManager("reset");
-		roih = "ROI Heights";
-		Table.create(roih);
-		for (x=0; x<roicount; x++) {
-			setSlice(1);
-			roino = Table.get("ROI", x, rsc);
-			xm1 = Table.get("XM", x, rsc);
-			ym1 = Table.get("YM", x, rsc);
-			if (roino<roicount) {
-			ym2 = Table.get("YM", x+1, rsc);
-			y2 = 0.6*(ym2-ym1)+ym1;
-			h = 2*(y2-ym1); //height of ROI is distance to next seed *0.6 *2
-			Table.set("ROI height", x, h, roih);
-			} else { //if last ROI, no distance to next seed, copy last height
-			Table.set("ROI height", x, h, roih); 
+		if (indexOf(croplist[y], "substack")<0) {
+			setBatchMode(true);
+			genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
+			genoname = File.getName(genodir);
+			print("Analyzing root growth of "+platename+genoname);
+			open(genodir+genoname+".tif");
+			stack1 = getTitle();
+					
+			//process roots for skeletonization
+			secondMask();
+			rsc = "Root start coordinates";
+			rsctsv = genoname+"_"+rsc+".tsv";
+			open(genodir+rsctsv);
+			
+			nr = Table.size(rsctsv);
+			roicount = nr/nSlices;
+			roiManager("reset");
+			roih = "ROI Heights";
+			Table.create(roih);
+			for (x=0; x<roicount; x++) {
+				setSlice(1);
+				roino = Table.get("ROI", x, rsctsv);
+				xm1 = Table.get("XM", x, rsctsv);
+				ym1 = Table.get("YM", x, rsctsv);
+				if (roino<roicount) {
+				ym2 = Table.get("YM", x+1, rsctsv);
+				y2 = 0.6*(ym2-ym1)+ym1;
+				h = 2*(y2-ym1); //height of ROI is distance to next seed *0.6 *2
+				Table.set("ROI height", x, h, roih);
+				} else { //if last ROI, no distance to next seed, copy last height
+				Table.set("ROI height", x, h, roih); 
+				}
+			}	
+			for (x=0; x<nr; x++) {
+				slice = Table.get("Slice", x, rsctsv);
+				roino = Table.get("ROI", x, rsctsv);
+				xm = Table.get("XM", x, rsctsv);
+				ym = Table.get("YM", x, rsctsv);
+				h = Table.get("ROI height", roino-1, roih); 
+				setSlice(slice);
+				roiytopright = ym - (0.5*roiheight);
+				makeRectangle(0, roiytopright, xm, h);
+				roiManager("add");
+				roiManager("select", x);
+				roiManager("rename", roino);
 			}
-		}
-		for (x=0; x<nr; x++){
-			slice = Table.get("Slice", x, rsc);
-			roino = Table.get("ROI", x, rsc);
-			xm1 = Table.get("XM", x, rsc);
-			ym1 = Table.get("YM", x, rsc);
-			h = Table.get("ROI height", roino-1, roih); 
-			setSlice(slice);
-			y1 = ym1 - (0.5*h);
-			makeRectangle(0, y1, xm1, h);
-			roiManager("add");
+			
+			for (x=0; x<nr; x++) {
+			selectWindow(stack1);
 			roiManager("select", x);
-			roiManager("rename", roino);
-		}
-		
-		for (x=0; x<nr; x++) {
-		selectWindow(stack1);
-		roiManager("select", x);
-		roino = Roi.getName;
-		sliceno = getSliceNumber();
-		run("Duplicate...", "use");
-		temp = getTitle();
-		halfy = 0.5*getHeight();
-		fullx = getWidth();
-		run("Set Measurements...", "display redirect=None decimal=3");
-		run("Analyze Skeleton (2D/3D)", "prune=none show");
-		close("Tagged skeleton");
-		close(temp);
-		close("Results");
-
-		ra="Root analysis";
-		bi="Branch information";
-		if (x==0) {
-		Table.create(ra);
-		}
+			roino = Roi.getName;
+			sliceno = getSliceNumber();
+			run("Duplicate...", "use");
+			temp = getTitle();
+			halfy = 0.5*getHeight();
+			fullx = getWidth();
+			run("Set Measurements...", "display redirect=None decimal=3");
+			run("Analyze Skeleton (2D/3D)", "prune=none show");
+			close("Tagged skeleton");
+			close(temp);
+			close("Results");
 	
-		for (z=0; z<Table.size(bi); z++) {
-			rar = Table.size(ra);
-			Table.set("Slice name", rar, temp, ra);
-			Table.set("Slice no.", rar, sliceno, ra);	
-			Table.set("ROI", rar, roino, ra);
-			id = Table.get("Skeleton ID", z, bi);
-			Table.set("Skeleton ID", rar, id, ra);
-			bl = Table.get("Branch length", z, bi);
-			Table.set("Branch length", rar, bl, ra);
-			v1x = Table.get("V1 x", z, bi);
-			v1y = Table.get("V1 y", z, bi);
-			v2x = Table.get("V2 x", z, bi);
-			v2y = Table.get("V2 y", z, bi);
-			toUnscaled(v1x, v1y);
-			toUnscaled(v2x, v2y);
-			Table.set("V1 x", rar, v1x, ra);
-			Table.set("V1 y", rar, v1y, ra);
-			Table.set("V2 x", rar, v2x, ra);
-			Table.set("V2 y", rar, v2y, ra);
-			Table.set("Primary X", rar, fullx, ra);
-			Table.set("Primary Y", rar, halfy, ra);
+			ra="Root analysis";
+			bi="Branch information";
+			if (x==0) {
+			Table.create(ra);
+			}
+		
+			for (z=0; z<Table.size(bi); z++) {
+				rar = Table.size(ra);
+				Table.set("Slice name", rar, temp, ra);
+				Table.set("Slice no.", rar, sliceno, ra);	
+				Table.set("ROI", rar, roino, ra);
+				id = Table.get("Skeleton ID", z, bi);
+				Table.set("Skeleton ID", rar, id, ra);
+				bl = Table.get("Branch length", z, bi);
+				Table.set("Branch length", rar, bl, ra);
+				v1x = Table.get("V1 x", z, bi);
+				v1y = Table.get("V1 y", z, bi);
+				v2x = Table.get("V2 x", z, bi);
+				v2y = Table.get("V2 y", z, bi);
+				toUnscaled(v1x, v1y);
+				toUnscaled(v2x, v2y);
+				Table.set("V1 x", rar, v1x, ra);
+				Table.set("V1 y", rar, v1y, ra);
+				Table.set("V2 x", rar, v2x, ra);
+				Table.set("V2 y", rar, v2y, ra);
+				Table.set("Primary X", rar, fullx, ra);
+				Table.set("Primary Y", rar, halfy, ra);
 			}
 		}
 		close(bi);
 		Table.save(genodir+platename+" "+genoname+" root analysis.tsv", ra);
 		tableraname = platename+" "+genoname+" root analysis.tsv";
 		close(tableraname);
-		close(rsc);
+		close(rsctsv);
 		
 		selectWindow(stack1);
 		roiManager("reset");
@@ -690,8 +667,6 @@ function rootlength() {
 		run("Labels...", "color=white font=18 show use draw");
 		run("Flatten", "stack");
 		
-		if (frameproportions >= 1) //image is ORIGINALLY horizontal when opened
-		run("Rotate 90 Degrees Left");
 		saveAs("Tiff", genodir+genoname+"_"+"skeletonized.tif");
 		stack1 = getTitle();
 		nS = nSlices;
@@ -738,7 +713,7 @@ function rootlength() {
 		File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
 		File.delete(genodir+genoname+"_"+"skeletonized.tif");
 		File.delete(genodir+genoname+"rootstartrois.zip");
-		File.delete(genodir+rsc);
+		File.delete(genodir+rsctsv);
 		
 		}
 	}
