@@ -427,7 +427,7 @@ function seedlinginitial() { //if seedlings instead of seeds are detected on fi
 function rootStart() {
 	for (y = 0; y < croplist.length; ++y) {
 		if (indexOf(croplist[y], "substack")<0) {
-		setBatchMode(false);
+		setBatchMode(true);
 		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
@@ -652,7 +652,7 @@ function rootStart() {
 function rootlength() {
 	for (y = 0; y < croplist.length; ++y) {
 		if (indexOf(croplist[y], "substack")<0) {
-			setBatchMode(false);
+			setBatchMode(true);
 			genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 			genoname = File.getName(genodir);
 			print("Analyzing root growth of "+platename+genoname);
@@ -681,7 +681,8 @@ function rootlength() {
 				xdiff = xsecondcol - xfirstcol;
 				roiwidth = 0.7*xdiff;
 			} else {
-				roiwidth = 2; //ARBITRARY VALUE, TO DETERMINE
+				xfirstcol = Table.get("col1", 0, sortedxcoordscsv);
+				roiwidth = getWidth(stack1); //ARBITRARY VALUE, TO DETERMINE
 			}
 			close(sortedxcoordscsv);
 
@@ -695,7 +696,8 @@ function rootlength() {
 				ydiff = ysecondrow - yfirstrow;
 				roiheight = ydiff - 0.5;
 			} else {
-				roiheight = 5; //ARBITRARY VALUE
+				yfirstrow = Table.get("col1", 0, sortedycoordscsv);
+				roiheight = getHeight(stack1) - yfirstrow; 
 			}
 
 			toUnscaled(roiwidth, roiheight);
