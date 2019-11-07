@@ -723,7 +723,8 @@ function rootlength() {
 			sliceno = getSliceNumber();
 			run("Duplicate...", "use");
 			temp = getTitle();
-			halfx = 0.5*getWidth();
+			halfx = 0.5*getWidth(temp);
+			fully = getHeight(temp);
 			run("Set Measurements...", "display redirect=None decimal=3");
 			run("Analyze Skeleton (2D/3D)", "prune=none show");
 			close("Tagged skeleton");
@@ -755,8 +756,8 @@ function rootlength() {
 				Table.set("V1 y", rar, v1y, ra);
 				Table.set("V2 x", rar, v2x, ra);
 				Table.set("V2 y", rar, v2y, ra);
-				Table.set("Primary X", rar, halfx, ra);
-				Table.set("Primary Y", rar, 0, ra);
+				Table.set("ROI mid X", rar, halfx, ra);
+				Table.set("ROI Y", rar, fully, ra);
 			}
 		}
 		close(bi);
