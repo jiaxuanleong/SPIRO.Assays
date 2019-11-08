@@ -20,9 +20,9 @@ if (!File.isDirectory(rootgrowthmaindir)) {
 	File.makeDirectory(rootgrowthmaindir);
 }
 
-//processMain1();
-//processMain2();
-//processMain21();
+processMain1();
+processMain2();
+processMain21();
 processMain3();
 
 list = getList("window.titles"); 
@@ -427,7 +427,7 @@ function seedlinginitial() { //if seedlings instead of seeds are detected on fi
 function rootStart() {
 	for (y = 0; y < croplist.length; ++y) {
 		if (indexOf(croplist[y], "substack")<0) {
-		setBatchMode(true);
+		setBatchMode(false);
 		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
