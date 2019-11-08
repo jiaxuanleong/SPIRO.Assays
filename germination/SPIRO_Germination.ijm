@@ -143,7 +143,7 @@ function seedAnalysis() {
 		run("Select None");
 		seedMask();
 		roiManager("reset");
-		run("Rotate 90 Degrees Right");
+		//run("Rotate 90 Degrees Right");
 		setSlice(1);
 
 		run("Create Selection");
@@ -183,11 +183,13 @@ function seedAnalysis() {
 			roiarray = newArray(roiManager("count"));
 		}
 		close(tp);
+
+		ordercoords();
+		
 		for (x = 0; x<roiManager("count"); x++) {
 			roiManager("select", x);
-			run("Enlarge...", "enlarge=0.08");
+			run("Enlarge...", "enlarge=0.1");
 			roiManager("update");
-			roiManager("rename", x+1);
 		}
 
 		run("Set Measurements...", "area perimeter stack display redirect=None decimal=3");
@@ -207,7 +209,7 @@ function seedAnalysis() {
 		roiManager("Show All with labels");
 		run("Labels...", "color=white font=18 show use draw");
 		run("Flatten", "stack");
-		run("Rotate 90 Degrees Left");
+		//run("Rotate 90 Degrees Left");
 
 		selectWindow(stack2);
 		run("RGB Color");
@@ -274,4 +276,90 @@ function seedMask() {
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
 	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
 	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
+}
+
+function ordercoords () {
+	roiarray = newArray(roiManager("count"));
+	for(x=0; x<roiManager("count"); x++){
+		roiarray[x]=x;
+		}
+	run("Clear Results");
+	run("Set Measurements...", "center display redirect=None decimal=5");
+	roiManager("select", roiarray);
+	roiManager("multi-measure");
+	seedpositions = ("Seed Positions");
+	Table.rename("Results", seedpositions);
+	roicount = Table.size(seedpositions);
+
+	xmseeds = newArray(roicount);
+	ymseeds = newArray(roicount);
+	for (seednumber = 0; seednumber < roicount; seednumber ++) {
+		xmcurrent = Table.get("XM", seednumber, seedpositions);
+		ymcurrent = Table.get("YM", seednumber, seedpositions);
+		xmseeds[seednumber] = xmcurrent;
+		ymseeds[seednumber] = ymcurrent;
+	}
+	
+	ymascendingindexes = Array.rankPositions(ymseeds);
+	xmascendingindexes = Array.rankPositions(xmseeds);
+	sortedycoords = "Sorted Y coordinates";
+	sortedxcoords = "Sorted X coordinates";
+	Table.create(sortedycoords);
+	Table.create(sortedxcoords);
+	rowno = 0; //assume no row of seeds to start with
+	col = 0 ; //current col selection is 0
+	colname = "col" + col + 1;
+	Table.set(colname, rowno, ymseeds[ymascendingindexes[0]], sortedycoords);
+	Table.set(colname, rowno, xmseeds[ymascendingindexes[0]], sortedxcoords);
+	
+	for (arrayindex = 1; arrayindex < roicount; arrayindex ++) {
+		ydiff = ymseeds[ymascendingindexes[arrayindex]] - ymseeds[ymascendingindexes[arrayindex-1]];
+		if (ydiff > 1) {
+			rowno = rowno + 1;
+			col = 0;
+		} else {
+			col = col + 1;
+		}
+		colname = "col" + col + 1;
+		Table.set(colname, rowno, ymseeds[ymascendingindexes[arrayindex]], sortedycoords);
+		Table.set(colname, rowno, xmseeds[ymascendingindexes[arrayindex]], sortedxcoords);
+	}
+	
+	colnames = Table.headings (sortedycoords);
+	colnamessplit = split(colnames, "	");
+	colno = lengthOf(colnamessplit);
+	xmcolwise = newArray(colno);
+	ymcolwise = newArray(colno);
+			
+	for (row = 0; row < rowno + 1; row++) {
+		for (col = 0; col < colno; col ++) {
+			colname = "col" + col + 1;
+			xmcolwise[col] = Table.get(colname, row, sortedxcoords);
+			ymcolwise[col] = Table.get(colname, row, sortedycoords);
+		}
+		xcolwiseascendingindex = Array.rankPositions(xmcolwise);
+		for (col = 0; col < colno; col ++) {
+			colname = "col" + col + 1;
+			Table.set(colname, row, xmcolwise[xcolwiseascendingindex[col]], sortedxcoords);
+			Table.set(colname, row, ymcolwise[xcolwiseascendingindex[col]], sortedycoords);
+		}
+	}
+	
+	roiManager("reset");
+	for (row = 0; row < rowno + 1; row ++) {
+		for (col = 0; col < colno; col ++) {
+			colname = "col" + col + 1;
+			xm = Table.get(colname, row, sortedxcoords);
+			ym = Table.get(colname, row, sortedycoords);
+			toUnscaled(xm, ym);
+			makePoint(xm, ym);
+			roiManager("add");
+			roiManager("select", roiManager("count")-1);
+			roiManager("rename", roiManager("count"));
+		}
+	}	
+	Table.save(genodir + sortedxcoords + ".csv", sortedxcoords);
+	Table.save(genodir + sortedycoords + ".csv", sortedycoords);
+	close(sortedxcoords);
+	close(sortedycoords);
 }
