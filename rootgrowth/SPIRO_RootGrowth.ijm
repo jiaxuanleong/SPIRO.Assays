@@ -20,9 +20,9 @@ if (!File.isDirectory(rootgrowthmaindir)) {
 	File.makeDirectory(rootgrowthmaindir);
 }
 
-processMain1();
-processMain2();
-processMain21();
+//processMain1();
+//processMain2();
+//processMain21();
 processMain3();
 
 list = getList("window.titles"); 
@@ -427,7 +427,7 @@ function seedlinginitial() { //if seedlings instead of seeds are detected on fi
 function rootStart() {
 	for (y = 0; y < croplist.length; ++y) {
 		if (indexOf(croplist[y], "substack")<0) {
-		setBatchMode(false);
+		setBatchMode(true);
 		genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 		genoname = File.getName(genodir);
 		print("Finding root start coordinates for "+platename+genoname);
@@ -642,8 +642,8 @@ function rootStart() {
 		saveAs("Results", genodir+genoname+"_"+rsc+".tsv");
 		rsctsv=genoname+"_"+rsc+".tsv";
 		close(rsctsv);
-		File.delete(genodir+genoname+"masked.tif");
-		File.delete(genodir+yref+".tsv");
+		//File.delete(genodir+genoname+"masked.tif");
+		//File.delete(genodir+yref+".tsv");
 	}
 	}
 }
@@ -660,7 +660,12 @@ function rootlength() {
 			stack1 = getTitle();
 					
 			//process roots for skeletonization
-			secondMask();
+			//secondMask();
+			//overlayskeletons();
+			//setBatchMode(true);
+			open(genodir+genoname+" overlaidskeletons.tif");
+			roiManager("Associate", "true");
+			stack1 = getTitle();
 			rsc = "Root start coordinates";
 			rsctsv = genoname+"_"+rsc+".tsv";
 			open(genodir+rsctsv);
@@ -681,7 +686,8 @@ function rootlength() {
 				xdiff = xsecondcol - xfirstcol;
 				roiwidth = 0.7*xdiff;
 			} else {
-				roiwidth = 2; //ARBITRARY VALUE, TO DETERMINE
+				xfirstcol = Table.get("col1", 0, sortedxcoordscsv);
+				roiwidth = getWidth(stack1); //ARBITRARY VALUE, TO DETERMINE
 			}
 			close(sortedxcoordscsv);
 
@@ -695,7 +701,8 @@ function rootlength() {
 				ydiff = ysecondrow - yfirstrow;
 				roiheight = ydiff - 0.5;
 			} else {
-				roiheight = 5; //ARBITRARY VALUE
+				yfirstrow = Table.get("col1", 0, sortedycoordscsv);
+				roiheight = getHeight() - yfirstrow; 
 			}
 
 			toUnscaled(roiwidth, roiheight);
@@ -722,6 +729,7 @@ function rootlength() {
 			run("Duplicate...", "use");
 			temp = getTitle();
 			halfx = 0.5*getWidth();
+			fully = getHeight();
 			run("Set Measurements...", "display redirect=None decimal=3");
 			run("Analyze Skeleton (2D/3D)", "prune=none show");
 			close("Tagged skeleton");
@@ -753,8 +761,8 @@ function rootlength() {
 				Table.set("V1 y", rar, v1y, ra);
 				Table.set("V2 x", rar, v2x, ra);
 				Table.set("V2 y", rar, v2y, ra);
-				Table.set("Primary X", rar, halfx, ra);
-				Table.set("Primary Y", rar, 0, ra);
+				Table.set("ROI mid X", rar, halfx, ra);
+				Table.set("ROI full Y", rar, fully, ra);
 			}
 		}
 		close(bi);
@@ -814,14 +822,14 @@ function rootlength() {
 		saveAs("Tiff", genodir+platename+"_"+genoname+"_rootgrowth.tif");
 		close();
 //Delete temporary files used for analysis
-		File.delete(genodir+genoname+"seedpositions.zip");
-		File.delete(genodir+genoname+"initialpositions.zip");
-		File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
-		File.delete(genodir+genoname+"_"+"skeletonized.tif");
-		File.delete(genodir+genoname+"rootstartrois.zip");
-		File.delete(genodir+rsctsv);
-		File.delete(genodir+sortedxcoordscsv);
-		File.delete(genodir+sortedycoordscsv);
+		//File.delete(genodir+genoname+"seedpositions.zip");
+		//File.delete(genodir+genoname+"initialpositions.zip");
+		//File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
+		//File.delete(genodir+genoname+"_"+"skeletonized.tif");
+		//File.delete(genodir+genoname+"rootstartrois.zip");
+		//File.delete(genodir+rsctsv);
+		//File.delete(genodir+sortedxcoordscsv);
+		//File.delete(genodir+sortedycoordscsv);
 
 		}
 	}
@@ -840,5 +848,51 @@ function secondMask() {
 	run("Options...", "iterations=3 count=1 pad do=Close stack");
 	run("Remove Outliers...", "radius=4 threshold=1 which=Dark stack");
 	run("Remove Outliers...", "radius=4 threshold=1 which=Dark stack");
+	run("Options...", "iterations=1 count=1 pad do=Skeletonize stack"); 
+}
+
+function overlayskeletons() { 
+	roiManager("Associate", "false");
+	run("Colors...", "foreground=black background=black selection=black");
+	stack1 = getTitle();
+	setSlice(1); 
+	slicelabel = getInfo("slice.label");
+	run("Duplicate...", "use");
+	//run("8-bit");
+	//run("Make Binary");
+	//run("Skeletonize");
+	rename(slicelabel);
+	selectWindow(stack1);
+	nS = nSlices();
+	roiManager("reset");
+	for (sliceno = 1; sliceno < nS; sliceno ++) {
+		//roiManager("reset");
+		selectWindow(stack1);
+		setSlice(sliceno);
+		run("Create Selection");
+		roiManager("add");
+		setSlice(sliceno + 1); 
+		slicelabel = getInfo("slice.label");
+		
+		roiarray = newArray(roiManager("count"));
+			for(x=0; x<roiManager("count"); x++){
+				roiarray[x]=x;
+				}
+
+		roiManager("select", roiarray);
+		roiManager("show all");
+		run("Flatten", "slice");
+		rename(slicelabel);
+		run("8-bit");
+		run("Make Binary");
+		//run("Erode");
+		//run("Skeletonize");	
+	}
+	close(stack1);
+	run("Images to Stack");
+	run("Options...", "iterations=2 count=1 pad do=Dilate stack");
 	run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
+	saveAs("Tiff", genodir+genoname+" overlaidskeletons.tif");
+	close();
+	run("Colors...", "foreground=black background=black selection=red");
 }
