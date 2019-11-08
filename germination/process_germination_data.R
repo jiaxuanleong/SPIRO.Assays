@@ -51,6 +51,8 @@ detect_germination <- function(ds) {
       }
     }
   }
+  
+  ds$Seedsize <- seedsize
 
   return(ds)
 }
@@ -104,18 +106,29 @@ data$Germinated <- 0
 data$pav <- groups <- uids <- perims <- NULL
 
 processed_data <- foreach(uid=unique(data$UID),
-                          .combine=rbind, 
-                          .multicombine=T, 
+                          .combine=rbind,
+                          .multicombine=T,
                           .packages='zoo') %dopar% detect_germination(data[data$UID == uid,])
+
+# single-threaded equivalent: uncomment for debugging purposes only!
+# processed_data <- NULL
+# for (uid in unique(data$UID)) {
+#   processed_data <- rbind(processed_data, detect_germination(data[data$UID == uid,]))
+# }
+
 stopCluster(cl)
 
 data <- processed_data
 
-data.peruid <- data %>% 
+data.peruid <- data %>%
   group_by(Group, UID) %>%
   filter(Germinated == 1) %>%
   arrange(ElapsedHours) %>%
-  summarize(GerminationTime = ElapsedHours[1], GerminationSlice = Slice[1])
+  summarize(GerminationTime = ElapsedHours[1], GerminationSlice = Slice[1], SeedSize = Seedsize)
+
+seedsizes <- data %>%
+  group_by(Group) %>%
+  summarize(SeedSize = mean(Seedsize, na.rm=T), SeedSizeSD = sd(Seedsize, na.rm=T))
 
 data.peruid <- as.data.frame(data.peruid)
 
@@ -124,7 +137,7 @@ uids <- uids[order(uids)]
 included <- uids %in% data.peruid$UID
 for(uid in uids[!included]) {
   group <- data$Group[data$UID == uid][1]
-  row = data.frame(Group = group, UID = uid, GerminationTime = NA, GerminationSlice = NA)
+  row = data.frame(Group = group, UID = uid, GerminationTime = NA, GerminationSlice = NA, SeedSize = NA)
   data.peruid <- rbind(data.peruid, row)
 }
 
@@ -202,6 +215,7 @@ for(group in unique(data.long$Group)) {
 
 germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts, 
                                  MeanGermTimeSE = mgtses, n = nseeds, Ungerminated = nongerms)
+germstats.pergroup <- merge(germstats.pergroup, seedsizes)
 write.table(germstats.pergroup, file=paste0(rundir, "/germinationstats.tsv"), sep='\t', row.names=F)
 
 # generate table for t-test results
