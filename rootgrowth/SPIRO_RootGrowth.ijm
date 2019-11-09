@@ -13,6 +13,10 @@ var resultsdir;	// results subdir of main directory
 var ppdir;		// preprocessing subdir
 var curplate;	// number of current plate being processed
 
+// table names
+var ra = "Root analysis";
+var bi = "Branch information";
+
 //user selection of main directory
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
@@ -57,7 +61,7 @@ function removeFilesRecursively(dir) {
 			if (File.isDirectory(dir + "/" + files[i])) {
 				removeFilesRecursively(dir + "/" + files[i]);
 			} else {
-				File.delete(dir + "/" + files[i]);
+				ok = File.delete(dir + "/" + files[i]);
 			}
 		}
 	}
@@ -73,8 +77,8 @@ function removeFilesRecursively(dir) {
 function removeDirs(dirs) {
 	for (i = dirs.length-1; i >= 0; i--) {
 		if (File.exists(dirs[i] + "/.DS_Store"))
-			File.delete(dirs[i] + "/.DS_Store");
-		File.delete(dirs[i]);
+			ok = File.delete(dirs[i] + "/.DS_Store");
+		ok = File.delete(dirs[i]);
 	}
 	if (File.exists(dirs[0])) {
 		// we failed to remove the dir
@@ -94,7 +98,7 @@ list = getList("window.titles");
 for (i=0; i<list.length; i++) {
 	winame = list[i];
 	selectWindow(winame);
-	run("Close");
+	//run("Close");
 }
 
 //PART1 crop groups/genotypes per plate
@@ -156,7 +160,7 @@ function processMain3() {
 }
 
 function processSub3() {
-	 rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
 	rootlength();
 };
@@ -834,8 +838,6 @@ function rootlength() {
 				close(temp);
 				close("Results");
 
-				ra="Root analysis";
-				bi="Branch information";
 				if (x==0) {
 					Table.create(ra);
 				}
@@ -1010,7 +1012,7 @@ function moveResults() {
 	ok = removeDirs(dirs);
 	if (ok) {
 		// directory removed, move files into place
-		File.rename(rootgrowthmaindir, dstdir);
+		s = File.rename(rootgrowthmaindir, dstdir);
 	} else {
 		showMessage("Failed to delete old results folder." +
 					"Manually move the folder " + rootgrowthmaindir +
