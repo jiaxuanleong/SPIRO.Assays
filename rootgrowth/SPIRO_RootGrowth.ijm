@@ -987,8 +987,8 @@ function overlayskeletons() {
 		roiManager("Show All without labels");
 		run("Flatten", "slice");
 		rename(slicelabel);
-		run("8-bit");
 		run("Make Binary");
+		run("8-bit");
 		//run("Erode");
 		//run("Skeletonize");	
 	}
