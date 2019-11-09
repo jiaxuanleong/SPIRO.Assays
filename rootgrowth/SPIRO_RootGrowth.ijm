@@ -15,15 +15,67 @@ for (a=0; a<preprocessingmaindirlist.length; a++) {
 		preprocessingmaindirlist = Array.deleteValue(preprocessingmaindirlist, preprocessingmaindirlist[a]); //makes sure any non-plate folder isnt processed
 }
 
-rootgrowthmaindir = resultsdir + "/Root growth assay/";
-if (!File.isDirectory(rootgrowthmaindir)) {
-	File.makeDirectory(rootgrowthmaindir);
+// set up temporary directory
+if (!File.isDirectory(resultsdir + "/Temp"))
+	File.makeDirectory(resultsdir + "/Temp");
+tmp = getFileList(resultsdir + "/Temp");
+tmpdir = resultsdir + "/Temp/" + tmp.length+1 + "/";
+File.makeDirectory(tmpdir)
+rootgrowthmaindir = tmpdir;
+
+/* recursive file delete functions
+ *  we use this to clean out an old Root growth analysis folder before replacing it with
+ *  the new one.
+ */
+
+// to ensure we don't get stuck, only venture a few levels deep
+var depth = 0;
+
+// during file deletion, add encountered directories to this global variable
+var dirs = newArray();
+
+// this function recursively processes a directory, deleting the files it encounters
+// directories are saved into a global var "dirs" for subsequent removal
+function removeFilesRecursively(dir) {
+	dirs = Array.concat(dirs, dir);
+	depth += 1;
+	files = getFileList(dir);
+	files = Array.sort(files);
+	for (i = 0; i < files.length; i++) {
+		if (depth < 5) {
+			if (File.isDirectory(dir + "/" + files[i])) {
+				removeFilesRecursively(dir + "/" + files[i]);
+			} else {
+				File.delete(dir + "/" + files[i]);
+			}
+		}
+	}
+	depth -= 1;
+}
+
+// remove directories
+// also deletes .DS_Store files in these dirs
+// N.B.! if there are other hidden files (i.e., filenames starting with "."), this function will fail
+// N.B.! if multiple folders are to be processed, clear the "dirs" variable between calls
+function removeDirs(dirs) {
+	for (i = dirs.length-1; i >= 0; i--) {
+		if (File.exists(dirs[i] + "/.DS_Store"))
+			File.delete(dirs[i] + "/.DS_Store");
+		File.delete(dirs[i]);
+	}
+	if (File.exists(dirs[0])) {
+		// we failed to remove the dir
+		return(0);
+	} else {
+		return(1);
+	}
 }
 
 processMain1();
 processMain2();
 processMain21();
 processMain3();
+moveResults();
 
 list = getList("window.titles"); 
      for (i=0; i<list.length; i++){ 
@@ -660,9 +712,9 @@ function rootlength() {
 			stack1 = getTitle();
 					
 			//process roots for skeletonization
-			//secondMask();
-			//overlayskeletons();
-			//setBatchMode(true);
+			secondMask();
+			overlayskeletons();
+			setBatchMode(true);
 			open(genodir+genoname+" overlaidskeletons.tif");
 			roiManager("Associate", "true");
 			stack1 = getTitle();
@@ -880,7 +932,7 @@ function overlayskeletons() {
 				}
 
 		roiManager("select", roiarray);
-		roiManager("show all");
+		roiManager("Show All without labels");
 		run("Flatten", "slice");
 		rename(slicelabel);
 		run("8-bit");
@@ -895,4 +947,21 @@ function overlayskeletons() {
 	saveAs("Tiff", genodir+genoname+" overlaidskeletons.tif");
 	close();
 	run("Colors...", "foreground=black background=black selection=red");
+}
+
+// the macro succeeded; move the temp files into their proper place
+function moveResults() {
+	dstdir = resultsdir + "/Root growth assay/";
+	removeFilesRecursively(dstdir);
+	// dirs is a global variable containing the directories processed by removeFilesRecursively;
+	ok = removeDirs(dirs);
+	if (ok) {
+		// directory removed, move files into place
+		File.rename(rootgrowthmaindir, dstdir);
+	} else {
+		showMessage("Failed to delete old results folder." +
+					"Manually move the folder " + rootgrowthmaindir +
+					" to the directory " + resultsdir +
+					" and rename it 'Root growth assay'.");
+	}
 }
