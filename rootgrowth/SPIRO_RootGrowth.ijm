@@ -10,19 +10,20 @@
 
 var maindir;	// main directory
 var resultsdir;	// results subdir of main directory
-var preprocessingmaindir; // preprocessing subdir
+var ppdir;		// preprocessing subdir
+var curplate;	// number of current plate being processed
 
 //user selection of main directory
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
 resultsdir = maindir + "/Results/";
-preprocessingmaindir = resultsdir + "/Preprocessing/";
+ppdir = resultsdir + "/Preprocessing/";
 
-preprocessingmaindirlist = getFileList(preprocessingmaindir);
-for (a=0; a<preprocessingmaindirlist.length; a++) {
-	if (indexOf(preprocessingmaindirlist[a], "plate") < 0)
-		preprocessingmaindirlist = Array.deleteValue(preprocessingmaindirlist,
-													 preprocessingmaindirlist[a]); //makes sure any non-plate folder isnt processed
+ppdirlist = getFileList(ppdir);
+for (a=0; a<ppdirlist.length; a++) {
+	if (indexOf(ppdirlist[a], "plate") < 0)
+		ppdirlist = Array.deleteValue(ppdirlist,
+									  ppdirlist[a]); //makes sure any non-plate folder isnt processed
 }
 
 // set up temporary directory
@@ -63,10 +64,12 @@ function removeFilesRecursively(dir) {
 	depth -= 1;
 }
 
-// remove directories
-// also deletes .DS_Store files in these dirs
-// N.B.! if there are other hidden files (i.e., filenames starting with "."), this function will fail
-// N.B.! if multiple folders are to be processed, clear the "dirs" variable between calls
+/* remove directories
+ * also deletes .DS_Store files in these dirs
+ * N.B.! if there are other hidden files (i.e., filenames starting with "."), this function will fail
+ * N.B.! if multiple folders are to be processed, clear the "dirs" variable between calls
+ *
+ */
 function removeDirs(dirs) {
 	for (i = dirs.length-1; i >= 0; i--) {
 		if (File.exists(dirs[i] + "/.DS_Store"))
@@ -95,24 +98,24 @@ for (i=0; i<list.length; i++) {
 }
 
 //PART1 crop groups/genotypes per plate
-var plateanalysisno = 0;
+curplate = 0;
 
 function processMain1() {
-	for (i=0; i<preprocessingmaindirlist.length; i++) {
-		plateanalysisno = i;
-		platepreprocessedfile = preprocessingmaindirlist [i];
-		preprocessedfilenameparts = split(platepreprocessedfile, "_");
-		platename = preprocessedfilenameparts[0];
+	for (i=0; i<ppdirlist.length; i++) {
+		curplate = i;
+		platefile = ppdirlist[i];
+		fnsplit = split(platefile, "_");
+		platename = fnsplit[0];
 		cropGroup();
 	}
 }
 
 //PART2 find seed positions per group per plate
 function processMain2() {
-	for (i=0; i<preprocessingmaindirlist.length; i++) {
-		platepreprocessedfile = preprocessingmaindirlist [i];
-		preprocessedfilenameparts = split(platepreprocessedfile, "_");
-		platename = preprocessedfilenameparts[0];
+	for (i=0; i<ppdirlist.length; i++) {
+		platefile = ppdirlist [i];
+		fnsplit = split(platefile, "_");
+		platename = fnsplit[0];
 		processSub2(); 	
 	}
 }
@@ -125,10 +128,10 @@ function processSub2() {
 
 //PART2.1 find root start coordinates per group per plate
 function processMain21() {
-	for (i=0; i<preprocessingmaindirlist.length; i++) {
-		platepreprocessedfile = preprocessingmaindirlist [i];
-		preprocessedfilenameparts = split(platepreprocessedfile, "_");
-		platename = preprocessedfilenameparts[0];
+	for (i=0; i<ppdirlist.length; i++) {
+		platefile = ppdirlist [i];
+		fnsplit = split(platefile, "_");
+		platename = fnsplit[0];
 		processSub21();
 	}
 }
@@ -143,10 +146,10 @@ function processSub21() {
 
 //PART3 skeleton analysis per group per plate
 function processMain3() {
-	for (i=0; i<preprocessingmaindirlist.length; i++) {
-		platepreprocessedfile = preprocessingmaindirlist [i];
-		preprocessedfilenameparts = split(platepreprocessedfile, "_");
-		platename = preprocessedfilenameparts[0];
+	for (i=0; i<ppdirlist.length; i++) {
+		platefile = ppdirlist [i];
+		fnsplit = split(platefile, "_");
+		platename = fnsplit[0];
 		print("Getting root measurements of "+platename);
 		processSub3();
 	}
@@ -166,7 +169,7 @@ function cropGroup() {
 	}
 	croplist = getFileList(rootgrowthsubdir);
 	setBatchMode(false);
-	open(preprocessingmaindir+platename+"_preprocessed.tif");
+	open(ppdir+platename+"_preprocessed.tif");
 	reg = getTitle();
 	waitForUser("Create substack",
 				"Please note first and last slice to be included for root length analysis, and indicate it in the next step.");
@@ -176,12 +179,12 @@ function cropGroup() {
 	print("Cropping genotypes/groups in "+platename);
 	run("ROI Manager...");
 	setTool("Rectangle");
-	if (plateanalysisno == 0) {
+	if (curplate == 0) {
 		waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
 					"Please do not use dashes in the ROI names. \n" +
 					"ROIs cannot share names.");
 	}
-	if (plateanalysisno > 0)
+	if (curplate > 0)
 		waitForUser("Modify ROI and names if needed.");
 
 	while (roiManager("count") <= 0) {
@@ -303,8 +306,7 @@ function seedPosition() {
 			}
 
 			if (seedlingsdetected > 0) {
-				seedlinginitialboolean = getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?");
-				if (seedlinginitialboolean == 1)
+				if (getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?"))
 					seedlinginitial();
 			} else {
 				ordercoords();
@@ -354,7 +356,7 @@ function ordercoords () {
 	Table.set(colname, rowno, ymseeds[ymascendingindexes[0]], sortedycoords);
 	Table.set(colname, rowno, xmseeds[ymascendingindexes[0]], sortedxcoords);
 	
-	for (arrayindex = 1; arrayindex < roicount; arrayindex ++) {
+	for (arrayindex = 1; arrayindex < roicount; arrayindex++) {
 		ydiff = ymseeds[ymascendingindexes[arrayindex]] - ymseeds[ymascendingindexes[arrayindex-1]];
 		if (ydiff > 1) {
 			rowno = rowno + 1;
@@ -374,7 +376,7 @@ function ordercoords () {
 	ymcolwise = newArray(colno);
 			
 	for (row = 0; row < rowno + 1; row++) {
-		for (col = 0; col < colno; col ++) {
+		for (col = 0; col < colno; col++) {
 			colname = "col" + col + 1;
 			xmcolwise[col] = Table.get(colname, row, sortedxcoords);
 			ymcolwise[col] = Table.get(colname, row, sortedycoords);
@@ -388,8 +390,8 @@ function ordercoords () {
 	}
 	
 	roiManager("reset");
-	for (row = 0; row < rowno + 1; row ++) {
-		for (col = 0; col < colno; col ++) {
+	for (row = 0; row < rowno + 1; row++) {
+		for (col = 0; col < colno; col++) {
 			colname = "col" + col + 1;
 			xm = Table.get(colname, row, sortedxcoords);
 			ym = Table.get(colname, row, sortedycoords);
@@ -514,10 +516,10 @@ function rootStart() {
 			open(genodir+genoname+"masked.tif");
 			img = getTitle();
 			roiManager("reset");
-			if (File.exists(genodir+genoname+"seedpositions.zip")==1) {
+			if (File.exists(genodir+genoname+"seedpositions.zip")) {
 				roiManager("open", genodir+genoname+"seedpositions.zip");
 			} else {
-				roiManager("open",genodir+genoname+"initialpositions.zip");
+				roiManager("open", genodir+genoname+"initialpositions.zip");
 			}
 
 			roiarray = newArray(roiManager("count"));
@@ -547,15 +549,18 @@ function rootStart() {
 					roiManager("reset");
 					yref = "YRef";
 					Table.create(yref);  //table for "y references" which contain the top and bottom borders
-					//the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc from jumping to hypocotyls or sliding down roots
-					for(positionnumber = 0; positionnumber < roicount; positionnumber ++) {
-						xisp = getResult("X", positionnumber); //xisp is x initial seed position
-						yisp = getResult("Y", positionnumber); //yisp is y initial seed position
+
+					//the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc
+					// from jumping to hypocotyls or sliding down roots
+					for(pos = 0; pos < roicount; pos ++) {
+						xisp = getResult("X", pos); //xisp is x initial seed position
+						yisp = getResult("Y", pos); //yisp is y initial seed position
 						ytb = yisp - 0.05; //y top border
 						ybb = yisp + 0.4;  //y bottom border
-						Table.set("ytb", positionnumber, ytb, yref); //y (top border) cannot be more than 0.4cm to the top of initial xm
-						Table.set("ybb", positionnumber, ybb, yref); //y (bottom border) cannot be more than yisp
+						Table.set("ytb", pos, ytb, yref); //y (top border) cannot be more than 0.4cm to the top of initial xm
+						Table.set("ybb", pos, ybb, yref); //y (bottom border) cannot be more than yisp
 						topoffset = 0.05; //needed to include a little more of the top bit from the centre of mass
+
 						//imagej takes top+leftmost coordinate to make rois
 						yroi = yisp - topoffset; //yroi is top+leftmost ycoordinate of roi
 						xroi = xisp - 0.5*scaledwroi; //xroi is top+leftmost xcoordinate of roi
@@ -568,32 +573,37 @@ function rootStart() {
 					//for subsequent slices, obtain XY centre of mass coordinates from rsc
 					//of previous slice
 					roiManager("reset");
-					for(positionnumber = 0; positionnumber < roicount; positionnumber ++) {
+					for(pos = 0; pos < roicount; pos++) {
 						zprev = z-1;
-						rowIndex = (zprev*roicount)+positionnumber; //to reference same ROI from previous slice
+						rowIndex = (zprev*roicount)+pos; //to reference same ROI from previous slice
+
 						//xm, ym are coordinates for the centre of mass obtained through erosion
 						xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
 						ymprev = Table.get("YM", rowIndex, rsc);  //ym of prev slice
 						toScaled(xmprev, ymprev);
-						ytb = Table.get("ytb", positionnumber, yref);
-						ybb = Table.get("ybb", positionnumber, yref);
+						ytb = Table.get("ytb", pos, yref);
+						ybb = Table.get("ybb", pos, yref);
 						yroi = ymprev - topoffset; //yroi is top+leftmost ycoordinate of roi
 						xroi = xmprev - 0.5*scaledwroi; //xroi is top+leftmost xcoordinate of roi and 0.06 is half of h (height)
+
 						//the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc from jumping to hypocotyls or sliding down roots
 						if (yroi < ytb) { //top border exceeded by top of roi
 							yroi = ytb;
 						}
+
 						yroibottom = yroi + scaledhroi; //bottom line of roi is y
 						if (yroibottom > ybb) { //lower limit of roi bottom border exceeded
 							exceededverticaldistance = yroibottom - ybb;
 							shortenedhroi = scaledhroi - exceededverticaldistance;
 						}
+
 						toUnscaled(xroi, yroi);
+
 						if (yroibottom > ybb) {
 							toUnscaled(shortenedhroi);
 							makeRectangle(xroi, yroi, unscaledwroi, shortenedhroi);
 						} else {
-						makeRectangle(xroi, yroi, unscaledwroi, unscaledhroi);
+							makeRectangle(xroi, yroi, unscaledwroi, unscaledhroi);
 						}
 						roiManager("add");
 					}
@@ -620,7 +630,8 @@ function rootStart() {
 						Table.set("YM", nr, ymprev, rsc); //ym as previous slice
 					} else { //object detected, erode then analyse particles for xm/ym
 						erosionround = 1;
-						while (totalarea>0.002 && erosionround < 15) {  //if erosion is not working due to bad thresholding, total area never decreases, rsc is copied from previous slice.
+						while (totalarea>0.002 && erosionround < 15) {
+							//if erosion is not working due to bad thresholding, total area never decreases, rsc is copied from previous slice.
 							roiManager("select", x);
 							run("Options...", "iterations=1 count=1 do=Erode");
 							roiManager("select", x);
@@ -632,11 +643,11 @@ function rootStart() {
 							} else {
 								totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
 							}
-							erosionround = erosionround + 1;
+							erosionround += 1;
 						}
 
 						if (erosionround < 15) {
-							while (totalarea>0.012) {
+							while (totalarea > 0.012) {
 								roiManager("select", x);
 								run("Options...", "iterations=1 count=3 do=Erode");
 								roiManager("select", x);
@@ -680,6 +691,7 @@ function rootStart() {
 							//xm, ym are coordinates for the centre of mass obtained through erosion
 							xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
 							ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
+
 							nr = Table.size(rsc);
 							Table.set("Slice", nr, z+1, rsc);
 							Table.set("ROI", nr, x+1, rsc);
@@ -702,6 +714,7 @@ function rootStart() {
 				ym = Table.get("YM", x, rsc);
 				slice = Table.get("Slice", x, rsc);
 				roino = Table.get("ROI", x, rsc);
+
 				setSlice(slice);
 				makePoint(xm, ym);
 				roiManager("add");
@@ -720,8 +733,8 @@ function rootStart() {
 			saveAs("Tiff", genodir+genoname+"_"+"rootstartlabelled.tif");
 			close();
 			selectWindow(rsc);
-			saveAs("Results", genodir+genoname+"_"+rsc+".tsv");
-			rsctsv=genoname+"_"+rsc+".tsv";
+			rsctsv = genoname+"_"+rsc+".tsv";
+			saveAs("Results", genodir+rsctsv);
 			close(rsctsv);
 			//File.delete(genodir+genoname+"masked.tif");
 			//File.delete(genodir+yref+".tsv");
