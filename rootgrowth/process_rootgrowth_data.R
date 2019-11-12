@@ -47,10 +47,9 @@ outdir <- paste0(resultsdir, '/Root growth assay')
 # set up output dir
 if (dir.exists(paste0(outdir, '/Analysis output'))) {
   runs <- list.dirs(paste0(outdir, '/Analysis output'), full.names=F, recursive=F)
-  runs <- as.numeric(runs)
-  run_number <- max(runs) + 1
-  if (run_number < 1) {
-    run_number <- 1
+  run_number <- length(runs) + 1
+  while (file.exists(paste0(outdir, '/Analysis output/', run_number))) {
+    run_number <- run_number + 1
   }
 } else {
   dir.create(paste0(outdir, '/Analysis output'), recursive=T)
