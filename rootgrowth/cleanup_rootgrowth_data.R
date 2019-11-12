@@ -38,12 +38,13 @@ processfile <- function(file) {
   unlist(strsplit(r$Slice.name, '-', fixed=TRUE)) -> params
   r$date <- as.POSIXct(strptime(paste0(params[seq(2, length(params), 4)], params[seq(3, length(params), 4)]), format='%Y%m%d%H%M%S'))
   r$PR <- FALSE
-  rawfile <<- r
   r$UID <- paste0(GID, '_', r$ROI)
-  # check if root coords match primary x/y and set PR variable accordingly
-  r$PR[abs(r$Primary.X - r$V1.x) < pixel_radius & abs(r$Primary.Y - r$V1.y) < pixel_radius] <- TRUE
-  r$PR[abs(r$Primary.X - r$V2.x) < pixel_radius & abs(r$Primary.Y - r$V2.y) < pixel_radius] <- TRUE
+  rawfile <<- r
   
+  # check if root coords match primary x/y and set PR variable accordingly
+  r$PR[abs(r$ROI.mid.X - r$V1.x) < pixel_radius & 0 + r$V1.y < pixel_radius] <- TRUE
+  r$PR[abs(r$ROI.mid.X - r$V2.x) < pixel_radius & 0 + r$V2.y < pixel_radius] <- TRUE
+
   # add elapsed times
   r %>% group_by(UID) %>%
     arrange(date) %>%
@@ -54,9 +55,9 @@ processfile <- function(file) {
     mutate(PR = max(PR)) -> r
   
   r$outofroi <- NA
+  r$outofroi[which(r$V1.y >= r$ROI.full.Y - 5 | r$V2.y >= r$ROI.full.Y - 5)] <- TRUE
   r$outofroi[which(r$V1.x <= 5 | r$V2.x <= 5)] <- TRUE
-  r$outofroi[which(r$V1.y <= 5 | r$V2.y <= 5)] <- TRUE
-  r$outofroi[which(r$V1.y >= 2*r$Primary.Y - 5 | r$V2.y >= 2*r$Primary.Y - 5)] <- TRUE
+  r$outofroi[which(r$V1.x >= 2*r$ROI.mid.X - 5 | r$V2.x >= 2*r$ROI.mid.X - 5)] <- TRUE
   r$outofroi[which(r$PR == FALSE)] <- NA
   
   r %>% arrange(elapsed) %>%
