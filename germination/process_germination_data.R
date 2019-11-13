@@ -215,6 +215,8 @@ for(group in unique(data.long$Group)) {
 germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts, 
                                  MeanGermTimeSE = mgtses, n = nseeds, Ungerminated = nongerms)
 germstats.pergroup <- merge(germstats.pergroup, seedsizes)
+names(germstats.pergroup) <- c('Group', 't50 (h)', 'Mean Germination Time (h)', 'Mean Germination Time SE',
+                               'Germinated seeds', 'Ungerminated seeds', 'Seed Size (cm2)', 'Seed Size SD')
 write.table(germstats.pergroup, file=paste0(rundir, "/germinationstats.tsv"), sep='\t', row.names=F)
 
 # generate table for t-test results
@@ -239,7 +241,7 @@ for (i in seq(1, nrow(pvals))) {
 germination.pvals$corrected.p.value <- p.adjust(germination.pvals$p.value, method="fdr")
 seedsize.pvals$corrected.p.value <- p.adjust(seedsize.pvals$p.value, method="fdr")
 
-colnames(germination.pvals) <- c('Group 1', 'Group 2', 'Raw p value', 'FDR-corrected p value')
+names(germination.pvals) <- c('Group 1', 'Group 2', 'Raw p value', 'FDR-corrected p value')
 write.table(germination.pvals, file=paste0(rundir, "/germination.t-tests.tsv"), sep='\t', row.names=F)
 write.table(seedsize.pvals, file=paste0(rundir, "/seedsize.t-tests.tsv"), sep='\t', row.names=F)
 
