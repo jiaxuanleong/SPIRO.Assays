@@ -231,8 +231,8 @@ germination.pvals <- seedsize.pvals <- pvals
 for (i in seq(1, nrow(pvals))) {
   tg <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
                data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
-  ts <- t.test(data.peruid$SeedSize[data.peruid$Group == pvals$Group.1[i]],
-               data.peruid$SeedSize[data.peruid$Group == pvals$Group.2[i]])
+  ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
+               data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.2[i]])
   germination.pvals$p.value[i] <- tg$p.value
   seedsize.pvals$p.value[i] <- ts$p.value
 }
