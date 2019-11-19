@@ -209,7 +209,7 @@ for(group in unique(data.long$Group)) {
                       intervals = germstats$ApproxTime[germstats$Group == group],
                       total.seeds = length(unique(data$UID[data$Group == group])),
                       tmax = max(germstats$ApproxTime[germstats$Group == group]))
-  print(plot(graph))
+  print(plot(graph) + labs(x="Time (h)"))
   dev.off()
 }
 
