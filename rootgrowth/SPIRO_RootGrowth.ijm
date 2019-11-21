@@ -13,6 +13,8 @@ var resultsdir;	// results subdir of main directory
 var ppdir;		// preprocessing subdir
 var curplate;	// number of current plate being processed
 
+var DEBUG = false; // set this to true to enable debugging features
+
 // table names
 var ra = "Root analysis";
 var bi = "Branch information";
@@ -35,8 +37,7 @@ if (!File.isDirectory(resultsdir + "/Temp"))
 	File.makeDirectory(resultsdir + "/Temp");
 tmp = getFileList(resultsdir + "/Temp");
 tmpdir = resultsdir + "/Temp/" + tmp.length+1 + "/";
-File.makeDirectory(tmpdir)
-rootgrowthmaindir = tmpdir;
+File.makeDirectory(tmpdir);
 
 /* recursive file delete functions
  *  we use this to clean out an old Root growth analysis folder before replacing it with
@@ -94,11 +95,14 @@ processMain21();
 processMain3();
 moveResults();
 
-list = getList("window.titles");
-for (i=0; i<list.length; i++) {
-	winame = list[i];
-	selectWindow(winame);
-	//run("Close");
+// close all windows unless we are in debug mode
+if (!DEBUG) {
+	list = getList("window.titles");
+	for (i=0; i<list.length; i++) {
+		winame = list[i];
+		selectWindow(winame);
+		run("Close");
+	}
 }
 
 //PART1 crop groups/genotypes per plate
@@ -125,7 +129,7 @@ function processMain2() {
 }
 
 function processSub2() {
-	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthsubdir = tmpdir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
 	seedPosition();
 }
@@ -141,7 +145,7 @@ function processMain21() {
 }
 
 function processSub21() {
-	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthsubdir = tmpdir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
 	
 	rootStart();
@@ -160,14 +164,14 @@ function processMain3() {
 }
 
 function processSub3() {
-	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthsubdir = tmpdir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
 	rootlength();
 };
 
 //PART1 crop genotypes/group
 function cropGroup() {
-	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthsubdir = tmpdir + "/" + platename + "/";
 	if (!File.isDirectory(rootgrowthsubdir)) {
 		File.makeDirectory(rootgrowthsubdir);
 	}
@@ -577,8 +581,9 @@ function rootStart() {
 					//for subsequent slices, obtain XY centre of mass coordinates from rsc
 					//of previous slice
 					roiManager("reset");
+					zprev = z-1;
+
 					for(pos = 0; pos < roicount; pos++) {
-						zprev = z-1;
 						rowIndex = (zprev*roicount)+pos; //to reference same ROI from previous slice
 
 						//xm, ym are coordinates for the centre of mass obtained through erosion
@@ -622,16 +627,19 @@ function rootStart() {
 					totalarea = Table.get("Total Area", Table.size("Summary of "+img)-1, "Summary of "+img);
 
 					if (count == 0) { //no object detected, masking erased seed due to seed too small - copy xm/ym from previous slice
-						rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
+						if (z > 0) {
+							// don't do this for the first slice
+							rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
 
-						//xm, ym are coordinates for the centre of mass obtained through erosion
-						xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
-						ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
-						nr = Table.size(rsc);
-						Table.set("Slice", nr, z+1, rsc);
-						Table.set("ROI", nr, x+1, rsc);
-						Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
-						Table.set("YM", nr, ymprev, rsc); //ym as previous slice
+							//xm, ym are coordinates for the centre of mass obtained through erosion
+							xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
+							ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
+							nr = Table.size(rsc);
+							Table.set("Slice", nr, z+1, rsc);
+							Table.set("ROI", nr, x+1, rsc);
+							Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
+							Table.set("YM", nr, ymprev, rsc); //ym as previous slice
+						}
 					} else { //object detected, erode then analyse particles for xm/ym
 						erosionround = 1;
 						while (totalarea>0.002 && erosionround < 15) {
@@ -740,8 +748,10 @@ function rootStart() {
 			rsctsv = genoname+"_"+rsc+".tsv";
 			saveAs("Results", genodir+rsctsv);
 			close(rsctsv);
-			File.delete(genodir+genoname+"masked.tif");
-			File.delete(genodir+yref+".tsv");
+			if (!DEBUG) {
+				File.delete(genodir+genoname+"masked.tif");
+				File.delete(genodir+yref+".tsv");
+			}
 		}
 	}
 }
@@ -926,16 +936,18 @@ function rootlength() {
 
 			saveAs("Tiff", genodir+platename+"_"+genoname+"_rootgrowth.tif");
 			close();
+
 			//Delete temporary files used for analysis
-			File.delete(genodir+genoname+"seedpositions.zip");
-			File.delete(genodir+genoname+"initialpositions.zip");
-			File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
-			File.delete(genodir+genoname+"_"+"skeletonized.tif");
-			File.delete(genodir+genoname+"rootstartrois.zip");
-			File.delete(genodir+rsctsv);
-			File.delete(genodir+sortedxcoordscsv);
-			File.delete(genodir+sortedycoordscsv);
-			File.delete(genodir+genoname+" overlaidskeletons.tif");
+			if (!DEBUG) {
+				File.delete(genodir+genoname+"seedpositions.zip");
+				File.delete(genodir+genoname+"initialpositions.zip");
+				File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
+				File.delete(genodir+genoname+"_"+"skeletonized.tif");
+				File.delete(genodir+genoname+"rootstartrois.zip");
+				File.delete(genodir+rsctsv);
+				File.delete(genodir+sortedxcoordscsv);
+				File.delete(genodir+sortedycoordscsv);
+			}
 		}
 	}
 }
@@ -1013,22 +1025,14 @@ function moveResults() {
 	ok = removeDirs(dirs);
 	if (ok) {
 		// directory removed, move files into place
-		s = File.rename(rootgrowthmaindir, dstdir);
+		s = File.rename(tmpdir, dstdir);
 	} else {
 		showMessage("Failed to delete old results folder." +
-					"Manually move the folder " + rootgrowthmaindir +
+					"Manually move the folder " + tmpdir +
 					" to the directory " + resultsdir +
 					" and rename it 'Root growth assay'.");
 	}
-   File.delete(resultsdir + "/Temp");
-   selectWindow("0");
-   run("Close");
-   selectWindow("ROI Manager");
-   run("Close");
-   selectWindow("Sorted Y Coordinates.csv");
-   run("Close");
-   selectWindow("Log");
-   run("Close"); 
-   selectWindow("Root analysis");
-   run("Close");
+	File.delete(tmpdir)
 }
+
+print("Macro finished.");
