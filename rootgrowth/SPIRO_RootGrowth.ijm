@@ -818,6 +818,8 @@ function rootlength() {
 			}
 
 			toUnscaled(roiwidth, roiheight);
+
+			groupwidth = getWidth();
 			
 			for (x=0; x<nr; x++) {
 				slice = Table.get("Slice", x, rsctsv);
@@ -840,7 +842,17 @@ function rootlength() {
 				sliceno = getSliceNumber();
 				run("Duplicate...", "use");
 				temp = getTitle();
-				halfx = 0.5*getWidth();
+				xm = Table.get("XM", x, rsctsv);
+				if (xm - (0.5*roiwidth) < 0) {
+					// roi overflowed to the left
+					// compensate by moving midpoint to the left by half the amount of overflow
+					halfx = 0.5*getWidth() - ((0.5*roiwidth - xm) / 2);
+				} else if (xm + (0.5*roiwidth) > groupwidth) {
+					// roi overflows to the right
+					halfx = 0.5*getWidth() + ((xm + 0.5*roiwidth) - groupwidth) / 2;
+				} else {
+					halfx = 0.5*getWidth();
+				}
 				fully = getHeight();
 				run("Set Measurements...", "display redirect=None decimal=3");
 				run("Analyze Skeleton (2D/3D)", "prune=none show");
