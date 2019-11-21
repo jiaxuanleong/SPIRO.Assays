@@ -827,9 +827,9 @@ function rootlength() {
 				xm = Table.get("XM", x, rsctsv);
 				ym = Table.get("YM", x, rsctsv);
 				setSlice(slice);
-				roiytopright = ym;
-				roixtopright = xm - (0.5*roiwidth);
-				makeRectangle(roixtopright, roiytopright, roiwidth, roiheight);
+				roiytopleft = ym;
+				roixtopleft = xm - (0.5*roiwidth);
+				makeRectangle(roixtopleft, roiytopleft, roiwidth, roiheight);
 				roiManager("add");
 				roiManager("select", x);
 				roiManager("rename", roino);
