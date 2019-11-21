@@ -37,8 +37,7 @@ if (!File.isDirectory(resultsdir + "/Temp"))
 	File.makeDirectory(resultsdir + "/Temp");
 tmp = getFileList(resultsdir + "/Temp");
 tmpdir = resultsdir + "/Temp/" + tmp.length+1 + "/";
-File.makeDirectory(tmpdir)
-rootgrowthmaindir = tmpdir;
+File.makeDirectory(tmpdir);
 
 /* recursive file delete functions
  *  we use this to clean out an old Root growth analysis folder before replacing it with
@@ -130,7 +129,7 @@ function processMain2() {
 }
 
 function processSub2() {
-	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthsubdir = tmpdir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
 	seedPosition();
 }
@@ -146,7 +145,7 @@ function processMain21() {
 }
 
 function processSub21() {
-	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthsubdir = tmpdir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
 	
 	rootStart();
@@ -165,14 +164,14 @@ function processMain3() {
 }
 
 function processSub3() {
-	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthsubdir = tmpdir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
 	rootlength();
 };
 
 //PART1 crop genotypes/group
 function cropGroup() {
-	rootgrowthsubdir = rootgrowthmaindir + "/" + platename + "/";
+	rootgrowthsubdir = tmpdir + "/" + platename + "/";
 	if (!File.isDirectory(rootgrowthsubdir)) {
 		File.makeDirectory(rootgrowthsubdir);
 	}
@@ -1026,13 +1025,14 @@ function moveResults() {
 	ok = removeDirs(dirs);
 	if (ok) {
 		// directory removed, move files into place
-		s = File.rename(rootgrowthmaindir, dstdir);
+		s = File.rename(tmpdir, dstdir);
 	} else {
 		showMessage("Failed to delete old results folder." +
-					"Manually move the folder " + rootgrowthmaindir +
+					"Manually move the folder " + tmpdir +
 					" to the directory " + resultsdir +
 					" and rename it 'Root growth assay'.");
 	}
+	File.delete(tmpdir)
 }
 
 print("Macro finished.");
