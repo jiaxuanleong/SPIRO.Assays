@@ -1044,7 +1044,7 @@ function moveResults() {
 					" to the directory " + resultsdir +
 					" and rename it 'Root growth assay'.");
 	}
-	File.delete(tmpdir)
+	ok = File.delete(tmpdir)
 }
 
 print("Macro finished.");
