@@ -749,8 +749,8 @@ function rootStart() {
 			saveAs("Results", genodir+rsctsv);
 			close(rsctsv);
 			if (!DEBUG) {
-				File.delete(genodir+genoname+"masked.tif");
-				File.delete(genodir+yref+".tsv");
+				ok = File.delete(genodir+genoname+"masked.tif");
+				ok = File.delete(genodir+yref+".tsv");
 			}
 		}
 	}
@@ -951,14 +951,15 @@ function rootlength() {
 
 			//Delete temporary files used for analysis
 			if (!DEBUG) {
-				File.delete(genodir+genoname+"seedpositions.zip");
-				File.delete(genodir+genoname+"initialpositions.zip");
-				File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
-				File.delete(genodir+genoname+"_"+"skeletonized.tif");
-				File.delete(genodir+genoname+"rootstartrois.zip");
-				File.delete(genodir+rsctsv);
-				File.delete(genodir+sortedxcoordscsv);
-				File.delete(genodir+sortedycoordscsv);
+				ok = File.delete(genodir+genoname+"seedpositions.zip");
+				ok = File.delete(genodir+genoname+"initialpositions.zip");
+				ok = File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
+				ok = File.delete(genodir+genoname+"_"+"skeletonized.tif");
+				ok = File.delete(genodir+genoname+"rootstartrois.zip");
+				ok = File.delete(genodir+genoname+" overlaidskeletons.tif");
+				ok = File.delete(genodir+rsctsv);
+				ok = File.delete(genodir+sortedxcoordscsv);
+				ok = File.delete(genodir+sortedycoordscsv);
 			}
 		}
 	}
@@ -1044,7 +1045,8 @@ function moveResults() {
 					" to the directory " + resultsdir +
 					" and rename it 'Root growth assay'.");
 	}
-	ok = File.delete(tmpdir)
+	removeFilesRecursively(resultsdir + "/Temp");
+	ok = File.delete(resultsdir + "/Temp");
 }
 
 print("Macro finished.");
