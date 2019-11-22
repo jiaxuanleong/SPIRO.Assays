@@ -32,7 +32,7 @@ pickymean <- function(vals) {
 
 processfile <- function(file) {
   r <- read.delim(file, stringsAsFactors=FALSE)
-  b <- basename(f)
+  b <- basename(file)
   GID <- paste0(unlist(strsplit(b, ' ', fixed=TRUE))[1], '_', unlist(strsplit(b, ' ', fixed=TRUE))[2])
   r$GID <- GID
   unlist(strsplit(r$Slice.name, '-', fixed=TRUE)) -> params
