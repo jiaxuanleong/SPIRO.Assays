@@ -856,6 +856,7 @@ function rootlength() {
 				run("Duplicate...", "use");
 				if (DEBUG) saveAs("Tiff", genodir+genoname+"_"+"crop_roi" + roino + "_slice" + sliceno + ".tif");
 				temp = getTitle();
+				slicename = getMetadata("Label");
 				xm = Table.get("XM", x, rsctsv);
 				roixtopleft = xm - (0.5*roiwidth);
 				halfx = xm - roixtopleft;
@@ -882,7 +883,7 @@ function rootlength() {
 
 				for (z=0; z<Table.size(bi); z++) {
 					rar = Table.size(ra);
-					Table.set("Slice name", rar, temp, ra);
+					Table.set("Slice name", rar, slicename, ra);
 					Table.set("Slice no.", rar, sliceno, ra);
 					Table.set("ROI", rar, roino, ra);
 					id = Table.get("Skeleton ID", z, bi);
