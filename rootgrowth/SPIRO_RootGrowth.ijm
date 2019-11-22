@@ -13,7 +13,7 @@ var resultsdir;	// results subdir of main directory
 var ppdir;		// preprocessing subdir
 var curplate;	// number of current plate being processed
 
-var DEBUG = false; // set this to true to enable debugging features
+var DEBUG = true; // set this to true to enable debugging features
 
 // table names
 var ra = "Root analysis";
@@ -94,6 +94,8 @@ processMain2();
 processMain21();
 processMain3();
 moveResults();
+
+print("Macro finished.");
 
 // close all windows unless we are in debug mode
 if (!DEBUG) {
@@ -818,6 +820,8 @@ function rootlength() {
 			}
 
 			toUnscaled(roiwidth, roiheight);
+			dummy = 1;
+			toUnscaled(xdiff, dummy);
 
 			groupwidth = getWidth();
 			
@@ -838,11 +842,15 @@ function rootlength() {
 			for (x=0; x<nr; x++) {
 				selectWindow(stack1);
 				roiManager("select", x);
-				roino = Roi.getName;
+				roino = parseInt(Roi.getName);
 				sliceno = getSliceNumber();
 				run("Duplicate...", "use");
+				if (DEBUG) saveAs("Tiff", genodir+genoname+"_"+"crop_roi" + roino + "_slice" + sliceno + ".tif");
 				temp = getTitle();
 				xm = Table.get("XM", x, rsctsv);
+				roixtopleft = xm - (0.5*roiwidth);
+				halfx = xm - roixtopleft;
+
 				if (xm - (0.5*roiwidth) < 0) {
 					// roi overflowed to the left
 					// compensate by moving midpoint to the left by half the amount of overflow
@@ -850,9 +858,8 @@ function rootlength() {
 				} else if (xm + (0.5*roiwidth) > groupwidth) {
 					// roi overflows to the right
 					halfx = 0.5*getWidth() + ((xm + 0.5*roiwidth) - groupwidth) / 2;
-				} else {
-					halfx = 0.5*getWidth();
 				}
+
 				fully = getHeight();
 				run("Set Measurements...", "display redirect=None decimal=3");
 				run("Analyze Skeleton (2D/3D)", "prune=none show");
@@ -1048,5 +1055,3 @@ function moveResults() {
 	removeFilesRecursively(resultsdir + "/Temp");
 	ok = File.delete(resultsdir + "/Temp");
 }
-
-print("Macro finished.");
