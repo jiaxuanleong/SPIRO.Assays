@@ -13,7 +13,16 @@ var resultsdir;	// results subdir of main directory
 var ppdir;		// preprocessing subdir
 var curplate;	// number of current plate being processed
 
-var DEBUG = true; // set this to true to enable debugging features
+/*
+ * DEBUG MODE
+ * ==========
+ * 
+ * debug mode enables printing of debug messages, does not clean up windows or logs,
+ * saves individual root crops, and keeps temporary files in the output dir.
+ * beware that using debug mode may generate *a lot* more data!
+ */
+
+var DEBUG = false; // set this to true to enable debugging features
 
 // table names
 var ra = "Root analysis";
@@ -831,7 +840,7 @@ function rootlength() {
 				xm = Table.get("XM", x, rsctsv);
 				ym = Table.get("YM", x, rsctsv);
 				setSlice(slice);
-				roiytopleft = ym;
+				roiytopleft = ym - 5;
 				roixtopleft = xm - (0.5*roiwidth);
 				makeRectangle(roixtopleft, roiytopleft, roiwidth, roiheight);
 				roiManager("add");

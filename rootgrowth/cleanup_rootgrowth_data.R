@@ -42,8 +42,8 @@ processfile <- function(file) {
   rawfile <<- r
   
   # check if root coords match primary x/y and set PR variable accordingly
-  r$PR[abs(r$ROI.mid.X - r$V1.x) < pixel_radius & 0 + r$V1.y < pixel_radius] <- TRUE
-  r$PR[abs(r$ROI.mid.X - r$V2.x) < pixel_radius & 0 + r$V2.y < pixel_radius] <- TRUE
+  r$PR[abs(r$ROI.mid.X - r$V1.x) < pixel_radius & 5 + r$V1.y < pixel_radius] <- TRUE
+  r$PR[abs(r$ROI.mid.X - r$V2.x) < pixel_radius & 5 + r$V2.y < pixel_radius] <- TRUE
 
   # add elapsed times
   r %>% group_by(UID) %>%
