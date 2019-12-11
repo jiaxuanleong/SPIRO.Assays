@@ -220,30 +220,33 @@ names(germstats.pergroup) <- c('Group', 't50 (h)', 'Mean Germination Time (h)', 
                                'Germinated seeds', 'Ungerminated seeds', 'Seed Size (cm2)', 'Seed Size SD')
 write.table(germstats.pergroup, file=paste0(rundir, "/germinationstats.tsv"), sep='\t', row.names=F)
 
-# generate table for t-test results
-pvals <- as.data.frame(t(combn(unique(data.long$Group), 2)))
-colnames(pvals) <- c('Group.1', 'Group.2')
-pvals$Group.1 <- as.character(pvals$Group.1)
-pvals$Group.2 <- as.character(pvals$Group.2)
-pvals$p.value <- NA
-germination.pvals <- seedsize.pvals <- pvals
-
-for (i in seq(1, nrow(pvals))) {
-  tg <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
-               data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
-  ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
-               data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.2[i]])
-  germination.pvals$p.value[i] <- tg$p.value
-  seedsize.pvals$p.value[i] <- ts$p.value
+if (length(unique(data.long$Group)) > 1) {
+  # generate table for t-test results
+  pvals <- as.data.frame(t(combn(unique(data.long$Group), 2)))
+  colnames(pvals) <- c('Group.1', 'Group.2')
+  pvals$Group.1 <- as.character(pvals$Group.1)
+  pvals$Group.2 <- as.character(pvals$Group.2)
+  pvals$p.value <- NA
+  germination.pvals <- seedsize.pvals <- pvals
+  
+  for (i in seq(1, nrow(pvals))) {
+    tg <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
+                 data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
+    ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
+                 data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.2[i]])
+    germination.pvals$p.value[i] <- tg$p.value
+    seedsize.pvals$p.value[i] <- ts$p.value
+  }
+  
+  # generate corrected p-values according to the false discovery rate (fdr) method
+  # see help(p.adjust) for available methods
+  germination.pvals$corrected.p.value <- p.adjust(germination.pvals$p.value, method="fdr")
+  seedsize.pvals$corrected.p.value <- p.adjust(seedsize.pvals$p.value, method="fdr")
+  
+  names(germination.pvals) <- c('Group 1', 'Group 2', 'Raw p value', 'FDR-corrected p value')
+  write.table(germination.pvals, file=paste0(rundir, "/germination.t-tests.tsv"), sep='\t', row.names=F)
+  write.table(seedsize.pvals, file=paste0(rundir, "/seedsize.t-tests.tsv"), sep='\t', row.names=F)
+} else {
+  cat("Only one group in output, skipping t-tests.\n")
 }
-
-# generate corrected p-values according to the false discovery rate (fdr) method
-# see help(p.adjust) for available methods
-germination.pvals$corrected.p.value <- p.adjust(germination.pvals$p.value, method="fdr")
-seedsize.pvals$corrected.p.value <- p.adjust(seedsize.pvals$p.value, method="fdr")
-
-names(germination.pvals) <- c('Group 1', 'Group 2', 'Raw p value', 'FDR-corrected p value')
-write.table(germination.pvals, file=paste0(rundir, "/germination.t-tests.tsv"), sep='\t', row.names=F)
-write.table(seedsize.pvals, file=paste0(rundir, "/seedsize.t-tests.tsv"), sep='\t', row.names=F)
-
 cat(paste0("Statistics have been written to the directory ", rundir, "\n"))
