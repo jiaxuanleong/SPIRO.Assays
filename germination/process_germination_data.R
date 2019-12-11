@@ -23,9 +23,8 @@ detect_germination <- function(ds) {
   # number of positive ddPerims is either 5 h or 10 slices
   ddprange <- round(max(10, 5 / avgTimePerSlice), 0)
   
-
   # we need a buffer of (ddprange + rollrange + 1) slices for germination detection
-  if (nrow(ds) < ddprange + rollrange + 1) {
+  if (nrow(ds) <= ddprange + rollrange + 1) {
     cat(paste0("Too few data points for UID ", uid, ", removing from analysis.\n"))
     return(data.frame(row.names=names(ds)))
   }
