@@ -94,7 +94,7 @@ if (num_cores > 1) {
 cat(paste0("Processing germination data, using ", 
            length(cl), ' ', core_plural, ". This may take a little while...\n"))
 
-data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T)
+data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T, stringsAsFactors=F)
 
 # copy postQC input file to rundir for reference
 file.copy(paste0(outdir, "/germination.postQC.tsv"), rundir)
@@ -103,18 +103,19 @@ data$dPerim <- data$ddPerim <- 0
 data$Germinated <- 0
 data$pav <- groups <- uids <- perims <- NULL
 
-processed_data <- foreach(uid=unique(data$UID),
-                          .combine=rbind,
-                          .multicombine=T,
-                          .packages='zoo') %dopar% detect_germination(data[data$UID == uid,])
-
-# single-threaded equivalent: uncomment for debugging purposes only!
-# processed_data <- NULL
-# for (uid in unique(data$UID)) {
-#   processed_data <- rbind(processed_data, detect_germination(data[data$UID == uid,]))
-# }
-
-stopCluster(cl)
+if (!germination.debug) {
+  processed_data <- foreach(uid=unique(data$UID),
+                            .combine=rbind,
+                            .multicombine=T,
+                            .packages='zoo') %dopar% detect_germination(data[data$UID == uid,])
+  stopCluster(cl)
+} else {
+  # set the variable germination.debug to enable single-threaded execution
+  processed_data <- NULL
+  for (uid in unique(data$UID)) {
+    processed_data <- rbind(processed_data, detect_germination(data[data$UID == uid,]))
+  }
+}
 
 data <- processed_data
 
