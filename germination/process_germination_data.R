@@ -81,19 +81,6 @@ if (dir.exists(paste0(outdir, '/Analysis output'))) {
 rundir <- paste0(outdir, '/Analysis output/', run_number)
 dir.create(rundir, showWarnings=F)
 
-num_cores <- max(1, detectCores() - 1)
-cl <- makeCluster(num_cores)
-registerDoParallel(cl)
-
-if (num_cores > 1) {
-  core_plural <- 'threads'
-} else {
-  core_plural <- 'thread'
-}
-
-cat(paste0("Processing germination data, using ", 
-           length(cl), ' ', core_plural, ". This may take a little while...\n"))
-
 data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T, stringsAsFactors=F)
 
 # copy postQC input file to rundir for reference
@@ -104,6 +91,19 @@ data$Germinated <- 0
 data$pav <- groups <- uids <- perims <- NULL
 
 if (!germination.debug) {
+  num_cores <- max(1, detectCores() - 1)
+  cl <- makeCluster(num_cores)
+  registerDoParallel(cl)
+  
+  if (num_cores > 1) {
+    core_plural <- 'threads'
+  } else {
+    core_plural <- 'thread'
+  }
+  
+  cat(paste0("Processing germination data, using ", 
+             length(cl), ' ', core_plural, ". This may take a little while...\n"))
+  
   processed_data <- foreach(uid=unique(data$UID),
                             .combine=rbind,
                             .multicombine=T,
