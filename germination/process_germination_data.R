@@ -90,7 +90,7 @@ data$dPerim <- data$ddPerim <- 0
 data$Germinated <- 0
 data$pav <- groups <- uids <- perims <- NULL
 
-if (!germination.debug) {
+if (!exists("germination.debug")) {
   num_cores <- max(1, detectCores() - 1)
   cl <- makeCluster(num_cores)
   registerDoParallel(cl)
