@@ -81,7 +81,12 @@ if (dir.exists(paste0(outdir, '/Analysis output'))) {
 rundir <- paste0(outdir, '/Analysis output/', run_number)
 dir.create(rundir, showWarnings=F)
 
-data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T, stringsAsFactors=F)
+if (file.exists(paste0(outdir, "/germination.postQC.tsv"))) {
+  data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T, stringsAsFactors=F)
+} else {
+  cat("germination.postQC.tsv not found in specified directory. Did you run cleanup_germination_data.R?\n")
+  stopifnot(file.exists(paste0(outdir, "/germination.postQC.tsv")))
+}
 
 # copy postQC input file to rundir for reference
 file.copy(paste0(outdir, "/germination.postQC.tsv"), rundir)
