@@ -10,6 +10,7 @@ library(germinationmetrics)
 library(zoo)
 library(doParallel)
 library(foreach)
+library(ggplot2)
 
 detect_germination <- function(ds) {
   # figure out the imaging frequency
