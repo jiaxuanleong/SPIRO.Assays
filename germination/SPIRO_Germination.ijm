@@ -5,6 +5,9 @@
 
 //user selection of main directory
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
+var deletefiles;
+deletefiles = newArray(0);
+
 maindir = getDirectory("Choose a Directory");
 resultsdir = maindir + "/Results/";
 preprocessingmaindir = resultsdir + "/Preprocessing/";
@@ -67,7 +70,7 @@ function cropGroup() {
 	oristack = getTitle();
 	waitForUser("Create substack", "Please note first and last slice to be included for germination analysis, and indicate it in the next step.");	
 	run("Make Substack...");
-	saveAs("Tiff", germnsubdir + platename + "_germinationsubstack.tif");
+	//saveAs("Tiff", germnsubdir + platename + "_germinationsubstack.tif");
 	close(oristack);
 	print("Cropping genotypes/groups of " + platename);
 	run("ROI Manager...");
@@ -120,6 +123,7 @@ function cropGroup() {
 			run("Duplicate...", "duplicate");
 		}
 		saveAs("Tiff", genodir+roiname+".tif");
+		deletefiles = Array.concat(deletefiles, genodir+roiname+".tif");
 		close();
 	}
 	close();
@@ -272,4 +276,9 @@ function seedMask() {
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
 	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
 	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
+}
+
+// delete temporary files
+for (i=0; i<deletefiles.length; i++) {
+	ok = File.delete(deletefiles[i]);
 }
