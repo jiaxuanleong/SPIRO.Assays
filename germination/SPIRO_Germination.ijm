@@ -65,7 +65,7 @@ function cropGroup() {
 	setBatchMode(false);
 	open(preprocessingmaindir + platename + "_preprocessed.tif");
 	oristack = getTitle();
-    waitForUser("Create substack", "Please note first and last slice to be included for germination analysis, and indicate it in the next step.");	
+	waitForUser("Create substack", "Please note first and last slice to be included for germination analysis, and indicate it in the next step.");	
 	run("Make Substack...");
 	saveAs("Tiff", germnsubdir + platename + "_germinationsubstack.tif");
 	close(oristack);
@@ -107,7 +107,7 @@ function cropGroup() {
 		}
 		genodir = germnsubdir + "/" + roiname + "/";
 		if (!File.isDirectory(genodir)) {
-		File.makeDirectory(genodir);
+			File.makeDirectory(genodir);
 		}
 		File.makeDirectory(genodir);
 		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
@@ -129,137 +129,136 @@ function cropGroup() {
 function seedAnalysis() {
 	for (y = 0; y < croplist.length; ++y) {
 		if (indexOf(croplist[y], "substack")<0) {
-		print("Tracking germination of " + croplist[y]);
-		setBatchMode(false);
-		genodir = germnsubdir + "/" + croplist[y] + "/";
-		genolist = getFileList(genodir);
-		genoname = File.getName(genodir);
-		open(genodir + genolist[0]);
-		stack1 = getTitle();
-		run("Duplicate...", "duplicate");
-		stack2 = getTitle();
+			print("Tracking germination of " + croplist[y]);
+			setBatchMode(false);
+			genodir = germnsubdir + "/" + croplist[y] + "/";
+			genolist = getFileList(genodir);
+			genoname = File.getName(genodir);
+			open(genodir + genolist[0]);
+			stack1 = getTitle();
+			run("Duplicate...", "duplicate");
+			stack2 = getTitle();
 
-		selectWindow(stack1);
-		run("Select None");
-		seedMask();
-		roiManager("reset");
-		run("Rotate 90 Degrees Right");
-		setSlice(1);
+			selectWindow(stack1);
+			run("Select None");
+			seedMask();
+			roiManager("reset");
+			run("Rotate 90 Degrees Right");
+			setSlice(1);
 
-		run("Create Selection");
-		run("Colors...", "foreground=black background=black selection=red");
+			run("Create Selection");
+			run("Colors...", "foreground=black background=black selection=red");
 
-		roiManager("Add");
-		roiManager("select", 0);
-		roiManager("split");
-		roiManager("select", 0);
-		roiManager("delete");
-
-		roiarray = newArray(roiManager("count"));
-		for (x = 0; x<roiManager("count"); x++) {
-			roiarray[x]=x;
-		}
-		roiManager("select", roiarray);
-		roiManager("multi-measure");
-		roiManager("deselect");
-		tp = "Trash positions";
-		Table.create(tp);
-		selectWindow("Results");
-		
-		for (x=0; x<nResults; x++) {
-		selectWindow("Results");
-		area = getResult("Area", x);
-			if (area < 0.0012) {
-				Table.set("Trash ROI", Table.size(tp), x);
-			}
-		}
-
-		selectWindow("Trash positions");
-		if (Table.size(tp) > 0) {
-			trasharray = Table.getColumn("Trash ROI", tp);
-			roiManager("select", trasharray);
+			roiManager("Add");
+			roiManager("select", 0);
+			roiManager("split");
+			roiManager("select", 0);
 			roiManager("delete");
 
 			roiarray = newArray(roiManager("count"));
-		}
-		close(tp);
-		for (x = 0; x<roiManager("count"); x++) {
-			roiManager("select", x);
-			run("Enlarge...", "enlarge=0.08");
-			roiManager("update");
-			roiManager("rename", x+1);
-		}
+			for (x = 0; x<roiManager("count"); x++) {
+				roiarray[x]=x;
+			}
+			roiManager("select", roiarray);
+			roiManager("multi-measure");
+			roiManager("deselect");
+			tp = "Trash positions";
+			Table.create(tp);
+			selectWindow("Results");
 
-		run("Set Measurements...", "area perimeter stack display redirect=None decimal=3");
-		run("Clear Results");
+			for (x=0; x<nResults; x++) {
+				selectWindow("Results");
+				area = getResult("Area", x);
+				if (area < 0.0012) {
+					Table.set("Trash ROI", Table.size(tp), x);
+				}
+			}
 
-		for (x=0; x<roiManager("count"); x++) {
-			roiManager("select", x);
-			run("Analyze Particles...", "size=0-Infinity show=Nothing display stack");
-		}
-		
-//Visualize detected seed positions on the first time point of the binary masks stack 
-		selectWindow(stack1);
-		roiManager("Associate", "false");
-		roiManager("Centered", "false");
-		roiManager("UseNames", "false");
-		roiManager("Show All");
-		roiManager("Show All with labels");
-		run("Labels...", "color=white font=18 show use draw");
-		run("Flatten", "stack");
-		run("Rotate 90 Degrees Left");
+			selectWindow("Trash positions");
+			if (Table.size(tp) > 0) {
+				trasharray = Table.getColumn("Trash ROI", tp);
+				roiManager("select", trasharray);
+				roiManager("delete");
 
-		selectWindow(stack2);
-		run("RGB Color");
-		setBatchMode(true);
-//Determine the cropped frame proportions to orient combining stacks horizontally or vertically
-		xmax = getWidth;
-		ymax = getHeight;
-		frameproportions=xmax/ymax; 
-		
-//Add label to each slice (time point). The window width for label is determined by frame proportions 
-		for (x = 0; x < nSlices; x++) {
-			slicelabel = getMetadata("Label");
+				roiarray = newArray(roiManager("count"));
+			}
+			close(tp);
+			for (x = 0; x<roiManager("count"); x++) {
+				roiManager("select", x);
+				run("Enlarge...", "enlarge=0.08");
+				roiManager("update");
+				roiManager("rename", x+1);
+			}
+
+			run("Set Measurements...", "area perimeter stack display redirect=None decimal=3");
+			run("Clear Results");
+
+			for (x=0; x<roiManager("count"); x++) {
+				roiManager("select", x);
+				run("Analyze Particles...", "size=0-Infinity show=Nothing display stack");
+			}
+
+			//Visualize detected seed positions on the first time point of the binary masks stack 
+			selectWindow(stack1);
+			roiManager("Associate", "false");
+			roiManager("Centered", "false");
+			roiManager("UseNames", "false");
+			roiManager("Show All");
+			roiManager("Show All with labels");
+			run("Labels...", "color=white font=18 show use draw");
+			run("Flatten", "stack");
+			run("Rotate 90 Degrees Left");
+
+			selectWindow(stack2);
+			run("RGB Color");
+			setBatchMode(true);
+
+			//Determine the cropped frame proportions to orient combining stacks horizontally or vertically
+			xmax = getWidth;
+			ymax = getHeight;
+			frameproportions=xmax/ymax; 
+
+			//Add label to each slice (time point). The window width for label is determined by frame proportions 
+			for (x = 0; x < nSlices; x++) {
+				slicelabel = getMetadata("Label");
+				if (frameproportions > 1) {
+					newImage("Slice label", "RGB Color", xmax, 50, 1);
+					setFont("SansSerif", 20, " antialiased");
+					makeText(slicelabel, 0, 0);
+					setForegroundColor(0, 0, 0);
+					run("Draw", "slice");
+					selectWindow(stack2);
+					run("Next Slice [>]");
+				}
+				if (frameproportions < 1) {
+					newImage("Slice label", "RGB Color", 2*xmax, 50, 1);
+					setFont("SansSerif", 20, " antialiased");
+					makeText(slicelabel, 0, 0);
+					setForegroundColor(0, 0, 0);
+					run("Draw", "slice");
+					selectWindow(stack2);
+					run("Next Slice [>]");
+				}
+			}
+
+			//Combine the cropped photos and masks with labels into one time-lapse stack. Combine vertically or horizontally depending on the frame proportions
+			run("Images to Stack");
+			label = getTitle();
 			if (frameproportions > 1) {
-			newImage("Slice label", "RGB Color", xmax, 50, 1);
-			setFont("SansSerif", 20, " antialiased");
-			makeText(slicelabel, 0, 0);
-			setForegroundColor(0, 0, 0);
-			run("Draw", "slice");
-			selectWindow(stack2);
-			run("Next Slice [>]");
-		}
-		if (frameproportions < 1) {
-			newImage("Slice label", "RGB Color", 2*xmax, 50, 1);
-			setFont("SansSerif", 20, " antialiased");
-			makeText(slicelabel, 0, 0);
-			setForegroundColor(0, 0, 0);
-			run("Draw", "slice");
-			selectWindow(stack2);
-			run("Next Slice [>]");
-		}
-}
+				run("Combine...", "stack1=[" + stack2 + "] stack2=[" + stack1 + "] combine");
+				run("Combine...", "stack1=[Combined Stacks] stack2=[" + label + "] combine");
+			}
+			if (frameproportions < 1) {
+				run("Combine...", "stack1=[" + stack2 + "] stack2=[" + stack1 + "]");
+				run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
+			}
 
-//Combine the cropped photos and masks with labels into one time-lapse stack. Combine vertically or horizontally depending on the frame proportions
-		run("Images to Stack");
-		label = getTitle();
-        if (frameproportions > 1) {
-		run("Combine...", "stack1=[" + stack2 + "] stack2=[" + stack1 + "] combine");
-		run("Combine...", "stack1=[Combined Stacks] stack2=[" + label + "] combine");
+			saveAs("Tiff", genodir + platename + "_" + genoname + "_germination.tif");
+			close();
+			selectWindow("Results");
+			saveAs("Results", genodir + platename + " " + genoname + " seed germination analysis.tsv");
+			run("Close");
 		}
-		if (frameproportions < 1) {
-		run("Combine...", "stack1=[" + stack2 + "] stack2=[" + stack1 + "]");
-		run("Combine...", "stack1=[Combined Stacks] stack2=["+label+"] combine");
-		}
-
-
-
-		saveAs("Tiff", genodir + platename + "_" + genoname + "_germination.tif");
-		close();
-		selectWindow("Results");
-		saveAs("Results", genodir + platename + " " + genoname + " seed germination analysis.tsv");
-		run("Close");
-	}
 	}
 }
 
