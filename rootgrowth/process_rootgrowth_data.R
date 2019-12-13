@@ -59,6 +59,12 @@ if (dir.exists(paste0(outdir, '/Analysis output'))) {
 rundir <- paste0(outdir, '/Analysis output/', run_number)
 dir.create(rundir, showWarnings=F)
 
+if (file.exists(paste0(outdir, "/rootgrowth.postQC.tsv"))) {
+  data <- read.table(paste0(outdir, "/rootgrowth.postQC.tsv"), header=T, stringsAsFactors=F)
+} else {
+  stop("rootgrowth.postQC.tsv not found in specified directory. Did you run cleanup_rootgrowth_data.R?\n")
+}
+
 data <- read_tsv(paste0(outdir, '/rootgrowth.postQC.tsv'),
                  col_types=c(UID=col_character(), Group=col_character(), ElapsedHours=col_skip(),
                              RelativeElapsedHours=col_double(), PrimaryRootLength=col_double(),
@@ -91,6 +97,7 @@ if (ngroups > 1) {
 } else 
 
 # plot all data points with polynomial fit overlaid
+p <- NULL
 p <- ggplot(data, aes(x=RelativeElapsedHours, y=PrimaryRootLength, color=Group, group=Group)) + 
   geom_point(size=.3, alpha=.5) +
   geom_smooth(method="lm", formula= y ~ poly(x, 2, raw=T)) + 
