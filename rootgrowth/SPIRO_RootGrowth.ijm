@@ -431,11 +431,10 @@ function ordercoords () {
 //PART2 creates a binary mask for seed/lings and reduces noise
 function firstMask() {
 	run("8-bit");
-	//run("Subtract Background...", "rolling=30 stack");
-	run("Enhance Contrast...", "saturated=0.2 normalize process_all");
+	run("Subtract Background...", "rolling=30 stack");
 	run("Median...", "radius=1 stack");
 	setAutoThreshold("MaxEntropy dark");
-	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
+	run("Convert to Mask", "method=MaxEntropy background=Dark");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
 	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
 	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
