@@ -325,8 +325,16 @@ function seedPosition() {
 			}
 
 			if (seedlingsdetected > 0) {
-				if (getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?"))
+				if (getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?")) {
 					seedlinginitial();
+				} else {
+					ordercoords();
+					roiManager("save", genodir+genoname+"seedpositions.zip");
+					roiManager("reset");
+					selectWindow(img);
+					saveAs("Tiff", genodir+genoname+"masked.tif");
+					close();
+				}
 			} else {
 				ordercoords();
 				roiManager("save", genodir+genoname+"seedpositions.zip");
@@ -357,7 +365,7 @@ function ordercoords () {
 	for (seednumber = 0; seednumber < roicount; seednumber ++) {
 		xmcurrent = Table.get("XM", seednumber, seedpositions);
 		ymcurrent = Table.get("YM", seednumber, seedpositions);
-		xmseeds[seednumber] = xmcurrent;
+		xmseeds[seednumber] = xmcurrent; 
 		ymseeds[seednumber] = ymcurrent;
 	}
 	
@@ -414,11 +422,13 @@ function ordercoords () {
 			colname = "col" + col + 1;
 			xm = Table.get(colname, row, sortedxcoords);
 			ym = Table.get(colname, row, sortedycoords);
+			if (xm > 0 && ym > 0) {
 			toUnscaled(xm, ym);
 			makePoint(xm, ym);
 			roiManager("add");
 			roiManager("select", roiManager("count")-1);
 			roiManager("rename", roiManager("count"));
+			}
 		}
 	}
 
@@ -434,7 +444,7 @@ function firstMask() {
 	run("Subtract Background...", "rolling=30 stack");
 	run("Median...", "radius=1 stack");
 	setAutoThreshold("MaxEntropy dark");
-	run("Convert to Mask", "method=MaxEntropy background=Dark");
+	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
 	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
 	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
@@ -504,13 +514,17 @@ function seedlinginitial() {  //if seedlings instead of seeds are detected on fi
 
 	roicount = roiManager("count");
 	for(x=0; x<roicount; x++){
-		roiManager("select", x);
+		roiManager("select", 0);
 		Roi.getBounds(groupx, groupy, groupw, grouph);
+		roiManager("select", 0);
+		roiManager("delete");
 		selectWindow(img);
 		makeRectangle(boundingx+groupx, boundingy+groupy, groupw, grouph);
 		roiManager("add");
+		roiManager("select", roiManager("count")-1);
 		roiManager("rename", x+1);
 	}
+	
 	close(rootstartroi);
 
 	ordercoords();
@@ -802,8 +816,20 @@ function rootlength() {
 			colno = lengthOf(colnamessplit);
 
 			if (colno > 1) {
-				xfirstcol = Table.get("col1", 0, sortedxcoordscsv);
-				xsecondcol = Table.get("col2", 0, sortedxcoordscsv);
+				getcol = 1;
+				getcolname = "col" + getcol;
+				//columns might have zeroes at the beginning due to uneven number of columns, and these values need to be skipped
+				xfirstcol = Table.get(getcolname, 0, sortedxcoordscsv);
+					while (xfirstcol <= 0) {
+						getcol = getcol + 1;
+						getcolname = "col" + getcol;
+						xfirstcol = Table.get(getcolname, 0, sortedxcoordscsv);
+					}
+					
+				getcol2 = getcol + 1;
+				getcol2name = "col" + getcol2;
+				xsecondcol = Table.get(getcol2name, 0, sortedxcoordscsv);
+				//xfirstcol and xsecondcol are names for the first two non-zero columns
 				xdiff = xsecondcol - xfirstcol;
 				roiwidth = 3*xdiff;
 			} else {
@@ -815,11 +841,12 @@ function rootlength() {
 			sortedycoords = "Sorted Y Coordinates";
 			sortedycoordscsv = sortedycoords + ".csv";
 			open(genodir + sortedycoordscsv);
-			rowno = Table.size - 1;
+			rowno = Table.size (sortedycoordscsv) - 1;
 
 			if (rowno > 1) {
-				yfirstrow = Table.get("col1", 0, sortedycoordscsv);
-				ysecondrow = Table.get("col1", 1, sortedycoordscsv);
+				//getcolname already defines the first non-zero column, as obtained above
+				yfirstrow = Table.get(getcolname, 0, sortedycoordscsv);		
+				ysecondrow = Table.get(getcolname, 1, sortedycoordscsv);
 				ydiff = ysecondrow - yfirstrow;
 				roiheight = ydiff - 0.5;
 			} else {
