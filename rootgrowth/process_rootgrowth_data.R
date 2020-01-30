@@ -6,6 +6,7 @@ library(readr)
 library(doParallel)
 library(foreach)
 library(doRNG)
+library(ggplot2)
 
 # number of repetitions for the permutation test
 tries <- 5000
