@@ -137,7 +137,7 @@ outdir <- paste0(resultsdir, '/Germination assay')
 # get all matching .tsv files in the directory
 files <- list.files(path = outdir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
-allout <- toolarge <- NULL
+allout <- toolarge <- err_largeobj <- err_multiobj <- NULL
 
 if (length(files) > 0) {
   num_cores <- max(1, detectCores() - 1)
@@ -169,16 +169,21 @@ if (length(files) > 0) {
   for (errtype in unique(log$Type)) {
     if (errtype == 'EARLY_LARGE_AREA') {
       cat('Large non-seed object detected in ROI. Time range has been truncated.\n')
-      cat('Affected seeds: ')
-      cat(log$UID[log$Type == 'EARLY_LARGE_AREA'])
+      cat('Affected seeds: \n')
+      cat(paste0(log$UID[log$Type == 'EARLY_LARGE_AREA']), '\n')
       cat('\n')
+      err_largeobj <- data.frame(UID=log$UID[log$Type == 'EARLY_LARGE_AREA'], Note='Large non-seed object detected in ROI. Time range was truncated.')
     } else if (errtype == 'DUPE') {
       cat('Multiple objects remained after filtering. Affected seeds were removed from analysis.\n')
-      cat('Affected seeds: ')
-      cat(log$UID[log$Type == 'DUPE'])
+      cat('Affected seeds: \n')
+      cat(paste0(log$UID[log$Type == 'DUPE'], '\n'))
       cat('\n')
+      err_multiobj <- data.frame(UID=log$UID[log$Type == 'DUPE'], Note='Multiple objects remained after filtering. Seed was removed from analysis.')
     }
   }
+  errors <- rbind(err_largeobj, err_multiobj)
+  errors$UID <- as.character(errors$UID)
+  errors$Note <- as.character(errors$Note)
 }
 
 if (length(files) > 0) {
@@ -188,6 +193,16 @@ if (length(files) > 0) {
   
   write.table(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t', row.names=F)
   cat(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'.\nPlease edit that file to set up correct grouping for your experiment.\n"))
+  
+  # create error log
+  seedlog <- data.frame(UID=unique(allout$UID), Note='Seed processed normally.')
+  seedlog$UID <- as.character(seedlog$UID)
+  seedlog$Note <- as.character(seedlog$Note)
+  if (nrow(errors) > 0) {
+    seedlog <- merge(seedlog, errors, by="UID", all=T)
+  }
+  seedlog %>% mutate(Note = coalesce(Note.x, Note.y)) %>% select(c(UID, Note)) -> seedlog
+  write.table(seedlog, file=paste0(outdir, "/germination.postQC.log.tsv"), sep='\t', row.names=F)
 } else {
   cat("No seed germination analysis files found in that directory.\n")
 }
