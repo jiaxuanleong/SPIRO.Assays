@@ -125,6 +125,12 @@ function processMain1() {
 		platefile = ppdirlist[i];
 		fnsplit = split(platefile, "_");
 		platename = fnsplit[0];
+		//if (continueprocess == 1) {
+			//greenexist = File.exists(rootgrowthsubdir + platename + "substackGreenOnly.tif");
+			//if (greenexist == 0) {
+				//splitGreen();
+			//} 
+		splitGreen();
 		cropGroup();
 	}
 }
@@ -178,24 +184,65 @@ function processSub3() {
 	rootgrowthsubdir = tmpdir + "/" + platename + "/";
 	croplist = getFileList(rootgrowthsubdir);
 	rootlength();
-};
+}
 
-//PART1 crop genotypes/group
-function cropGroup() {
+function splitGreen() {
 	rootgrowthsubdir = tmpdir + "/" + platename + "/";
+
 	if (!File.isDirectory(rootgrowthsubdir)) {
 		File.makeDirectory(rootgrowthsubdir);
 	}
 	croplist = getFileList(rootgrowthsubdir);
 	setBatchMode(false);
 	open(ppdir+platename+"_preprocessed.tif");
-	reg = getTitle();
+	
+	stacktitle = getInfo("window.title");
+	sliceno = nSlices;
+	slicenamearray = newArray(sliceno);
+	run("Set Scale...", " global");
+
+	for (slice = 1; slice <= sliceno; slice ++) {
+		setSlice(slice);
+		slicelabel = getInfo("slice.label");
+		slicenamearray[slice - 1] = slicelabel;
+	}
+	
+	run("Split Channels");
+	imglist = getList("image.titles");
+	for (img=0; img<imglist.length; img++){ 
+		imgname = imglist[img]; 
+		if (indexOf(imgname, "red") > 0 ) {
+	    	selectWindow(imgname);
+			close(); 
+	     }
+	     if (indexOf(imgname, "green") > 0) {
+			selectWindow(imgname);
+			for (slice = 1; slice <= sliceno; slice ++) {
+				setSlice(slice);
+				slicelabel = slicenamearray[slice - 1];
+				setMetadata("Label", slicelabel);
+			}
+			selectWindow(imgname);
+			saveAs("Tiff", rootgrowthsubdir + platename + "substackGreenOnly.tif");
+		}
+		if (indexOf(imgname, "blue") > 0) {
+			selectWindow(imgname);
+			close(); 
+	     }
+	}
+	//only green channel remains
+}
+//PART1 crop genotypes/group
+function cropGroup() {
+	rootgrowthsubdir = tmpdir + "/" + platename + "/";
+	croplist = getFileList(rootgrowthsubdir);
+	setBatchMode(false);
+	//open(rootgrowthsubdir + platename + "GreenOnly.tif");
 	waitForUser("Create substack",
 				"Please note first and last slice to be included for root length analysis, and indicate it in the next step.");
 	run("Make Substack...");
-	saveAs("Tiff", rootgrowthsubdir+platename+"_rootlengthsubstack.tif");
-	close(reg);
-	print("Cropping genotypes/groups in "+platename);
+	saveAs("Tiff", rootgrowthsubdir + platename + "_rootlengthsubstack.tif");
+	print("Cropping genotypes/groups in "+ platename);
 	run("ROI Manager...");
 	setTool("Rectangle");
 	if (curplate == 0) {
@@ -226,7 +273,8 @@ function cropGroup() {
 			roiManager("Select", x);
 			roiname = Roi.getName;
 		}
-		genodir = rootgrowthsubdir + "/"+roiname+"/";
+		genodir = rootgrowthsubdir + "/"+roiname+"/";lengthspositions = Array.rankPositions(lengthsarray);
+					
 		File.makeDirectory(genodir);
 		print("Cropping group "+x+1+"/"+roicount+" "+roiname+"...");
 
@@ -255,7 +303,7 @@ function seedPosition() {
 			print("Finding seed positions for "+platename+genoname);
 			open(genodir+genoname+".tif");
 			img = getTitle();
-			firstMask();
+			seedMask();
 			roiManager("reset");
 			run("Create Selection");
 			run("Colors...", "foreground=black background=black selection=red");
@@ -295,6 +343,7 @@ function seedPosition() {
 				roiarray = newArray(roiManager("count"));
 			}
 			close("Trash positions");
+			close("Results");
 
 			//numbers remaining ROI
 			for(x=0; x<roiManager("count"); x++){
@@ -323,6 +372,7 @@ function seedPosition() {
 				if (area>0.02)
 					seedlingsdetected = seedlingsdetected + 1;
 			}
+			close("Results");
 
 			if (seedlingsdetected > 0) {
 				if (getBoolean("Seedlings detected on first slice. Proceed with ROI selection of root start?")) {
@@ -350,15 +400,15 @@ function seedPosition() {
 
 
 //PART2 creates a binary mask for seed/lings and reduces noise
-function firstMask() {
+function seedMask() {
 	run("8-bit");
 	run("Subtract Background...", "rolling=30 stack");
 	run("Median...", "radius=1 stack");
 	setAutoThreshold("MaxEntropy dark");
 	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
+	run("Remove Outliers...", "radius=2 threshold=50 which=Dark stack");
 	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
 
 function seedlinginitial() {  //if seedlings instead of seeds are detected on first slice
@@ -513,7 +563,7 @@ function rootStart() {
 						Table.save(genodir + "yref.tsv", yref);
 					}
 				} else {
-					//for subsequent slices, obtain XY centre of mass coordinates from rsc
+					//for subsequent slices, obtain XY centre of mass coordinates from 
 					//of previous slice
 					roiManager("reset");
 					zprev = z-1;
@@ -682,7 +732,7 @@ function rootStart() {
 			selectWindow(rsc);
 			rsctsv = genoname+"_"+rsc+".tsv";
 			saveAs("Results", genodir+rsctsv);
-			close(rsctsv);
+			close(rsc);
 			if (!DEBUG) {
 				ok = File.delete(genodir+genoname+"masked.tif");
 				ok = File.delete(genodir+yref+".tsv");
@@ -700,24 +750,24 @@ function rootEnd() {
 			open(genodir + genoname + ".tif");
 			nslicesimg = nSlices;
 			//process roots for skeletonization
-			secondMask();
-			overlayskeletons();
+			rootMask();
+			//overlayskeletons();
 			
-			setSlice(nslicesimg); 
-			slicelabel = getInfo("slice.label");
-			prevsliceno = 1; //allow backtracking of slices until last night image is found
-			while (indexOf(slicelabel, "night") < 0) {
-				setSlice(nslicesimg - prevsliceno);
-				slicelabel = getInfo("slice.label");
-				prevsliceno = prevsliceno + 1;  
-			}
-			LNI = getSliceNumber(); //last night image
-			
+			//setSlice(nslicesimg); 
+			//slicelabel = getInfo("slice.label");
+			//prevsliceno = 1; //allow backtracking of slices until last night image is found
+			//while (indexOf(slicelabel, "night") < 0) {
+			//	setSlice(nslicesimg - prevsliceno);
+			//	slicelabel = getInfo("slice.label");
+			//	prevsliceno = prevsliceno + 1;  
+			//}
+			//LNI = getSliceNumber(); //last night image
+			LNI = nslicesimg;
 			rsc = "Root start coordinates";
 			rsctsv = genoname+"_"+rsc+".tsv";
 			open(genodir + rsctsv); 
 		
-			LNIcoords = "LNI root coordinates";
+			LNIcoords = "LNI root coordinates"; //TO CHANGE TO LAST IMAGE
 			Table.create(LNIcoords);
 		
 			roiManager("reset");
@@ -727,7 +777,7 @@ function rootEnd() {
 					roiManager("open", genodir+genoname+"initialpositions.zip");
 					}
 			roicount = roiManager("count");
-		
+
 			for (pos = 0; pos < roicount; pos ++) {
 				LNIpos = ((LNI-1) * roicount) + pos; 
 				xmLNI = Table.get("XM", LNIpos, rsctsv); 
@@ -736,73 +786,76 @@ function rootEnd() {
 				nrLNIsc = Table.size(LNIcoords);
 				Table.set("XM", nrLNIsc, xmLNI, LNIcoords);
 				Table.set("YM", nrLNIsc, ymLNI, LNIcoords);
-			}
-			
+				}
+				
+			Table.save(genodir + "LNI coords", LNIcoords);
 			ordercoords();
 			getROIdimensions();
-			rootroicount = roiManager("count");
-			for (rootno = 0; rootno < rootroicount; rootno ++) {
-				setSlice(LNI);
-				roiManager("select", rootno);
-				Roi.getBounds(roiposx, roiposy, roiposw, roiposh); //roi position in big img
-				if (roiposx < 0)
-					roiposx = 0;
-				if (roiposy <0) 
-					roiposy = 0;
-				run("Duplicate...", "use");
-				temprootroi = getTitle();
-				run("Create Selection");
-				Roi.getBounds(rootboundx, rootboundy, rootboundw, rootboundh);
-				close(temprootroi);
-				selectWindow(genoname + " overlaidskeletons.tif");
-				roiManager("select", rootno);
-				makeRectangle(roiposx + rootboundx, roiposy + rootboundy, rootboundw, rootboundh);
-				roiManager("update");
-				roiManager("select", rootno);
-				roiManager("Remove Slice Info");
-			}
-			roiManager("save", genodir + "boundingbox.zip");
+			setSlice(LNI);
 			
-			bi = "Branch information"; //to specify table to extract skeleton data from
-			yrt = "Y coordinates of root tip";
-			Table.create(yrt);
-			for (sliceno = 1; sliceno <= nslicesimg; sliceno ++) {
-				selectWindow(genoname+" overlaidskeletons.tif");
-				setSlice(sliceno);
-				rootroicount = roiManager("count");
-				for (rootno = 0; rootno < rootroicount; rootno ++) {
-					selectWindow(genoname+" overlaidskeletons.tif");
-					roiManager("select", rootno);
-					run("Duplicate...", "use");
-					temprootroi = getTitle();
-					widthRootSel = getWidth(); //width of root selection
-					run("Analyze Skeleton (2D/3D)", "prune=none show");
-					V1yarray = Table.getColumn("V1 y", bi);
-					V2yarray = Table.getColumn("V2 y", bi);
-					Vyarray = Array.concat(V1yarray, V2yarray);
-					Array.sort(Vyarray);
-					Array.reverse(Vyarray);
-					yroottip = Vyarray[0];
-					nryrt = Table.size(yrt);
-					Table.set("Slice no.", nryrt, sliceno, yrt); //maybe remove after debug done
-					Table.set("Root no.", nryrt, rootno+1, yrt);
-					Table.set("Y root tip", nryrt, yroottip, yrt);
-					Table.set("Width root selection", nryrt, widthRootSel, yrt);
-					Table.update(yrt);
-					close("Tagged skeleton");
-					close(temprootroi);
+			run("Clear Results");
+			roiManager("reset");
+			roiManager("open", genodir + "unprocroi.zip");
+			rootroicount = roiManager("count");
+			roiarrayunproc = Array.getSequence(rootroicount);
+					
+			for (rootno = 0; rootno < rootroicount; rootno ++) {
+				if (rootno > 0) {
+				roiManager("reset");				
+				roiManager("open", dir + "unprocroi.zip");
 				}
+				roiarrayunprocX = Array.deleteValue(roiarrayunproc, rootno); //delete current roi from array
+				
+				roiManager("select", roiarrayunprocX); //so it isnt deleted in roi manager
+				roiManager("delete");
+				roiManager("select", 0);
+				Roi.getBounds(rootboundx, rootboundy, rootboundw, rootboundh);
+				run("Duplicate...", "use");
+				tempmultipleskel = getTitle();
+				run("Create Selection");
+				if (selectionType() == 9) {
+					roiManager("split");
+					roiManager("select", 0);
+					roiManager("delete");
+					roiManager("deselect"); //nothing is selected
+					roiManager("measure"); //all rois measured 
+					Table.rename("Results", "Lengths");
+					lengthsarray = Table.getColumn("Area", "Lengths");			
+					lengthspositions = Array.rankPositions(lengthsarray);
+					Array.reverse(lengthspositions); 
+					lengthspositionsX = Array.deleteIndex(lengthspositions, 0); //remove index of longest length
+					roiManager("select", lengthspositionsX);
+					roiManager("delete"); //so it is not deleted here
+					roiManager("select", 0);
+					Roi.getBounds(rootx, rooty, rootw, rooth);
+					close("Lengths");
+				} else {
+					roiManager("add");
+					Roi.getBounds(rootx, rooty, rootw, rooth);
+					roiManager("select", 0);
+					roiManager("delete");
+				}
+				//selectWindow(genoname + " overlaidskeletons.tif");
+				selectWindow(genoname + ".tif");
+				roiManager("select", 0);
+				Roi.move(rootboundx+rootx, rootboundy+rooty);
+				roiManager("update");
+				roiManager("select", 0);
+				roiManager("rename", IJ.pad(rootno+1, 2)); //names roi according to seed number
+				roiManager("Remove Slice Info");
+				if (rootno > 0) {
+					roiManager("open", genodir + "skelrois.zip");
+					
+				} 
+				roiManager("save", genodir + "skelrois.zip");
+				close(tempmultipleskel);
 			}
-			//now yrt is a table containing coordinates of y root tip progressing slice by slice, seedling by seedling
-			//the row indexes should be comparable to rsc
-			Table.save(genodir + genoname + yrt + ".tsv", yrt);
-			yrttsv = yrt + ".tsv" ;
-			close(yrttsv);
-			close(rsctsv);
-			close(LNIcoords);
+			roiManager("sort");
+			roiManager("save", genodir + "skelrois.zip");
 		}
 	}
 }
+
 
 function ordercoords() {
 	roicount = Table.size(LNIcoords);
@@ -829,7 +882,7 @@ function ordercoords() {
 			rowno = rowno + 1;
 			col = 0;
 		} else {
-			col = col + 1;
+			col += 1;
 		}
 		colname = "col" + col + 1;
 		Table.set(colname, rowno, ymroots[ymascendingindexes[arrayindex]], sortedycoords);
@@ -842,8 +895,8 @@ function ordercoords() {
 	xmcolwise = newArray(colno);
 	ymcolwise = newArray(colno);
 			
-	for (row = 0; row < rowno + 1; row++) {
-		for (col = 0; col < colno; col++) {
+	for (row = 0; row < rowno + 1; row ++) {
+		for (col = 0; col < colno; col ++) {
 			colname = "col" + col + 1;
 			xmcolwise[col] = Table.get(colname, row, sortedxcoords);
 			ymcolwise[col] = Table.get(colname, row, sortedycoords);
@@ -871,26 +924,90 @@ function ordercoords() {
 		}
 	}
 	
-	Table.save(genodir + sortedxcoords + ".csv", sortedxcoords);
-	Table.save(genodir + sortedycoords + ".csv", sortedycoords);
+	Table.save(genodir + sortedxcoords + ".tsv", sortedxcoords);
+	Table.save(genodir + sortedycoords + ".tsv", sortedycoords);
 	close(sortedxcoords);
 	close(sortedycoords);
 }
 
 //PART3 creates a binary mask for roots and reduces noise
-function secondMask() {
-	run("8-bit");
-	run("Subtract Background...", "rolling=15 stack");
-	run("Enhance Contrast...", "saturated=0.2 normalize process_all");
+function rootMask() {
+	//setBatchMode(false);
+	stacktitle = getTitle();
+	dayslice = 1; //should move the "subtract first slice" out?
+	setSlice(dayslice); 
+	slicelabel = getInfo("slice.label");
+	while (indexOf(slicelabel, "day") < 0) {
+		dayslice += 1;
+		setSlice(dayslice);
+		slicelabel = getInfo("slice.label");
+		}
+	dayslicelabel = getInfo("slice.label");
+	//dayslice is the first day image
+	
+	nightslice = 1; 
+	setSlice(nightslice); 
+	slicelabel = getInfo("slice.label");
+	while (indexOf(slicelabel, "night") < 0) {
+		nightslice += 1;
+		setSlice(nightslice);
+		slicelabel = getInfo("slice.label");
+		}
+		nightslicelabel = getInfo("slice.label");
+		//nightslice is the first night image
+
+	sliceno = nSlices;
+
+	setSlice(nightslice);
+	run("Duplicate...", "use");
+	nightimg = "FirstNightImg";
+	rename(nightimg);
+
+	selectWindow(stacktitle);
+	setSlice(dayslice);
+	run("Duplicate...", "use");
+	dayimg = "FirstDayImg";
+	rename(dayimg);
+
+	for (slice = 1; slice <= sliceno; slice ++) {
+		selectWindow(stacktitle);
+		if (slice != dayslice && slice != nightslice) {
+			selectWindow(stacktitle);
+			setSlice(slice);
+			curslicelabel = getInfo("slice.label");
+			run("Duplicate...", "use");
+			rename("temp");
+			if (indexOf(curslicelabel, "day") > 0) {
+				run("Calculator Plus", "i1=[temp] i2=["+dayimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=10 k2=0 create");
+				selectWindow("Result");
+				rename(curslicelabel);
+				close("temp");
+				} else { //night image
+				run("Calculator Plus", "i1=[temp] i2=["+nightimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=10 k2=0 create");
+				selectWindow("Result");
+				rename(curslicelabel);
+				close("temp"); 
+				}
+			}
+	}
+	selectWindow(dayimg); 
+	rename(dayslicelabel);
+	selectWindow(nightimg); 
+	rename(nightslicelabel);
+	run("Images to Stack");
+	//
+	close(genoname + ".tif");
+	selectWindow("Stack");
+	//
+	rename(genoname + ".tif");
+	run("Subtract Background...", "rolling=50 sliding disable");
 	setAutoThreshold("MaxEntropy dark");
-	setOption("BlackBackground", false);
 	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
-	run("Options...", "iterations=1 count=1 pad do=Dilate stack");
-	run("Remove Outliers...", "radius=2 threshold=1 which=Dark stack");
-	run("Options...", "iterations=3 count=1 pad do=Close stack");
-	run("Remove Outliers...", "radius=4 threshold=1 which=Dark stack");
-	run("Remove Outliers...", "radius=4 threshold=1 which=Dark stack");
+	run("Remove Outliers...", "radius=5 threshold=50 which=Bright stack");
+	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
 	run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
+	saveAs("Tiff", genodir + genoname + " Root Mask");
+	rename(stacktitle);
 }
 
 function overlayskeletons() {
@@ -935,10 +1052,10 @@ function overlayskeletons() {
 }
 
 function getROIdimensions() {
-	sortedxcoords = "Sorted X Coordinates";
-	sortedxcoordscsv = sortedxcoords + ".csv";
-	open(genodir + sortedxcoordscsv);
-	colnames = Table.headings(sortedxcoordscsv);
+	sortedxcoords = "Sorted X coordinates";
+	sortedxcoordstsv = sortedxcoords + ".tsv";
+	open(genodir + sortedxcoordstsv);
+	colnames = Table.headings(sortedxcoordstsv);
 	colnamessplit = split(colnames, "	");
 	colno = lengthOf(colnamessplit);
 
@@ -946,36 +1063,42 @@ function getROIdimensions() {
 		getcol = 1;
 		getcolname = "col" + getcol;
 		//columns might have zeroes at the beginning due to uneven number of columns, and these values need to be skipped
-		xfirstcol = Table.get(getcolname, 0, sortedxcoordscsv);
+		xfirstcol = Table.get(getcolname, 0, sortedxcoordstsv);
 		while (xfirstcol <= 0) {
 			getcol = getcol + 1;
 			getcolname = "col" + getcol;
-			xfirstcol = Table.get(getcolname, 0, sortedxcoordscsv);
+			xfirstcol = Table.get(getcolname, 0, sortedxcoordstsv);
 			}
 					
 	getcol2 = getcol + 1;
 	getcol2name = "col" + getcol2;
-	xsecondcol = Table.get(getcol2name, 0, sortedxcoordscsv);
+	xsecondcol = Table.get(getcol2name, 0, sortedxcoordstsv);
 	//xfirstcol and xsecondcol are names for the first two non-zero columns
 	xdiff = xsecondcol - xfirstcol;
-	roiwidth = xdiff;
+	roiwidth = 1.8*xdiff;
 	} else {
-		xfirstcol = Table.get("col1", 0, sortedxcoordscsv);
+		xfirstcol = Table.get("col1", 0, sortedxcoordstsv);
 		roiwidth = getWidth(stack1); 
 		}
-	sortedycoords = "Sorted Y Coordinates";
-	sortedycoordscsv = sortedycoords + ".csv";
-	open(genodir + sortedycoordscsv);
-	rowno = Table.size (sortedycoordscsv) - 1;
+	sortedycoords = "Sorted Y coordinates";
+	sortedycoordstsv = sortedycoords + ".tsv";
+	open(genodir + sortedycoordstsv);
+	rowno = Table.size (sortedycoordstsv) - 1;
 	if (rowno >= 1) {
 		//getcolname already defines the first non-zero column, as obtained above
-		yfirstrow = Table.get(getcolname, 0, sortedycoordscsv);		
-		ysecondrow = Table.get(getcolname, 1, sortedycoordscsv);
+		nyrow = 0;
+		yfirstrow = Table.get(getcolname, nyrow, sortedycoordstsv);
+		ysecondrow = Table.get(getcolname, nyrow+1, sortedycoordstsv);
+		while (ysecondrow <= 0) {
+			getcol += 1;
+			getcolname = "col" + getcol;
+			ysecondrow = Table.get(getcolname, nyrow+1, sortedycoordstsv);
+		}
 		ydiff = ysecondrow - yfirstrow;
 		roiheight = ydiff - 0.2; //cuts off bottom of roi so it doesnt cut into next row
 		} else {
-			yfirstrow = Table.get("col1", 0, sortedycoordscsv);
-			roiheight = getHeight(stack1) - yfirstrow;
+			yfirstrow = Table.get("col1", 0, sortedycoordstsv);
+			roiheight = getHeight() - yfirstrow;
 			}
 			
 		groupwidth = getWidth();
@@ -987,22 +1110,28 @@ function getROIdimensions() {
 		for (row = 0; row < rowno + 1; row++) {
 			for (col = 0; col < colno; col++) {
 				colname = "col" + col + 1;
-				xm = Table.get(colname, row, sortedxcoordscsv);
-				ym = Table.get(colname, row, sortedycoordscsv);
+				xm = Table.get(colname, row, sortedxcoordstsv);
+				ym = Table.get(colname, row, sortedycoordstsv);
 				if (xm > 0 && ym > 0) {
 					roiytopleft = ym - 0.4; //offset at the top because cotyledons shift downwards comparing first slice to LNI
 					roixtopleft = xm - (0.5*roiwidth);
 					toUnscaled(roixtopleft, roiytopleft);
 					toUnscaled(roiwidth, roiheight);
+					if (roixtopleft < 0)
+					roixtopleft = 0;
+					if (roiytopleft < 0)
+					roiytopleft = 0;
 					makeRectangle(roixtopleft, roiytopleft, roiwidth, roiheight);
 					roiManager("add");
 					roiManager("select", roiManager("count")-1);
 					roiManager("rename", roiManager("count"));
+					roiManager("select", roiManager("count")-1);
+					roiManager("Remove Slice Info");
 					toScaled(roiwidth, roiheight); //revert so it can be recalculated
 				}
 			}
-		}
-			roiManager("save", genodir+"roidimensions.zip");
+		}	
+		roiManager("save", genodir+"unprocroi.zip");
 }
 
 
@@ -1011,56 +1140,30 @@ function getROIdimensions() {
 function rootlength() {
 	for (y = 0; y < croplist.length; ++y) {
 		if (indexOf(croplist[y], "substack") < 0) {
-			setBatchMode(false);
 			genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 			genoname = File.getName(genodir);
 			print("Analyzing root growth of "+platename+genoname);
 			setBatchMode(true);
-			open(genodir+genoname+" overlaidskeletons.tif");
+			//open(genodir+genoname+" overlaidskeletons.tif");
+			//open(genodir+genoname+".tif");
 			overlayskelimg = getTitle();
 			nSlicesskel = nSlices();
+			//roiManager("reset");
+			//o//pen(genodir+"roidimensions.zip");
+			/////roiManager("Associate", "false");
+			roicount = roiManager("count");
 			
-			setSlice(nSlicesskel); 
-			slicelabel = getInfo("slice.label");
-			prevsliceno = 1; //allow backtracking of slices until last night image is found
-			while (indexOf(slicelabel, "night") < 0) {
-				setSlice(nSlicesskel - prevsliceno);
-				slicelabel = getInfo("slice.label");
-				prevsliceno = prevsliceno + 1;  
-			}
-			LNI = getSliceNumber(); //last night image
-			
-			yrt = "Y coordinates of root tip";
-			yrttsv = yrt + ".tsv";
-			open(genodir + genoname + yrttsv);
-			roiManager("Associate", "true");
-			stack1 = getTitle();
-			rsc = "Root start coordinates";
-			rsctsv = genoname+"_"+rsc+".tsv";
-			open(genodir+rsctsv);
-			
-			nr = Table.size(rsctsv);
-			roicount = nr/nSlicesskel;
-			roiManager("reset");
-		
 			rgm = "Root growth measurement";
 			Table.create(rgm);
 			for (sliceno = 1; sliceno < nSlicesskel; sliceno ++) {
-				for (rootno = 1; rootno <= roicount; rootno ++) {
+				for (rootno = 0; rootno < roicount; rootno ++) {
 					selectWindow(overlayskelimg);
-					setSlice(nSlicesskel);
-					//setSlice(LNI); 
-					rowindexroot = ((sliceno-1) * roicount) + rootno;
-					rscx = Table.get("XM", rowindexroot, rsctsv);
-					rscy = Table.get("YM", rowindexroot, rsctsv);
-					yroottip = Table.get("Y root tip", rowindexroot, yrt);
-					toUnscaled(yroottip);
-					widthRootSel = Table.get("Width root selection", rowindexroot, yrt);
-					rscxleft = rscx  - 0.5*widthRootSel;
-					run("Specify...", "width=["+widthRootSel+"] height=["+yroottip+"] x=["+rscxleft+"] y=["+rscy+"]");
+					setSlice(sliceno);
+					roiManager("select", rootno);					
 					run("Duplicate...", "use");
-					tempskel = getTitle();
+					rename("tempskel");
 					run("Analyze Skeleton (2D/3D)", "prune=none show");
+					bi = "Branch information";
 					tableheadings = Table.headings(bi);
 					if (indexOf(tableheadings, "Branch length") > 0) {
 						branchlengtharray = Table.getColumn("Branch length", bi);
@@ -1077,17 +1180,24 @@ function rootlength() {
 					Table.set("Root no.", nrrgm, rootno, rgm);
 					if (indexOf(tableheadings, "Branch length") > 0) {
 						Table.set("Root length", nrrgm, maxbranchlength, rgm);
-					}
-					close(tempskel);
+					} else {
+						if (sliceno > 1) {
+						prevlength = Table.get("Root length", nrrgm-1, rgm);
+						Table.set("Root length", nrrgm, prevlength, rgm);
+						}
+					selectWindow("tempskel");
+					run("Close");
+					selectWindow("Tagged skeleton");
+					run("Close");
+					}	
 				}
 			}
-
 			close(bi);
 			Table.save(genodir+platename+" "+genoname+" root growth.tsv", rgm);
 			rgmtsv = platename+" "+genoname+" root growth.tsv";
-			close(rgmtsv);
-			close(rsctsv);
-			close(genoname+" overlaidskeletons.tif");
+			close(rgm);
+			//close(rsctsv);
+			//close(genoname+" overlaidskeletons.tif");
 		}
 	}
 }
@@ -1098,7 +1208,8 @@ function labelskels() {
 			setBatchMode(false);
 			genodir = rootgrowthsubdir+"/"+croplist[y]+"/";	
 			genoname = File.getName(genodir);
-			open(genodir + genoname + " overlaidskeletons.tif");
+			//open(genodir + genoname + " overlaidskeletons.tif");
+			open(genodir + genoname + ".tif");
 			
 			roiManager("reset");
 			roiManager("open", genodir+genoname+"rootstartrois.zip");
@@ -1172,10 +1283,11 @@ function labelskels() {
 				ok = File.delete(genodir+genoname+"_"+"rootstartlabelled.tif");
 				ok = File.delete(genodir+genoname+"_"+"skeletonized.tif");
 				ok = File.delete(genodir+genoname+"rootstartrois.zip");
-				ok = File.delete(genodir+genoname+" overlaidskeletons.tif");
+				//ok = File.delete(genodir+genoname+" overlaidskeletons.tif");
+				ok = File.delete(genodir+genoname+".tif");
 				ok = File.delete(genodir+rsctsv);
-				ok = File.delete(genodir+sortedxcoordscsv);
-				ok = File.delete(genodir+sortedycoordscsv);
+				ok = File.delete(genodir+sortedxcoordstsv);
+				ok = File.delete(genodir+sortedycoordstsv);
 			}
 		}
 	}
@@ -1288,8 +1400,9 @@ function ordercoords1 () {
 		}
 	}
 
-	Table.save(genodir + sortedxcoords + ".csv", sortedxcoords);
-	Table.save(genodir + sortedycoords + ".csv", sortedycoords);
+	Table.save(genodir + sortedxcoords + ".tsv", sortedxcoords);
+	Table.save(genodir + sortedycoords + ".tsv", sortedycoords);
 	close(sortedxcoords);
 	close(sortedycoords);
 }
+
