@@ -250,3 +250,57 @@ function register(segmented) {
         saveAs("Tiff", tempdirsegmented + x + ".tif");
     }
 }
+
+
+//splits RGB stack and only saves green channel
+function splitGreenCh() {
+	print("Saving green channel as separate file");
+	for (ppdirno = 0; ppdirno < ppdirlist.length; ppdirno ++) {  //main loop through plates
+		if (indexOf (ppdirlist[ppdirno], "preprocessed") > 0) { //to avoid processing any random files in the folder
+			platefile = ppdirlist [ppdirno];
+			fnsplit = split(platefile, "_");
+			platename = fnsplit[0];
+			platedir = resultsdir + "/" + platename + "/";
+			if (!File.isDirectory(platedir))
+				File.makeDirectory(platedir);
+			print("Processing "+platename);
+			if (is("Batch Mode"))
+				setBatchMode(false);
+			open(ppdir+platename+"_preprocessed.tif");
+			ppstack = getTitle();
+			stacksize = nSlices();  //total number of slices
+			slicelabelsarray = newArray(stacksize); //an array to be filled with all slicelabels
+		
+			for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
+				setSlice(sliceno);
+				slicelabel = getInfo("slice.label");
+				slicelabelsarray[sliceno-1] = slicelabel;
+			}
+		
+			run("Split Channels");
+				
+			imglist = getList("image.titles");
+			for (img = 0; img < imglist.length; img ++) { 
+				imgname = imglist[img]; 
+				if (indexOf(imgname, "red") > 0 ) {
+			    	selectWindow(imgname);				
+			    	close();
+			    }
+			    if (indexOf(imgname, "green") > 0) {
+					selectWindow(imgname);
+					for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
+						setSlice(sliceno);
+						slicelabel = slicelabelsarray[sliceno-1];
+						setMetadata("Label", slicelabel);
+					}
+						selectWindow(imgname);
+						saveAs("Tiff", platedir + platename + "substackGreenOnly.tif");
+			    }
+				if (indexOf(imgname, "blue") > 0) {
+					selectWindow(imgname);
+					close(); 
+				}
+			}
+		}
+	}
+}
