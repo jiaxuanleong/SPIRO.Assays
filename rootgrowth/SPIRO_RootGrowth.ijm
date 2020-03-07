@@ -111,7 +111,7 @@ function cropGroups() {
 			open(ppdir + platefile);
 			waitForUser("Create substack",
 						"Please note first and last slice to be included for root growth analysis, and indicate it in the next step.");
-			run("Make Substack...");
+						run("Make Substack...");
 			
 			run("ROI Manager...");
 			setTool("Rectangle");
@@ -323,5 +323,237 @@ function ordercoords(roots) {
 	run("Close");
 	selectWindow(sortedycoords + ".tsv");
 	run("Close");
+}
+
+function rootStart() {
+	print("Finding root starts");
+	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
+		platefolder = listInrootgrowthdir[platefolderno];
+		platedir = rootgrowthdir + platefolder;
+		print("Processing " + platefolder);
+		listInplatefolder = getFileList(listInplatefolder);
+		for (groupfolderno = 0; listInplatefolder < listInplatefolder.length; groupfolderno ++) {
+			groupfolder = listInplatefolder[listInplatefolder];
+			groupname = groupfolder;
+			groupdir = platedir + groupfolder;
+			open(groupdir + groupname + "masked.tif");
+			mask = getTitle();
+			roiManager("reset");
+			roiManager("open", groupdir + groupname + "seedpositions.zip");
+			roicount = roiManager("count");
+			roiarray = getSequence(roicount);
+			run("Set Measurements...", "center redirect=None decimal=2");
+			run("Clear Results");
+			roiManager("select", roiarray);
+			roiManager("multi-measure");
+			
+			scaledwroi = 0.12; //width of ROI for finding root start coordinates is 0.12cm
+			scaledhroi = 0.18; //height of ROI is 0.18cm
+			unscaledwroi = 0.12;
+			unscaledhroi = 0.18;
+			toUnscaled(unscaledwroi, unscaledhroi);
+
+			nS = nSlices;
+			rsc = "Root start coordinates";
+			Table.create(rsc);
+
+			for (sliceno = 1; sliceno <= nS; sliceno ++) { //for each slice
+				setSlice(sliceno); //starting with first slice
+				if (sliceno == 1) { //if first slice, obtain XY coordinates from Results to make ROI
+					roiManager("reset");
+					yref = "YRef";
+					Table.create(yref);  //table for "y references" which contain the top and bottom borders
+
+					//the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc
+					// from jumping to hypocotyls or sliding down roots
+					for(roino = 0; roino < roicount; roino ++) {
+						xisp = getResult("XM", roino); //xisp is x initial seed roinoition
+						yisp = getResult("YM", roino); //yisp is y initial seed position
+						ytb = yisp - 0.05; //y top border
+						ybb = yisp + 0.4;  //y bottom border
+						Table.set("ytb", roino, ytb, yref); //y (top border) cannot be more than 0.4cm to the top of initial xm
+						Table.set("ybb", roino, ybb, yref); //y (bottom border) cannot be more than yisp
+						topoffset = 0.05; //needed to include a little more of the top bit from the centre of mass
+
+						//imagej takes top+leftmost coordinate to make rois
+						yroi = yisp - topoffset; //yroi is top+leftmost ycoordinate of roi
+						xroi = xisp - 0.5*scaledwroi; //xroi is top+leftmost xcoordinate of roi
+						toUnscaled(xroi, yroi);
+						makeRectangle(xroi, yroi, unscaledwroi, unscaledhroi);
+						roiManager("add");
+						Table.save(groupdir + "yref.tsv", yref);
+					}
+					selectWindow("Results");
+					run("Close");
+				} else {
+					//for subsequent slices, obtain XY centre of mass coordinates of previous slice
+					roiManager("reset");
+					prevsliceno = sliceno - 1;
+
+					for(roino = 0; roino < roicount; roino++) {
+						rowIndex = (zprev*roicount)+roino; 
+						//rowIndex to reference same ROI from previous slice
+						//xm, ym are coordinates for the centre of mass obtained through erosion
+						xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
+						ymprev = Table.get("YM", rowIndex, rsc);  //ym of prev slice
+						toScaled(xmprev, ymprev);
+						ytb = Table.get("ytb", roino, yref);
+						ybb = Table.get("ybb", roino, yref);
+						yroi = ymprev - topoffset; //yroi is top+leftmost ycoordinate of roi
+						xroi = xmprev - 0.5*scaledwroi; //xroi is top+leftmost xcoordinate of roi and 0.06 is half of h (height)
+
+						//the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc from jumping to hypocotyls or sliding down roots
+						if (yroi < ytb) { //top border exceeded by top of roi
+							yroi = ytb;
+						}
+
+						yroibottom = yroi + scaledhroi; //bottom line of roi is y
+						if (yroibottom > ybb) { //lower limit of roi bottom border exceeded
+							exceededverticaldistance = yroibottom - ybb;
+							shortenedhroi = scaledhroi - exceededverticaldistance;
+						}
+
+						toUnscaled(xroi, yroi);
+
+						if (yroibottom > ybb) {
+							toUnscaled(shortenedhroi);
+							makeRectangle(xroi, yroi, unscaledwroi, shortenedhroi);
+						} else {
+							makeRectangle(xroi, yroi, unscaledwroi, unscaledhroi);
+						}
+						roiManager("add");
+					}
+				}
+
+				run("Set Measurements...", "area center display redirect=None decimal=5");
+				for (x=0; x<roicount; x++) { //for number of rois
+					roiManager("select", x);
+					run("Analyze Particles...", "display clear summarize slice");
+
+					count = Table.get("Count", Table.size("Summary of "+img)-1, "Summary of "+img);
+					totalarea = Table.get("Total Area", Table.size("Summary of "+img)-1, "Summary of "+img);
+
+					if (count == 0) { //no object detected, masking erased seed due to seed too small - copy xm/ym from previous slice
+						if (z > 0) {
+							// don't do this for the first slice
+							rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
+
+							//xm, ym are coordinates for the centre of mass obtained through erosion
+							xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
+							ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
+							nr = Table.size(rsc);
+							Table.set("Slice", nr, z+1, rsc);
+							Table.set("ROI", nr, x+1, rsc);
+							Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
+							Table.set("YM", nr, ymprev, rsc); //ym as previous slice
+						}
+					} else { //object detected, erode then analyse particles for xm/ym
+						erosionround = 1;
+						while (totalarea>0.002 && erosionround < 15) {
+							//if erosion is not working due to bad thresholding, total area never decreases, rsc is copied from previous slice.
+							roiManager("select", x);
+							run("Options...", "iterations=1 count=1 do=Erode");
+							roiManager("select", x);
+							run("Analyze Particles...", "display summarize slice");
+
+							count = Table.get("Count", Table.size-1, "Summary of "+img);
+							if (count == 0) { //erode went too far, particle disappeared
+								totalarea = 0; //to get out of the while loop
+							} else {
+								totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+							}
+							erosionround += 1;
+						}
+
+						if (erosionround < 15) {
+							while (totalarea > 0.012) {
+								roiManager("select", x);
+								run("Options...", "iterations=1 count=3 do=Erode");
+								roiManager("select", x);
+								run("Analyze Particles...", "display clear summarize slice");
+				
+								count = Table.get("Count", Table.size-1, "Summary of "+img);
+								if (count == 0) { //erode went too far, particle disappeared
+									totalarea = 0; //to get out of the while loop
+								} else {
+									totalarea = Table.get("Total Area", Table.size-1, "Summary of "+img);
+								}
+							}
+				
+							if (count > 1) {
+								area = newArray(count);
+								for (v=0; v<count; v++){
+									area[v] = getResult("Area", nResults-(v+1));
+								}
+								areaasc = Array.rankPositions(area);
+								areadesc = Array.invert(areaasc);
+								maxarea = areadesc[0];
+
+								xm = getResult("XM", nResults-(maxarea+1));
+								ym = getResult("YM", nResults-(maxarea+1));
+							} else {
+								xm = getResult("XM", nResults-1);
+								ym = getResult("YM", nResults-1);
+							}
+
+							toUnscaled(xm, ym);
+
+							nr = Table.size(rsc);
+							Table.set("Slice", nr, z+1, rsc);
+							Table.set("ROI", nr, x+1, rsc);
+							Table.set("XM", nr, xm, rsc);
+							Table.set("YM", nr, ym, rsc);
+						}
+
+						if (erosionround == 15) {
+							rowIndex = (zprev*roicount)+x; //to reference same ROI from previous slice
+							//xm, ym are coordinates for the centre of mass obtained through erosion
+							xmprev = Table.get("XM", rowIndex, rsc); //xm of prev slice
+							ymprev = Table.get("YM", rowIndex, rsc); //ym of prev slice
+
+							nr = Table.size(rsc);
+							Table.set("Slice", nr, z+1, rsc);
+							Table.set("ROI", nr, x+1, rsc);
+							Table.set("XM", nr, xmprev, rsc); //set xm as previous slice
+							Table.set("YM", nr, ymprev, rsc); //ym as previous slice
+						}
+					}
+				}
+			}
+			close(yref);
+			close("Results");
+			close("Summary of "+img);
+			close(img);
+			open(genodir+genoname+".tif");
+			roiManager("reset");
+
+			nr = Table.size(rsc);
+			for (x=0; x<nr; x++) {
+				xm = Table.get("XM", x, rsc);
+				ym = Table.get("YM", x, rsc);
+				slice = Table.get("Slice", x, rsc);
+				roino = Table.get("ROI", x, rsc);
+
+				setSlice(slice);
+				makePoint(xm, ym);
+				roiManager("add");
+				roiManager("select", x);
+				roiManager("rename", roino);
+			}
+
+			roiManager("save", genodir+genoname+"rootstartrois.zip");
+			roiManager("Associate", "true");
+			roiManager("Centered", "false");
+			roiManager("UseNames", "true");
+			roiManager("Show All with labels");
+			run("Labels...", "color=white font=18 show use draw");
+			run("Flatten", "stack");
+
+			saveAs("Tiff", genodir+genoname+"_"+"rootstartlabelled.tif");
+			close();
+			selectWindow(rsc);
+			rsctsv = genoname+"_"+rsc+".tsv";
+			saveAs("Results", genodir+rsctsv);
+			close(rsc);
 }
 
