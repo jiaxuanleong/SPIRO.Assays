@@ -16,6 +16,8 @@ var step;
 var ra = "Root analysis";
 var bi = "Branch information";
 
+var DEBUG = true; //set this to true to keep non-essential intermediate output files
+
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
 resultsdir = maindir + "Results" + File.separator; // all output is contained here
@@ -25,8 +27,10 @@ if (!File.isDirectory(rootgrowthdir))
 	File.makeDirectory(rootgrowthdir);
 listInppdir = getFileList(ppdir);
 listInrootgrowthdir = getFileList(rootgrowthdir);
+
 step = 0;
 detectOutput();
+
 if (step <= 0)
 cropGroups();
 if (step <= 1)
@@ -39,7 +43,11 @@ if (step <= 4)
 rootEnd();
 if (step <= 5)
 rootGrowth();
+if (step <= 6 && DEBUG == false)
+deleteOutputs(); // deletes non-essential outputs
 print("Macro complete");
+selectWindow("Log");
+
 
 // detect presence of output files of each function on last plate
 // if not present, run the function
@@ -88,7 +96,7 @@ function detectOutput() {
 		}
 	}
 
-	if (step == 2) {
+	if (step == 2) { // check for rootStart()
 		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
 			outputfilename = listInlastgroupfolder[outputfileno];
 			isRsc = indexOf(outputfilename, "rootstartcoordinates");
@@ -97,21 +105,30 @@ function detectOutput() {
 		}
 	}
 
-	if (step == 3) {
+	if (step == 3) { // check for rootMask()
 		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
 			outputfilename = listInlastgroupfolder[outputfileno];
 			isRootmask = indexOf(outputfilename, "rootmask");
 			if (isRootmask >= 0)
-			step = 4;
+				step = 4;
 		}
 	}
 
-	if (step == 4) {
+	if (step == 4) { // check for rootEnd()
 		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
 			outputfilename = listInlastgroupfolder[outputfileno];
-			isSkelrois = indexOf(outputfilename, "rootskelrois");
+			isSkelrois = indexOf(outputfilename, "seedlingskels");
 			if (isSkelrois >= 0)
-			step = 5;
+				step = 5;
+		}
+	}
+
+	if (step == 5) { // check for rootGrowth()
+		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
+			outputfilename = listInlastgroupfolder[outputfileno];
+			isRgm = indexOf(outputfilename, "rootgrowthmeasurement");
+			if (isRgm >= 0)
+				step = 6;
 		}
 	}
 }
@@ -207,7 +224,7 @@ function seedPositions() {
 				run("Options...", "iterations=1 count=4 do=Dilate stack");
 				run("Remove Outliers...", "radius=2 threshold=50 which=Dark stack");
 				run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-	
+
 				// create selections of all individual features on image
 				roiManager("reset");
 				run("Create Selection");
@@ -217,7 +234,7 @@ function seedPositions() {
 				roiManager("split");
 				roiManager("select", 0);
 				roiManager("delete");
-	
+
 				// delete trash ROI which are features detected as below a certain area
 				// using table as a workaround to roi indexes changing if deletion happens one by one
 				roicount = roiManager("count");
@@ -241,7 +258,7 @@ function seedPositions() {
 				}
 				close(tp);
 				close("Results");
-	
+
 				// number remaining ROIs
 				roicount = roiManager("count");
 				roiarray = Array.getSequence(roicount);
@@ -249,7 +266,7 @@ function seedPositions() {
 					roiManager("select", roino);
 					roiManager("rename", roino + 1); // first roi is 1
 				}
-	
+
 				// prompt user to delete any non-detected trash, then re-number as above
 				Roi.setStrokeWidth(2);
 				waitForUser("Please delete any ROIs that should not be included into analysis, \n" +
@@ -277,9 +294,9 @@ function seedPositions() {
 // otherwise done to order root dimensions later
 function ordercoords(roots) {
 	if (roots) {
-		roicount = Table.size(rec);
-		xmroots = Table.getColumn("XM", rec);
-		ymroots = Table.getColumn("YM", rec);
+		roicount = Table.size(lastslicecoord);
+		xmroots = Table.getColumn("XM", lastslicecoord);
+		ymroots = Table.getColumn("YM", lastslicecoord);
 		xmascendingindexes = Array.rankPositions(xmroots);
 		ymascendingindexes = Array.rankPositions(ymroots);
 	} else {
@@ -291,7 +308,7 @@ function ordercoords(roots) {
 		roiManager("multi-measure");
 		seedpositions = "Seed Positions";
 		Table.rename("Results", seedpositions);
-	
+
 		xmseeds = newArray(roicount);
 		ymseeds = newArray(roicount);
 		for (seednumber = 0; seednumber < roicount; seednumber ++) {
@@ -300,7 +317,7 @@ function ordercoords(roots) {
 			xmseeds[seednumber] = xmcurrent;
 			ymseeds[seednumber] = ymcurrent;
 		}
-	
+
 		ymascendingindexes = Array.rankPositions(ymseeds);
 		xmascendingindexes = Array.rankPositions(xmseeds);
 	}
@@ -317,23 +334,27 @@ function ordercoords(roots) {
 	if (roots) {
 		Table.set(colname, rowno, ymroots[ymascendingindexes[0]], sortedycoords);
 		Table.set(colname, rowno, xmroots[ymascendingindexes[0]], sortedxcoords);
-	
+
 		for (roino = 1; roino < roicount; roino++) {
-			ydiff = ymroots[ymascendingindexes[roino]] - ymroots[ymascendingindexes[roino-1]];
+			ymroot2 = ymroots[ymascendingindexes[roino]];
+			ymroot1 = ymroots[ymascendingindexes[roino-1]];
+			//toScaled(ymroot2, ymroot1);
+			ydiff =  ymroot2 - ymroot1;
 			if (ydiff > 1) {
-				rowno = rowno + 1;
+				rowno += 1;
 				col = 0;
 			} else {
-				col = col + 1;
+				col += 1;
 			}
 			colname = "col" + col + 1;
-			Table.set(colname, rowno, ymroots[ymascendingindexes[roino]], sortedycoords);
+			//toUnscaled(ymroot2);
+			Table.set(colname, rowno, ymroot2, sortedycoords);
 			Table.set(colname, rowno, xmroots[ymascendingindexes[roino]], sortedxcoords);
 		}
 	} else {
 		Table.set(colname, rowno, ymseeds[ymascendingindexes[0]], sortedycoords);
 		Table.set(colname, rowno, xmseeds[ymascendingindexes[0]], sortedxcoords);
-	
+
 		for (roino = 1; roino < roicount; roino++) {
 			ydiff = ymseeds[ymascendingindexes[roino]] - ymseeds[ymascendingindexes[roino-1]];
 			if (ydiff > 1) {
@@ -401,7 +422,7 @@ function ordercoords(roots) {
 		selectWindow(sortedycoords);
 		//run("Close");
 	}
-	
+
 
 }
 
@@ -428,7 +449,7 @@ function rootStart() {
 						close(listIngroupdir[outputfileno]);
 					}
 				}
-				
+
 				open(groupdir + groupname + " masked.tif");
 				mask = getTitle();
 				roiManager("reset");
@@ -672,19 +693,22 @@ function rootMask() {
 					}
 				}
 				open(groupdir + "Group " + groupname + ".tif");
+				///!
+				/// setBatchMode(false);
+				setBatchMode(true);
 				img = getTitle();
 				dayslice = 1; //dayslice is the first day image
-				setSlice(dayslice); 
+				setSlice(dayslice);
 				slicelabel = getInfo("slice.label");
 				while (indexOf(slicelabel, "day") < 0) {
 					dayslice += 1;
 					setSlice(dayslice);
 					slicelabel = getInfo("slice.label");
 				}
-				dayslicelabel = getInfo("slice.label"); 
-				
+				dayslicelabel = getInfo("slice.label");
+
 				nightslice = 1; //nightslice is the first night image
-				setSlice(nightslice); 
+				setSlice(nightslice);
 				slicelabel = getInfo("slice.label");
 				while (indexOf(slicelabel, "night") < 0) {
 					nightslice += 1;
@@ -692,7 +716,7 @@ function rootMask() {
 					slicelabel = getInfo("slice.label");
 				}
 				nightslicelabel = getInfo("slice.label");
-					
+
 				nS = nSlices;
 				setSlice(nightslice);
 				run("Duplicate...", "use");
@@ -703,7 +727,7 @@ function rootMask() {
 				run("Duplicate...", "use");
 				dayimg = "FirstDayImg";
 				rename(dayimg);
-			
+
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
 					selectWindow(img);
 					if (sliceno != dayslice && sliceno != nightslice) {
@@ -721,24 +745,94 @@ function rootMask() {
 							run("Calculator Plus", "i1=[temp] i2=["+nightimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=10 k2=0 create");
 							selectWindow("Result");
 							rename(curslicelabel);
-							close("temp"); 
+							close("temp");
 						}
 					}
 				}
-				selectWindow(dayimg); 
+				selectWindow(dayimg);
 				rename(dayslicelabel);
-				selectWindow(nightimg); 
+				selectWindow(nightimg);
 				rename(nightslicelabel);
 				run("Images to Stack");
 				close(img);
 				selectWindow("Stack");
 				rename(img);
-				//run("Subtract Background...", "rolling=50 sliding disable");
+
+				 run("Subtract Background...", "rolling=50 sliding disable");
 				setAutoThreshold("MaxEntropy dark");
 				run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
-				run("Remove Outliers...", "radius=5 threshold=50 which=Bright stack");
-				run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-				run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
+
+				for (sliceno = 1; sliceno <= nS; sliceno ++) {
+					selectWindow(img);
+					setSlice(sliceno);
+					curslicelabel = getInfo("slice.label");
+			
+					if (indexOf(curslicelabel, "day") > 0) {
+						run("Remove Outliers...", "radius=5 threshold=50 which=Bright slice");
+						run("Remove Outliers...", "radius=3 threshold=50 which=Dark slice");
+						run("Remove Outliers...", "radius=2 threshold=50 which=Bright slice");
+						run("Remove Outliers...", "radius=2 threshold=50 which=Dark slice");
+					} else { //night image
+						run("Remove Outliers...", "radius=5 threshold=50 which=Bright slice");
+						run("Remove Outliers...", "radius=3 threshold=50 which=Dark slice");
+						run("Remove Outliers...", "radius=4 threshold=50 which=Dark slice");
+						run("Remove Outliers...", "radius=4 threshold=50 which=Dark slice");
+					}
+				}
+				// run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
+				 setBatchMode("show");
+				 setBatchMode(true);
+				
+				// overlay the root masks
+				img = getTitle(); ///
+				nS = nSlices; ///
+				roiManager("Associate", "false");
+				roiManager("reset");
+				run("Colors...", "foreground=black background=black selection=black");
+				setSlice(1);
+				slicelabel = getInfo("slice.label");
+				run("Duplicate...", "use");
+				rename(slicelabel);
+				for (sliceno = 1; sliceno < nS; sliceno++) {
+					selectWindow(img);
+					setSlice(sliceno);
+					run("Create Selection");
+					if (selectionType() >-1) {
+						roiManager("add");
+					}
+					setSlice(sliceno + 1);
+					slicelabel = getInfo("slice.label");
+					// run("Select All");
+					// run("Duplicate...", "use");
+					//rename(slicelabel);
+					roicount = roiManager("count");
+					roiarray = Array.getSequence(roicount);
+					roiManager("select", roiarray);
+					roiManager("Show All without labels");
+					run("Flatten", "slice");
+					run("8-bit");
+					run("Make Binary");	
+					run("Fill Holes");	
+					
+					/*
+					run("Clear Results");
+					roiManager("select", sliceno-1);
+					roiManager("measure");
+					tsres = Table.size("Results");
+					if (tsres > 0) {
+						roiManager("select", roiarray);
+						roiManager("Show All without labels");
+						run("Flatten", "slice");
+						run("8-bit");
+						run("Make Binary");		
+						run("Fill Holes");
+					}
+					*/
+				}
+				close(img);
+				run("Images to Stack");
+				// run("Options...", "iterations=2 count=1 pad do=Dilate stack");
+				run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");			
 				saveAs("Tiff", groupdir + groupname + " rootmask.tif");
 				close(groupname + " rootmask.tif");
 			}
@@ -779,20 +873,20 @@ function rootEnd() {
 				roiManager("reset");
 				open(groupdir + rsctsv);
 				open(groupdir + seedpositionszip);
-				rec = "rootendcoordinates";
-				Table.create(rec);
+				lastslicecoord = "lastslicecoordinates";
+				Table.create(lastslicecoord);
 				roicount = roiManager("count");
 
 				for (roino = 0; roino < roicount; roino ++) {
 					lastpos = ((nS-1) * roicount) + roino; //position in last image
-					xmlast = Table.get("XM", lastpos, rsctsv); 
+					xmlast = Table.get("XM", lastpos, rsctsv);
 					ymlast = Table.get("YM", lastpos, rsctsv);
 					toScaled(xmlast, ymlast); //scaled to make it easier to getROIdimensions later
-					nrRec = Table.size(rec);
-					Table.set("XM", nrRec, xmlast, rec);
-					Table.set("YM", nrRec, ymlast, rec);
+					nrlastslicecoord = Table.size(lastslicecoord);
+					Table.set("XM", nrlastslicecoord, xmlast, lastslicecoord);
+					Table.set("YM", nrlastslicecoord, ymlast, lastslicecoord);
 				}
-				Table.save(groupdir + groupname + rec + ".tsv", rec);
+				Table.save(groupdir + groupname + " " + lastslicecoord + ".tsv", lastslicecoord);
 				ordercoords(true);
 
 				/////here to get ROI dimensions
@@ -802,7 +896,7 @@ function rootEnd() {
 				colnames = Table.headings(sortedxcoordstsv);
 				colnamessplit = split(colnames, "	");
 				colno = lengthOf(colnamessplit);
-			
+
 				if (colno > 1) {
 					getcol = 1;
 					getcolname = "col" + getcol;
@@ -813,16 +907,17 @@ function rootEnd() {
 						getcolname = "col" + getcol;
 						xfirstcol = Table.get(getcolname, 0, sortedxcoordstsv);
 						}
-								
+
 				getcol2 = getcol + 1;
 				getcol2name = "col" + getcol2;
 				xsecondcol = Table.get(getcol2name, 0, sortedxcoordstsv);
 				//xfirstcol and xsecondcol are names for the first two non-zero columns
 				xdiff = xsecondcol - xfirstcol;
+				//toUnscaled(xdiff);
 				roiwidth = 1.2*xdiff;
 				} else {
 					xfirstcol = Table.get("col1", 0, sortedxcoordstsv);
-					roiwidth = getWidth(stack1); 
+					roiwidth = getWidth(stack1);
 				}
 				sortedycoords = "roots sorted Y coordinates";
 				sortedycoordstsv = sortedycoords + ".tsv";
@@ -839,16 +934,16 @@ function rootEnd() {
 						ysecondrow = Table.get(getcolname, nyrow+1, sortedycoordstsv);
 					}
 					ydiff = ysecondrow - yfirstrow;
-					roiheight = ydiff - 0.2; //cuts off bottom of roi so it doesnt cut into next row
+					roiheight = ydiff - 0.4; //cuts off bottom of roi so it doesnt cut into next row
 				} else {
 					yfirstrow = Table.get("col1", 0, sortedycoordstsv);
 					roiheight = getHeight() - yfirstrow;
 				}
-					
+
 				groupwidth = getWidth();
-				nrRec = Table.size(rec);
+				nrlastslicecoord = Table.size(lastslicecoord);
 				roiManager("reset"); //resets the points made in ordercoords()
-		
+
 				setSlice(nS);
 				for (row = 0; row < rowno + 1; row ++) {
 					for (col = 0; col < colno; col ++) {
@@ -873,37 +968,38 @@ function rootEnd() {
 							toScaled(roiwidth, roiheight); //revert so it can be recalculated
 						}
 					}
-				}	
-				roiManager("save", groupdir + groupname + " unprocessedrois.zip");
+				}
+				roiManager("save", groupdir + groupname + " seedlingrois.zip");
 
 				setSlice(nS);
 				run("Clear Results");
 				rootroicount = roiManager("count");
-				roiarrayunproc = Array.getSequence(rootroicount);
-						
+				roiarraysdling = Array.getSequence(rootroicount);
+
 				for (rootno = 0; rootno < rootroicount; rootno ++) {
 					if (rootno > 0) {
-					roiManager("reset");				
-					roiManager("open", groupdir + groupname + " unprocessedrois.zip");
+					roiManager("reset");
+					roiManager("open", groupdir + groupname + " seedlingrois.zip");
 					}
-					roiarrayunprocX = Array.deleteValue(roiarrayunproc, rootno); //delete current roi from array
-					roiManager("select", roiarrayunprocX); //so it isnt deleted in roi manager
+					roiarraysdlingX = Array.deleteValue(roiarraysdling, rootno); //delete current roi from array
+					roiManager("select", roiarraysdlingX); //so it isnt deleted in roi manager
 					roiManager("delete");
 					roiManager("select", 0);
 					Roi.getBounds(rootboundx, rootboundy, rootboundw, rootboundh);
 					run("Duplicate...", "use");
 					tempmultipleskel = getTitle();
-					run("Create Selection");
+					run("Create Selection"); // not create selection here
+					
 					if (selectionType() == 9) {
 						roiManager("split");
 						roiManager("select", 0);
 						roiManager("delete");
 						roiManager("deselect"); //nothing is selected
-						roiManager("measure"); //all rois measured 
+						roiManager("measure"); //all rois measured
 						Table.rename("Results", "Lengths");
-						lengthsarray = Table.getColumn("Area", "Lengths");			
+						lengthsarray = Table.getColumn("Area", "Lengths");
 						lengthspositions = Array.rankPositions(lengthsarray);
-						Array.reverse(lengthspositions); 
+						Array.reverse(lengthspositions);
 						lengthspositionsX = Array.deleteIndex(lengthspositions, 0); //remove index of longest length
 						roiManager("select", lengthspositionsX);
 						roiManager("delete"); //so it is not deleted here
@@ -924,13 +1020,13 @@ function rootEnd() {
 					roiManager("rename", IJ.pad(rootno+1, 2)); //names roi according to seed number
 					roiManager("Remove Slice Info");
 					if (rootno > 0) {
-						roiManager("open", groupdir + groupname + " rootskelrois.zip");
-					} 
-					roiManager("save", groupdir + groupname + " rootskelrois.zip");
+						roiManager("open", groupdir + groupname + " seedlingskels.zip");
+					}
+					roiManager("save", groupdir + groupname + " seedlingskels.zip");
 					close(tempmultipleskel);
 				}
 				roiManager("sort");
-				roiManager("save", groupdir + groupname + " rootskelrois.zip");
+				roiManager("save", groupdir + groupname + " seedlingskels.zip");
 				close(mask);
 			}
 		}
@@ -961,9 +1057,12 @@ function rootGrowth() {
 				}
 				setBatchMode(false);
 				open(groupdir + groupname + " rootmask.tif");
+				rootmask = getTitle();
 				roiManager("reset");
-				open(groupdir + groupname + " rootskelrois.zip");
-				rootmask = getTitle(); 
+				open(groupdir + groupname + " seedlingskels.zip");
+				rsctsv = groupname + " rootstartcoordinates.tsv";
+				open(groupdir + rsctsv);
+				
 				nS = nSlices;
 				roicount = roiManager("count");
 				rgm = "rootgrowthmeasurement";
@@ -971,9 +1070,14 @@ function rootGrowth() {
 				setBatchMode(true);
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
 					for (rootno = 0; rootno < roicount; rootno ++) {
+						rscindex = ((sliceno-1)*roicount) + rootno;
+						rscy = Table.get("YM", rscindex, rsctsv);
 						selectWindow(rootmask);
 						setSlice(sliceno);
-						roiManager("select", rootno);					
+						roiManager("select", rootno);
+						Roi.getBounds(skelx, skely, skelw, skelh);
+						makeRectangle(skelx, rscy, skelw, skelh);
+						roiManager("update");
 						run("Duplicate...", "use");
 						tempskel = getImageID();
 						run("Analyze Skeleton (2D/3D)", "prune=none show");
@@ -995,7 +1099,7 @@ function rootGrowth() {
 						if (indexOf(tableheadings, "Branch length") > 0) {
 							Table.set("Root length", nrrgm, maxbranchlength, rgm);
 						} else {
-							if (sliceno > 1) { 
+							if (sliceno > 1) {
 								prevlength = Table.get("Root length", nrrgm-1, rgm);
 								Table.set("Root length", nrrgm, prevlength, rgm);
 							}
@@ -1003,9 +1107,57 @@ function rootGrowth() {
 						selectImage(tempskel);
 						//run("Close");
 						close("Tagged skeleton");
-					}	
+					}
 				}
-				close(rootmask);
+				Table.save(groupdir + groupname + " " + rgm + ".tsv", rgm);
+				list = getList("window.titles");
+				Array.deleteValue(list, "Log");
+				for (i=0; i<list.length; i++) {
+					winame = list[i];
+					selectWindow(winame);
+					run("Close");
+				}
+				close("*");
+			}
+		}
+	}
+}
+
+function deleteOutputs() {
+	print("Deleting non-essential files");
+	listInrootgrowthdir = getFileList(rootgrowthdir);
+	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
+		platefolder = listInrootgrowthdir[platefolderno];
+		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
+			platedir = rootgrowthdir + platefolder;
+			print("Processing " + platefolder);
+			listInplatefolder = getFileList(platedir);
+			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
+				groupfolder = listInplatefolder[groupfolderno];
+				groupdir = platedir + groupfolder;
+				listIngroupdir = getFileList(groupdir);
+				for (outputfileno = 0; outputfileno < listIngroupdir.length; outputfileno ++) {
+					if (indexOf(listIngroupdir[outputfileno], "Group") >= 0) {
+						open(groupdir + listIngroupdir[outputfileno]);
+						filename = File.nameWithoutExtension;
+						indexofgroup = indexOf(filename, "Group");
+						groupname = substring(filename, indexofgroup + 6); //to find out group name, +6 because of the letters and a space
+						close(listIngroupdir[outputfileno]);
+					}
+				}
+				File.delete(groupdir + groupname + " masked.tif");
+				//File.delete(groupdir + groupname + " rootmask.tif");
+				File.delete(groupdir + groupname + " seedlingskels.zip");
+				File.delete(groupdir + groupname + " rootstartcoordinates");
+				//File.delete(groupdir + groupname + " rootstartrois");
+				File.delete(groupdir + groupname + " seedpositions");
+				File.delete(groupdir + groupname + " seedlingrois");
+				File.delete(groupdir + groupname + " rootendcoordinates");
+				File.delete("roots sorted X coordinates");
+				File.delete("roots sorted Y coordinates");
+				File.delete("seeds Sorted X coordinates");
+				File.delete("seeds Sorted Y coordinates");
+				File.delete("yref");
 			}
 		}
 	}
