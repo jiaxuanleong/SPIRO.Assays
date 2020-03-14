@@ -156,6 +156,7 @@ function processSubdir() {
 	run("Image Sequence...", "open=[" + subdir + sublist[0] + "]+convert sort use");
 	stack1 = getTitle();
 	crop();
+	splitGreenCh();
 	if (regq) {
 	    // calling register with argument 'false' means non-segmented registration
         register(false);
@@ -194,6 +195,7 @@ function processSubdirSegmented() {
 		}
 		stack1 = getTitle();
 		crop();
+		splitGreenCh();
 		if (regq) {
 		    // calling register() with argument 'true' runs it in segmented mode
 			register(true);
@@ -227,13 +229,14 @@ function register(segmented) {
     if (segmented) {
         open(subdir + sublist[0]); //open first time point
         crop();
-        run("8-bit");
+        splitGreenCh();
+        // run("8-bit");
         tempini = getTitle();
         //stick first time point to stack, to enable more accurate registration for later time points
         run("Concatenate...", "  image1=[" + tempini + "] image2=[" + stack1 + "]");
         stack1 = getTitle();
     }
-    run("8-bit");
+    // run("8-bit");
     run("Duplicate...", "duplicate");
     stack2 = getTitle();
     run("Subtract Background...", "rolling=30 stack");
@@ -254,53 +257,38 @@ function register(segmented) {
 
 //splits RGB stack and only saves green channel
 function splitGreenCh() {
-	print("Saving green channel as separate file");
-	for (ppdirno = 0; ppdirno < ppdirlist.length; ppdirno ++) {  //main loop through plates
-		if (indexOf (ppdirlist[ppdirno], "preprocessed") > 0) { //to avoid processing any random files in the folder
-			platefile = ppdirlist [ppdirno];
-			fnsplit = split(platefile, "_");
-			platename = fnsplit[0];
-			platedir = resultsdir + "/" + platename + "/";
-			if (!File.isDirectory(platedir))
-				File.makeDirectory(platedir);
-			print("Processing "+platename);
-			if (is("Batch Mode"))
-				setBatchMode(false);
-			open(ppdir+platename+"_preprocessed.tif");
-			ppstack = getTitle();
-			stacksize = nSlices();  //total number of slices
-			slicelabelsarray = newArray(stacksize); //an array to be filled with all slicelabels
+	ppstack = getTitle();
+	stacksize = nSlices();  //total number of slices
+	slicelabelsarray = newArray(stacksize); //an array to be filled with all slicelabels
+
+	for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
+		setSlice(sliceno);
+		slicelabel = getInfo("slice.label");
+		slicelabelsarray[sliceno-1] = slicelabel;
+	}
+
+	run("Split Channels");
 		
+	imglist = getList("image.titles");
+	for (img = 0; img < imglist.length; img ++) { 
+		imgname = imglist[img]; 
+		if (indexOf(imgname, "red") > 0 ) {
+	    	selectWindow(imgname);				
+	    	close();
+	    }
+	    if (indexOf(imgname, "green") > 0) {
+			selectWindow(imgname);
 			for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
 				setSlice(sliceno);
-				slicelabel = getInfo("slice.label");
-				slicelabelsarray[sliceno-1] = slicelabel;
+				slicelabel = slicelabelsarray[sliceno-1];
+				setMetadata("Label", slicelabel);
 			}
-		
-			run("Split Channels");
-				
-			imglist = getList("image.titles");
-			for (img = 0; img < imglist.length; img ++) { 
-				imgname = imglist[img]; 
-				if (indexOf(imgname, "red") > 0 ) {
-			    	selectWindow(imgname);				
-			    	close();
-			    }
-			    if (indexOf(imgname, "green") > 0) {
-					selectWindow(imgname);
-					for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
-						setSlice(sliceno);
-						slicelabel = slicelabelsarray[sliceno-1];
-						setMetadata("Label", slicelabel);
-					}
-						selectWindow(imgname);
-						saveAs("Tiff", platedir + platename + "substackGreenOnly.tif");
-			    }
-				if (indexOf(imgname, "blue") > 0) {
-					selectWindow(imgname);
-					close(); 
-				}
-			}
+				selectWindow(imgname);
+				rename(ppstack);
+	    }
+		if (indexOf(imgname, "blue") > 0) {
+			selectWindow(imgname);
+			close(); 
 		}
 	}
 }

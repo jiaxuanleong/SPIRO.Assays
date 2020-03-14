@@ -155,20 +155,26 @@ function cropGroups() {
 			open(ppdir + platefile);
 			waitForUser("Create substack",
 						"Please note first and last slice to be included for root growth analysis, and indicate it in the next step.");
+						roiManager("deselect");
 						run("Make Substack...");
-
-			run("ROI Manager...");
-			setTool("Rectangle");
-			roiManager("reset");
-			roicount = roiManager("count");
-			while (roicount == 0) {
-				waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
-					"Please use only letters and numbers in the ROI names. \n" + // to avoid file save issues
-					"ROIs cannot share names."); // shared roi names would combine both rois and any area between
+			if (ppdirno == 0) {
+				roiManager("reset");
+				run("ROI Manager...");
+				setTool("Rectangle");
 				roicount = roiManager("count");
+				while (roicount == 0) {
+					waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
+						"Please use only letters and numbers in the ROI names. \n" + // to avoid file save issues
+						"ROIs cannot share names."); // shared roi names would combine both rois and any area between
+					roicount = roiManager("count");
+				}
+			} else {
+				waitForUser("Modify ROIs and names if needed.");
 			}
+			
 			run("Select None");
 			setBatchMode(true);
+			roicount = roiManager("count");
 
 			for (roino = 0; roino < roicount; roino ++) {
 				roiManager("select", roino);
@@ -187,6 +193,7 @@ function cropGroups() {
 				close("Group*");
 			}
 			close(platefile);
+			close("Substack*");
 		}
 	}
 }
@@ -409,18 +416,18 @@ function ordercoords(roots) {
 		Table.save(groupdir + "roots " + sortedxcoords + ".tsv", sortedxcoords);
 		Table.save(groupdir + "roots " + sortedycoords + ".tsv", sortedycoords);
 		selectWindow(sortedxcoords);
-		//run("Close");
+		run("Close");
 		selectWindow(sortedycoords);
-		//run("Close");
+		run("Close");
 	} else {
 		Table.save(groupdir + "seeds " + sortedxcoords + ".tsv", sortedxcoords);
 		Table.save(groupdir + "seeds " + sortedycoords + ".tsv", sortedycoords);
 		selectWindow("Seed Positions");
-		//run("Close");
+		run("Close");
 		selectWindow(sortedxcoords);
-		//run("Close");
+		run("Close");
 		selectWindow(sortedycoords);
-		//run("Close");
+		run("Close");
 	}
 
 
@@ -429,7 +436,7 @@ function ordercoords(roots) {
 function rootStart() {
 	print("Finding root starts");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
-	setBatchMode(false);
+	setBatchMode(true); //this should be set to true for faster processing!
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
@@ -498,7 +505,7 @@ function rootStart() {
 							Table.save(groupdir + "yref.tsv", yref);
 						}
 						selectWindow("Results");
-						//run("Close");
+						run("Close");
 					} else {
 						//for subsequent slices, obtain XY centre of mass coordinates of previous slice
 						roiManager("reset");
@@ -695,8 +702,9 @@ function rootMask() {
 				open(groupdir + "Group " + groupname + ".tif");
 				///!
 				/// setBatchMode(false);
-				setBatchMode(true);
+				setBatchMode(true); // this can be true
 				img = getTitle();
+				run("Subtract Background...", "rolling=50 stack");
 				dayslice = 1; //dayslice is the first day image
 				setSlice(dayslice);
 				slicelabel = getInfo("slice.label");
@@ -737,12 +745,12 @@ function rootMask() {
 						run("Duplicate...", "use");
 						rename("temp");
 						if (indexOf(curslicelabel, "day") > 0) {
-							run("Calculator Plus", "i1=[temp] i2=["+dayimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=10 k2=0 create");
+							run("Calculator Plus", "i1=[temp] i2=["+dayimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=5 k2=0 create");
 							selectWindow("Result");
 							rename(curslicelabel);
 							close("temp");
 						} else { //night image
-							run("Calculator Plus", "i1=[temp] i2=["+nightimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=10 k2=0 create");
+							run("Calculator Plus", "i1=[temp] i2=["+nightimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=5 k2=0 create");
 							selectWindow("Result");
 							rename(curslicelabel);
 							close("temp");
@@ -757,9 +765,8 @@ function rootMask() {
 				close(img);
 				selectWindow("Stack");
 				rename(img);
-
-				run("Subtract Background...", "rolling=50 sliding disable");
-				setAutoThreshold("MaxEntropy dark");
+				 setBatchMode("show");
+				setOption("BlackBackground", false);
 				run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
 
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
@@ -771,19 +778,19 @@ function rootMask() {
 						run("Remove Outliers...", "radius=5 threshold=50 which=Bright slice");
 						run("Remove Outliers...", "radius=3 threshold=50 which=Dark slice");
 						run("Remove Outliers...", "radius=3 threshold=50 which=Dark slice");
-						run("Remove Outliers...", "radius=3 threshold=50 which=Dark slice");
+						// run("Remove Outliers...", "radius=3 threshold=50 which=Dark slice");
 					} else { //night image
 						run("Remove Outliers...", "radius=5 threshold=50 which=Bright slice");
 						run("Remove Outliers...", "radius=3 threshold=50 which=Dark slice");
 						run("Remove Outliers...", "radius=4 threshold=50 which=Dark slice");
-						run("Remove Outliers...", "radius=4 threshold=50 which=Dark slice");
-						run("Remove Outliers...", "radius=4 threshold=50 which=Dark slice");
+						// run("Remove Outliers...", "radius=4 threshold=50 which=Dark slice");
 					}
 				}
 				// run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
-				// setBatchMode("show");
-				// setBatchMode(true);
-				
+				// run("Options...", "iterations=1 count=2 pad do=Erode stack");
+				setBatchMode("show"); //this has to be "show" here!
+				setBatchMode(true);
+				/*
 				// overlay the root masks
 				img = getTitle(); ///
 				nS = nSlices; ///
@@ -815,24 +822,11 @@ function rootMask() {
 					run("8-bit");
 					run("Make Binary");	
 					run("Fill Holes");	
-					
-					/*
-					run("Clear Results");
-					roiManager("select", sliceno-1);
-					roiManager("measure");
-					tsres = Table.size("Results");
-					if (tsres > 0) {
-						roiManager("select", roiarray);
-						roiManager("Show All without labels");
-						run("Flatten", "slice");
-						run("8-bit");
-						run("Make Binary");		
-						run("Fill Holes");
-					}
-					*/
 				}
 				close(img);
 				run("Images to Stack");
+				*/
+				exit
 				// run("Options...", "iterations=2 count=1 pad do=Dilate stack");
 				run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");			
 				saveAs("Tiff", groupdir + groupname + " rootmask.tif");
@@ -990,9 +984,12 @@ function rootSkel() {
 
 					run("Duplicate...", "use");
 					tempmultipleskel = getTitle();
+					/*
 					roitopy = 0;
 					roimidx = getWidth()/2;
-					run("Create Selection"); // not create selection here
+					toScaled(roitopy, roimidx);
+					*/
+					run("Create Selection"); 
 					
 					if (selectionType() == 9) {
 						roiManager("split");
@@ -1008,14 +1005,17 @@ function rootSkel() {
 						
 						contains = false;
 						testindex = -1;
+						lastpos = ((nS-1) * roicount) + rootno; //position in last image
+						xmlast = Table.get("XM", lastpos, rsctsv);
+						ymlast = Table.get("YM", lastpos, rsctsv);
 						while (contains == false) {
 							testindex += 1;
 							maxlengthindex = lengthspositions[testindex];
 							roiManager("select", maxlengthindex);
 							Roi.getContainedPoints(xpoints, ypoints);
 							for (point = 0; point < xpoints.length; point ++) {
-								diffx = abs(xpoints[point] - roimidx);
-								diffy = abs(ypoints[point] - roitopy);
+								diffx = abs(xpoints[point] - xmlast);
+								diffy = abs(ypoints[point] - ymlast);
 								toScaled(diffx, diffy);
 								if (diffx < 0.1 || diffy < 0.1) {
 									contains = true;
