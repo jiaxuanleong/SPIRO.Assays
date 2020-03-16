@@ -171,7 +171,7 @@ function cropGroups() {
 			} else {
 				waitForUser("Modify ROIs and names if needed.");
 			}
-			
+
 			run("Select None");
 			setBatchMode(true);
 			roicount = roiManager("count");
@@ -736,7 +736,7 @@ function rootMask() {
 				run("Duplicate...", "use");
 				dayimg = "FirstDayImg";
 				rename(dayimg);
-				
+
 
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
 					selectWindow(img);
@@ -775,7 +775,7 @@ function rootMask() {
 					selectWindow(img);
 					setSlice(sliceno);
 					curslicelabel = getInfo("slice.label");
-			
+
 					if (indexOf(curslicelabel, "day") > 0) {
 						run("Remove Outliers...", "radius=5 threshold=50 which=Bright slice");
 						run("Remove Outliers...", "radius=3 threshold=50 which=Dark slice");
@@ -788,7 +788,7 @@ function rootMask() {
 						// run("Remove Outliers...", "radius=4 threshold=50 which=Dark slice");
 					}
 				}
-			
+
 				// run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 				// run("Options...", "iterations=1 count=2 pad do=Erode stack");
 				setBatchMode("show"); //this has to be "show" here!
@@ -825,14 +825,14 @@ function rootMask() {
 					run("Flatten", "slice");
 					rename(slicelabel);
 					run("8-bit");
-					run("Make Binary");	
-					run("Fill Holes");	
+					run("Make Binary");
+					run("Fill Holes");
 				}
 				close(img);
 				run("Images to Stack");
-				}	
+				}
 				// run("Options...", "iterations=2 count=1 pad do=Dilate stack");
-				run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");			
+				run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 				saveAs("Tiff", groupdir + groupname + " rootmask.tif");
 				close(groupname + " rootmask.tif");
 			}
@@ -985,7 +985,7 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 					roiManager("delete");
 					roiManager("select", 0);
 					Roi.getBounds(rootboundx, rootboundy, rootboundw, rootboundh);
-					
+
 					run("Duplicate...", "use");
 					tempmultipleskel = getTitle();
 					/*
@@ -993,9 +993,9 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 					roimidx = getWidth()/2;
 					toScaled(roitopy, roimidx);
 					*/
-					run("Create Selection"); 
+					run("Create Selection");
 					selectiontype = selectionType();
-					
+
 					if (selectiontype == 9) {
 						roiManager("split");
 						roiManager("select", 0);
@@ -1007,7 +1007,7 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 						// ymarray = Table.getColumn("YM", "Results");
 						lengthspositions = Array.rankPositions(lengthsarray);
 						Array.reverse(lengthspositions);
-								
+
 						lastpos = ((nS-1) * roicount) + rootno; //position in last image
 						xmlast = Table.get("XM", lastpos, rsctsv);
 						ymlast = Table.get("YM", lastpos, rsctsv);
@@ -1037,30 +1037,30 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 								toScaled(diffx, diffy);
 								if (diffx < 0.1 || diffy < 0.1) {
 									containspoint = true;
-								}		
+								}
 							}
 						}
-						
+
 						lengthspositionsX = Array.deleteIndex(lengthspositions, testindex); //remove index of longest length
 						roiManager("select", lengthspositionsX);
 						roiManager("delete"); //so it is not deleted here
 						roiManager("select", 0);
 						Roi.getBounds(rootx, rooty, rootw, rooth);
 						close("Results");
-					} 
+					}
 					if (selectiontype < 9 && selectiontype != -1) {
 						roiManager("add");
 						Roi.getBounds(rootx, rooty, rootw, rooth);
 						 roiManager("select", 0);
 						 roiManager("delete");
 					}
-				
+
 					if (selectiontype > -1) {
 					selectWindow(mask);
 					roiManager("select", 0);
 					Roi.move(rootboundx+rootx, rootboundy+rooty);
 					roiManager("update");
-					} 
+					}
 					roiManager("select", 0);
 					roiManager("rename", IJ.pad(rootno+1, 2)); //names roi according to seed number
 					roiManager("Remove Slice Info");
@@ -1122,7 +1122,7 @@ function rootGrowth() {
 						allroisX = Array.deleteValue(allrois, rootno); //delete current roi from array
 						roiManager("select", allroisX); //so it isnt deleted in roi manager
 						roiManager("delete");
-					
+
 						rscindex = ((sliceno-1)*roicount) + rootno;
 						rscy = Table.get("YM", rscindex, rsctsv);
 						selectWindow(rootmask);
@@ -1135,39 +1135,37 @@ function rootGrowth() {
 						tempskel = getImageID();
 						run("Create Selection");
 						selectiontype = selectionType();
-					
+
 						if (selectiontype == 9) {
 							roiManager("split");
 							roiManager("select", 0);
 							roiManager("delete");
+							noOfobjects = roiManager("count");
+							for (objectno = 0; objectno < noOfobjects; objectno ++) {
+								roiManager("select", objectno);
+								run("Area to Line");
+								roiManager("update");
+							}	
 							roiManager("deselect"); //nothing is selected
-							roiManager("measure"); //all rois measured
-							tableheadings = Table.headings("Results");
-							if (indexOf(tableheadings, "Length") > 0) {
-								lengthsarray = Table.getColumn("Length", "Results");
-							} else {
-								lengthsarray = Table.getColumn("Area", "Results");
-							}
+							roiManager("multi-measure"); //all rois measured
+							lengthsarray = Table.getColumn("Length", "Results");
 							Array.getStatistics(lengthsarray, min, maxlength, mean, stdDev);
-						} 
-	
+						}
+
 						if (selectiontype > 0 && selectiontype != 9) {
 							roiManager("add");
 							roiManager("select", 1);
+							run("Area to Line");
+							roiManager("update");
 							roiManager("measure");
-							tableheadings = Table.headings("Results");
-							if (indexOf(tableheadings, "Length" ) > 0 ) {
-								maxlength = Table.get("Length", 0, "Results");
-							} else {
-								maxlength = Table.get("Area", 0, "Results");
-							}
+							maxlength = Table.get("Length", 0, "Results");
 						}
-	
+
 						if (selectiontype == -1) {
 							prevlength = Table.get("Root length", nrrgm-1, rgm);
 							maxlength = prevlength;
 						}
-						
+
 						nrrgm = Table.size(rgm);
 						Table.set("Slice no.", nrrgm, sliceno, rgm);
 						selectWindow(rootmask);
@@ -1191,7 +1189,7 @@ function rootGrowth() {
 							Array.reverse(branchlengtharray);
 							maxbranchlength = branchlengtharray[0];
 						}
-						
+
 						selectImage(tempskel);
 						run("Close");
 						close("Tagged skeleton");
