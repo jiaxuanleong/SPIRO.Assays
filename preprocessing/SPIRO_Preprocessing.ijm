@@ -153,9 +153,10 @@ function crop() {
 // process files in a subdirectory
 function processSubdir() {
 	print("Processing " + platename + "...");
-	run("Image Sequence...", "open=[" + subdir + sublist[0] + "]+convert sort use");
+	run("Image Sequence...", "open=[" + subdir + sublist[0] + "]+convert_to_rgb use");
 	stack1 = getTitle();
 	crop();
+	splitGreenCh();
 	if (regq) {
 	    // calling register with argument 'false' means non-segmented registration
         register(false);
@@ -187,13 +188,14 @@ function processSubdirSegmented() {
 		if (x == numloops-1) { //on last loop
 			lastno = sublist.length - initial + 1; //open only the number of images left
 			run("Image Sequence...", "open=[" + subdir + sublist[0] + "] number=" + lastno +
-			    " starting=" + initial+1 + " convert sort use");
+			    " starting=" + initial+1 + " convert_to_rgb use");
 		} else {
 		    run("Image Sequence...", "open=[" + subdir + sublist[0] + "] number=" + segmentsize +
-		        " starting=" + initial+1 + " convert sort use");
+		        " starting=" + initial+1 + " convert_to_rgb use");
 		}
 		stack1 = getTitle();
 		crop();
+		splitGreenCh();
 		if (regq) {
 		    // calling register() with argument 'true' runs it in segmented mode
 			register(true);
@@ -227,13 +229,14 @@ function register(segmented) {
     if (segmented) {
         open(subdir + sublist[0]); //open first time point
         crop();
-        run("8-bit");
+        splitGreenCh();
+        // run("8-bit");
         tempini = getTitle();
         //stick first time point to stack, to enable more accurate registration for later time points
         run("Concatenate...", "  image1=[" + tempini + "] image2=[" + stack1 + "]");
         stack1 = getTitle();
     }
-    run("8-bit");
+    // run("8-bit");
     run("Duplicate...", "duplicate");
     stack2 = getTitle();
     run("Subtract Background...", "rolling=30 stack");
@@ -249,4 +252,43 @@ function register(segmented) {
         run("Slice Remover", "first=1 last=1 increment=1"); //remove temporary first slice
         saveAs("Tiff", tempdirsegmented + x + ".tif");
     }
+}
+
+
+//splits RGB stack and only saves green channel
+function splitGreenCh() {
+	ppstack = getTitle();
+	stacksize = nSlices();  //total number of slices
+	slicelabelsarray = newArray(stacksize); //an array to be filled with all slicelabels
+
+	for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
+		setSlice(sliceno);
+		slicelabel = getInfo("slice.label");
+		slicelabelsarray[sliceno-1] = slicelabel;
+	}
+
+	run("Split Channels");
+		
+	imglist = getList("image.titles");
+	for (img = 0; img < imglist.length; img ++) { 
+		imgname = imglist[img]; 
+		if (indexOf(imgname, "red") > 0 ) {
+	    	selectWindow(imgname);				
+	    	close();
+	    }
+	    if (indexOf(imgname, "green") > 0) {
+			selectWindow(imgname);
+			for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
+				setSlice(sliceno);
+				slicelabel = slicelabelsarray[sliceno-1];
+				setMetadata("Label", slicelabel);
+			}
+				selectWindow(imgname);
+				rename(ppstack);
+	    }
+		if (indexOf(imgname, "blue") > 0) {
+			selectWindow(imgname);
+			close(); 
+		}
+	}
 }
