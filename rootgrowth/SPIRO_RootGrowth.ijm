@@ -679,7 +679,6 @@ function rootStart() {
 function rootMask() {
 	print("Masking roots");
 	setBatchMode(true);
-	run("Set Scale...", "global");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
@@ -705,6 +704,7 @@ function rootMask() {
 				/// setBatchMode(false);
 				setBatchMode(true); // this can be true
 				img = getTitle();
+				run("Set Scale...", "global");
 				run("Subtract Background...", "rolling=50 stack");
 				dayslice = 1; //dayslice is the first day image
 				setSlice(dayslice);
