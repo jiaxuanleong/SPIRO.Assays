@@ -153,7 +153,7 @@ function crop() {
 // process files in a subdirectory
 function processSubdir() {
 	print("Processing " + platename + "...");
-	run("Image Sequence...", "open=[" + subdir + sublist[0] + "]+convert sort use");
+	run("Image Sequence...", "open=[" + subdir + sublist[0] + "]+convert_to_rgb use");
 	stack1 = getTitle();
 	crop();
 	splitGreenCh();
@@ -188,10 +188,10 @@ function processSubdirSegmented() {
 		if (x == numloops-1) { //on last loop
 			lastno = sublist.length - initial + 1; //open only the number of images left
 			run("Image Sequence...", "open=[" + subdir + sublist[0] + "] number=" + lastno +
-			    " starting=" + initial+1 + " convert sort use");
+			    " starting=" + initial+1 + " convert_to_rgb use");
 		} else {
 		    run("Image Sequence...", "open=[" + subdir + sublist[0] + "] number=" + segmentsize +
-		        " starting=" + initial+1 + " convert sort use");
+		        " starting=" + initial+1 + " convert_to_rgb use");
 		}
 		stack1 = getTitle();
 		crop();
