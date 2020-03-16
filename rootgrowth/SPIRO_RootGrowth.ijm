@@ -1000,6 +1000,12 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 						roiManager("split");
 						roiManager("select", 0);
 						roiManager("delete");
+						noOfobjects = roiManager("count");
+						for (objectno = 0; objectno < noOfobjects; objectno ++) {
+							roiManager("select", objectno);
+							run("Area to Line");
+							roiManager("update");
+						}
 						roiManager("deselect"); //nothing is selected
 						roiManager("measure"); //all rois measured
 						lengthsarray = Table.getColumn("Length", "Results");
