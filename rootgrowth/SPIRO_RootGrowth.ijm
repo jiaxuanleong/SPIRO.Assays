@@ -1134,25 +1134,36 @@ function rootGrowth() {
 						run("Duplicate...", "use");
 						tempskel = getImageID();
 						run("Create Selection");
+						selectiontype = selectionType();
 					
-						if (selectionType() == 9) {
+						if (selectiontype == 9) {
 							roiManager("split");
 							roiManager("select", 0);
 							roiManager("delete");
 							roiManager("deselect"); //nothing is selected
 							roiManager("measure"); //all rois measured
-							lengthsarray = Table.getColumn("Length", "Results");
+							tableheadings = Table.headings("Results");
+							if (indexOf(tableheadings, "Length") > 0) {
+								lengthsarray = Table.getColumn("Length", "Results");
+							} else {
+								lengthsarray = Table.getColumn("Area", "Results");
+							}
 							Array.getStatistics(lengthsarray, min, maxlength, mean, stdDev);
 						} 
 	
-						if (selectionType() > 0 && selectionType() != 9) {
+						if (selectiontype > 0 && selectiontype != 9) {
 							roiManager("add");
 							roiManager("select", 1);
 							roiManager("measure");
-							maxlength = Table.get("Length", 0, "Results");
+							tableheadings = Table.headings("Results");
+							if (indexOf(tableheadings, "Length" ) > 0 ) {
+								maxlength = Table.get("Length", 0, "Results");
+							} else {
+								maxlength = Table.get("Area", 0, "Results");
+							}
 						}
 	
-						if (selectionType() == -1) {
+						if (selectiontype == -1) {
 							prevlength = Table.get("Root length", nrrgm-1, rgm);
 							maxlength = prevlength;
 						}
