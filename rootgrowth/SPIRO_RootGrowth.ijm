@@ -238,42 +238,43 @@ function seedPositions() {
 				run("Colors...", "foreground=black background=black selection=red");
 				roiManager("Add");
 				roiManager("select", 0);
-				roiManager("split");
-				roiManager("select", 0);
-				roiManager("delete");
+				if (selectionType() == 9) {
+					roiManager("split");
+					roiManager("select", 0);
+					roiManager("delete");
 
-				// delete trash ROI which are features detected as below a certain area
-				// using table as a workaround to roi indexes changing if deletion happens one by one
-				roicount = roiManager("count");
-				roiarray = Array.getSequence(roicount);
-				run("Set Measurements...", "area redirect=None decimal=5");
-				roiManager("select", roiarray);
-				roiManager("multi-measure");
-				tp = "Trash positions";
-				Table.create(tp);
-				nr = nResults;
-				for (row = 0; row < nr; row ++) {
-					area = getResult("Area", row);
-					if (area<0.0005) { // test upper limit > 0.01?
-						Table.set("Trash ROI", Table.size(tp), row, tp);
+					// delete trash ROI which are features detected as below a certain area
+					// using table as a workaround to roi indexes changing if deletion happens one by one
+					roicount = roiManager("count");
+					roiarray = Array.getSequence(roicount);
+					run("Set Measurements...", "area redirect=None decimal=5");
+					roiManager("select", roiarray);
+					roiManager("multi-measure");
+					tp = "Trash positions";
+					Table.create(tp);
+					nr = nResults;
+					for (row = 0; row < nr; row ++) {
+						area = getResult("Area", row);
+						if (area<0.0005) { // test upper limit > 0.01?
+							Table.set("Trash ROI", Table.size(tp), row, tp);
+						}
+					}
+					if (Table.size(tp) > 0) {
+						trasharray = Table.getColumn("Trash ROI", tp);
+						roiManager("select", trasharray);
+						roiManager("delete");
+					}
+					close(tp);
+					close("Results");
+	
+					// number remaining ROIs
+					roicount = roiManager("count");
+					roiarray = Array.getSequence(roicount);
+					for (roino = 0 ; roino < roicount; roino ++) {
+						roiManager("select", roino);
+						roiManager("rename", roino + 1); // first roi is 1
 					}
 				}
-				if (Table.size(tp) > 0) {
-					trasharray = Table.getColumn("Trash ROI", tp);
-					roiManager("select", trasharray);
-					roiManager("delete");
-				}
-				close(tp);
-				close("Results");
-
-				// number remaining ROIs
-				roicount = roiManager("count");
-				roiarray = Array.getSequence(roicount);
-				for (roino = 0 ; roino < roicount; roino ++) {
-					roiManager("select", roino);
-					roiManager("rename", roino + 1); // first roi is 1
-				}
-
 				// prompt user to delete any non-detected trash, then re-number as above
 				Roi.setStrokeWidth(2);
 				waitForUser("Please delete any ROIs that should not be included into analysis, \n" +
