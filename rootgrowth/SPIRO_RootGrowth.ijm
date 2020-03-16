@@ -1002,7 +1002,7 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 						roiManager("delete");
 						roiManager("deselect"); //nothing is selected
 						roiManager("measure"); //all rois measured
-						lengthsarray = Table.getColumn("Area", "Results");
+						lengthsarray = Table.getColumn("Length", "Results");
 						// xmarray = Table.getColumn("XM", "Results");
 						// ymarray = Table.getColumn("YM", "Results");
 						lengthspositions = Array.rankPositions(lengthsarray);
@@ -1141,7 +1141,7 @@ function rootGrowth() {
 							roiManager("delete");
 							roiManager("deselect"); //nothing is selected
 							roiManager("measure"); //all rois measured
-							lengthsarray = Table.getColumn("Area", "Results");
+							lengthsarray = Table.getColumn("Length", "Results");
 							Array.getStatistics(lengthsarray, min, maxlength, mean, stdDev);
 						} 
 	
@@ -1149,7 +1149,7 @@ function rootGrowth() {
 							roiManager("add");
 							roiManager("select", 1);
 							roiManager("measure");
-							maxlength = Table.get("Area", 0, "Results");
+							maxlength = Table.get("Length", 0, "Results");
 						}
 	
 						if (selectionType() == -1) {
