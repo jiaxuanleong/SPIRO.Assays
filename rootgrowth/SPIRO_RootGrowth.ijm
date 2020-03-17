@@ -277,6 +277,10 @@ function seedPositions() {
 				}
 				// prompt user to delete any non-detected trash, then re-number as above
 				Roi.setStrokeWidth(2);
+				roiManager("Show All with labels");
+				roiManager("Associate", "false");
+				roiManager("Centered", "false");
+				roiManager("UseNames", "true");
 				waitForUser("Please delete any ROIs that should not be included into analysis, \n" +
 							"e.g. noise selection and seedlings that have overlapping roots");
 				roicount = roiManager("count");
@@ -648,6 +652,11 @@ function rootStart() {
 				roiManager("reset");
 
 				nr = Table.size(rsc);
+				roiManager("Show All with labels");
+				roiManager("Associate", "true");
+				roiManager("Centered", "false");
+				roiManager("UseNames", "true");
+
 				for (row = 0; row < nr; row ++) {
 					xm = Table.get("XM", row, rsc);
 					ym = Table.get("YM", row, rsc);
@@ -660,10 +669,7 @@ function rootStart() {
 					roiManager("rename", roino);
 				}
 				roiManager("save", groupdir + groupname + " rootstartrois.zip");
-				roiManager("Associate", "true");
-				roiManager("Centered", "false");
-				roiManager("UseNames", "true");
-				roiManager("Show All with labels");
+
 				run("Labels...", "color=white font=18 show use draw");
 				run("Flatten", "stack");
 				saveAs("Tiff", groupdir + groupname + " rootstartlabelled.tif");
@@ -1203,6 +1209,42 @@ function rootGrowth() {
 						*/
 
 				Table.save(groupdir + groupname + " " + rgm + ".tsv", rgm);
+
+				// graphical output
+				setBatchMode(true);
+				roiManager("reset");
+				roiManager("Show All with labels");
+				roiManager("Associate", "true");
+				roiManager("Centered", "false");
+				roiManager("UseNames", "true");
+				open(groupdir + groupname + " seedlingskels.zip");	
+				oriarray = Array.getSequence(roicount);
+				for (sliceno = 1; sliceno <= nS; sliceno ++) {
+					for (rootno = 0; rootno < roicount; rootno ++) {
+						rscindex = ((sliceno-1)*roicount) + rootno;
+						selectWindow(rootmask);
+						roiManager("select", rootno);
+						Roi.getBounds(skelx, skely, skelw, skelh);
+						rscy = Table.get("YM", rscindex, rsctsv);
+						selectWindow(rootmask);
+						setSlice(sliceno);
+						makeRectangle(skelx, rscy, skelw, skelh);
+						roiManager("add");
+						curroicount = roiManager("count");
+						roiManager("select", curroicount-1);
+						roiManager("rename", IJ.pad(rootno+1, 2));
+					}
+				}
+
+				roiManager("select", oriarray);
+				roiManager("delete");
+				run("Labels...", "color=white font=18 show use draw");
+				run("Colors...", "foreground=black background=black selection=red");
+				run("Flatten", "stack");
+				open(groupdir + groupname + " rootstartlabelled.tif");
+				run("Combine...", "stack1=["+ groupname + " rootstartlabelled.tif] stack2=["+ groupname + " rootmask.tif]");
+				saveAs("Tiff", groupdir + groupname + " rootgrowthdetection.tif");				
+				
 				list = getList("window.titles");
 				Array.deleteValue(list, "Log");
 				for (i=0; i<list.length; i++) {
@@ -1239,18 +1281,18 @@ function deleteOutputs() {
 					}
 				}
 				File.delete(groupdir + groupname + " masked.tif");
-				// File.delete(groupdir + groupname + " rootmask.tif");
+				File.delete(groupdir + groupname + " rootmask.tif");
 				File.delete(groupdir + groupname + " seedlingskels.zip");
 				File.delete(groupdir + groupname + " rootstartcoordinates");
 				File.delete(groupdir + groupname + " rootstartrois");
 				File.delete(groupdir + groupname + " seedpositions");
 				File.delete(groupdir + groupname + " seedlingrois");
 				File.delete(groupdir + groupname + " lastslicecoordinates");
-				File.delete("roots sorted X coordinates");
-				File.delete("roots sorted Y coordinates");
-				File.delete("seeds Sorted X coordinates");
-				File.delete("seeds Sorted Y coordinates");
-				File.delete("yref");
+				File.delete(groupdir + "roots sorted X coordinates");
+				File.delete(groupdir + "roots sorted Y coordinates");
+				File.delete(groupdir + "seeds Sorted X coordinates");
+				File.delete(groupdir + "seeds Sorted Y coordinates");
+				File.delete(groupdir + "yref");
 			}
 		}
 	}
