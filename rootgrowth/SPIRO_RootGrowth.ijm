@@ -157,11 +157,12 @@ function cropGroups() {
 						"Please note first and last slice to be included for root growth analysis, and indicate it in the next step.");
 						roiManager("deselect");
 						run("Make Substack...");
+						setSlice(nSlices);
 			if (ppdirno == 0) {
 				roiManager("reset");
 				run("ROI Manager...");
 				setTool("Rectangle");
-				roicount = roiManager("count");
+				roicount = roiManager("count");	
 				while (roicount == 0) {
 					waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
 						"Please use only letters and numbers in the ROI names. \n" + // to avoid file save issues
@@ -247,20 +248,36 @@ function seedPositions() {
 					// using table as a workaround to roi indexes changing if deletion happens one by one
 					roicount = roiManager("count");
 					roiarray = Array.getSequence(roicount);
-					run("Set Measurements...", "area redirect=None decimal=5");
+					run("Set Measurements...", "area center shape redirect=None decimal=5");
 					roiManager("select", roiarray);
 					roiManager("multi-measure");
 					tp = "Trash positions";
 					Table.create(tp);
+					selectWindow(img);
+					maxYimg = getHeight();
+					toScaled(maxYimg);
 					nr = nResults;
 					for (row = 0; row < nr; row ++) {
+						nrTp = Table.size(tp); // number of rows
 						area = getResult("Area", row);
-						if (area<0.0005) { // test upper limit > 0.01?
-							Table.set("Trash ROI", Table.size(tp), row, tp);
+						if (area < 0.0005) { // detected object is very small
+							Table.set("Trash ROI", nrTp, row, tp);
+						}
+						if (area > 0.01) { // or very large
+							Table.set("Trash ROI", nrTp, row, tp);
+						}
+						ym = getResult("YM", row);
+						distancetomaxY = maxYimg - ym; //distance of detected object from bottom of image
+						if (distancetomaxY < 1) { // less than 1cm 
+							Table.set("Trash ROI", nrTp, row, tp);
+						}
+						circ = getResult("Circ.", row); // or does not fit normal seed shape
+						if (circ < 0.5) {
+							Table.set("Trash ROI", nrTp, row, tp); //set as trash to be deleted
 						}
 					}
 					if (Table.size(tp) > 0) {
-						trasharray = Table.getColumn("Trash ROI", tp);
+						trasharray = Table.getColumn("Trash ROI", tp); 
 						roiManager("select", trasharray);
 						roiManager("delete");
 					}
