@@ -1192,9 +1192,12 @@ function rootGrowth() {
 						}
 
 						if (selectiontype == -1) {
-							prevlength = Table.get("Root length", nrrgm-1, rgm);
-							maxlength = prevlength;
-						}
+							if (sliceno > 1) {
+								prevlength = Table.get("Root length", nrrgm-1, rgm);
+								maxlength = prevlength;
+							} else {
+								maxlength = 0;
+							}
 
 						nrrgm = Table.size(rgm);
 						Table.set("Slice no.", nrrgm, sliceno, rgm);
