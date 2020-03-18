@@ -1198,6 +1198,7 @@ function rootGrowth() {
 							} else {
 								maxlength = 0;
 							}
+						}
 
 							nrrgm = Table.size(rgm);
 							Table.set("Slice no.", nrrgm, sliceno, rgm);
@@ -1209,7 +1210,6 @@ function rootGrowth() {
 							Table.set("Root length", nrrgm, maxlength, rgm);
 							selectImage(tempskel);
 							run("Close");
-						}
 					}
 				}
 
