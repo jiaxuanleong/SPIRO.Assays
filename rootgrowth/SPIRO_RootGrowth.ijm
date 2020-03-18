@@ -1199,38 +1199,25 @@ function rootGrowth() {
 								maxlength = 0;
 							}
 
-						nrrgm = Table.size(rgm);
-						Table.set("Slice no.", nrrgm, sliceno, rgm);
-						selectWindow(rootmask);
-						setSlice(sliceno);
-						slicelabel = getInfo("slice.label");
-						Table.set("Slice label", nrrgm, slicelabel, rgm);
-						Table.set("Root no.", nrrgm, rootno + 1, rgm);
-						Table.set("Root length", nrrgm, maxlength, rgm);
-						selectImage(tempskel);
-						run("Close");
+							nrrgm = Table.size(rgm);
+							Table.set("Slice no.", nrrgm, sliceno, rgm);
+							selectWindow(rootmask);
+							setSlice(sliceno);
+							slicelabel = getInfo("slice.label");
+							Table.set("Slice label", nrrgm, slicelabel, rgm);
+							Table.set("Root no.", nrrgm, rootno + 1, rgm);
+							Table.set("Root length", nrrgm, maxlength, rgm);
+							selectImage(tempskel);
+							run("Close");
+						}
 					}
 				}
 
-						/*
-						run("Analyze Skeleton (2D/3D)", "prune=none show");
-						bi = "Branch information";
-						tableheadings = Table.headings(bi);
-						if (indexOf(tableheadings, "Branch length") > 0) {
-							branchlengtharray = Table.getColumn("Branch length", bi);
-							Array.sort(branchlengtharray);
-							Array.reverse(branchlengtharray);
-							maxbranchlength = branchlengtharray[0];
-						}
-
-						selectImage(tempskel);
-						run("Close");
-						close("Tagged skeleton");
-						*/
-
 				Table.save(groupdir + groupname + " " + rgm + ".tsv", rgm);
+				
 
 				// graphical output
+				setBatchMode("hide");
 				setBatchMode(true);
 				roiManager("reset");
 				roiManager("Show All with labels");
