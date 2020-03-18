@@ -27,7 +27,8 @@ if (!File.isDirectory(rootgrowthdir))
 	File.makeDirectory(rootgrowthdir);
 listInppdir = getFileList(ppdir);
 listInrootgrowthdir = getFileList(rootgrowthdir);
-
+if (!is("Batch Mode"))
+	setBatchMode(true);
 step = 0;
 detectOutput();
 
@@ -139,7 +140,7 @@ function detectOutput() {
 // then prompts user to draw ROIs around groups of seeds to be analyzed
 function cropGroups() {
 	print("Cropping groups");
-
+			
 	for (ppdirno = 0; ppdirno < listInppdir.length; ppdirno ++) {  // main loop through plates
 		if (indexOf (listInppdir[ppdirno], "preprocessed") >= 0) { // to avoid processing any random files in the folder
 			platefile = listInppdir [ppdirno];
@@ -150,8 +151,8 @@ function cropGroups() {
 				File.makeDirectory(platefolder);
 			print("Processing " + platename);
 			if (is("Batch Mode"))
-				setBatchMode(false);
-
+				setBatchMode(false); // has to be false for ROI Manager to open, and to display image
+	
 			open(ppdir + platefile);
 			waitForUser("Create substack",
 						"Please note first and last slice to be included for root growth analysis, and indicate it in the next step.");
@@ -162,7 +163,7 @@ function cropGroups() {
 				roiManager("reset");
 				run("ROI Manager...");
 				setTool("Rectangle");
-				roicount = roiManager("count");	
+				roicount = roiManager("count");
 				while (roicount == 0) {
 					waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
 						"Please use only letters and numbers in the ROI names. \n" + // to avoid file save issues
@@ -174,9 +175,8 @@ function cropGroups() {
 			}
 
 			run("Select None");
-			setBatchMode(true);
 			roicount = roiManager("count");
-
+			setBatchMode(true); //set back to true for faster cropping and saving
 			for (roino = 0; roino < roicount; roino ++) {
 				roiManager("select", roino);
 				roiname = Roi.getName;
@@ -202,6 +202,7 @@ function cropGroups() {
 function seedPositions() {
 	print("Finding seed positions");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
+	
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
@@ -220,9 +221,12 @@ function seedPositions() {
 						groupname = substring(filename, indexofgroup + 6); //to find out group name, +6 because of the letters and a space
 						close(listIngroupdir[outputfileno]);
 					}
-				}
-				setBatchMode(false);
-				open(groupdir + "Group " + groupname + ".tif");
+				}	
+				if (!is("Batch Mode"))
+					setBatchMode(true);
+				selectWindow("Log");
+				print("Masking image stack for Group " + groupname + ", it may look like nothing is happening...");
+				open(groupdir + "Group " + groupname + ".tif");			
 				img = getTitle();
 				// image processing, thresholding, masking, denoise
 				run("Subtract Background...", "rolling=30 stack");
@@ -234,6 +238,8 @@ function seedPositions() {
 				run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
 
 				// create selections of all individual features on image
+				setBatchMode(false); //has to be false for roi manager to display, and for user guided step
+				setBatchMode("show"); //show the image
 				roiManager("reset");
 				run("Create Selection");
 				run("Colors...", "foreground=black background=black selection=red");
@@ -268,7 +274,7 @@ function seedPositions() {
 						}
 						ym = getResult("YM", row);
 						distancetomaxY = maxYimg - ym; //distance of detected object from bottom of image
-						if (distancetomaxY < 1) { // less than 1cm 
+						if (distancetomaxY < 1) { // less than 1cm
 							Table.set("Trash ROI", nrTp, row, tp);
 						}
 						circ = getResult("Circ.", row); // or does not fit normal seed shape
@@ -277,13 +283,13 @@ function seedPositions() {
 						}
 					}
 					if (Table.size(tp) > 0) {
-						trasharray = Table.getColumn("Trash ROI", tp); 
+						trasharray = Table.getColumn("Trash ROI", tp);
 						roiManager("select", trasharray);
 						roiManager("delete");
 					}
 					close(tp);
 					close("Results");
-	
+
 					// number remaining ROIs
 					roicount = roiManager("count");
 					roiarray = Array.getSequence(roicount);
@@ -456,9 +462,10 @@ function ordercoords(roots) {
 }
 
 function rootStart() {
+	if (!is("Batch Mode"))
+	setBatchMode(true);
 	print("Finding root starts");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
-	setBatchMode(true); //this should be set to true for faster processing!
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
@@ -699,10 +706,10 @@ function rootStart() {
 	}
 }
 
-
 function rootMask() {
 	print("Masking roots");
-	setBatchMode(true);
+	if (!is("Batch Mode"))
+		setBatchMode(true);
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
@@ -723,10 +730,12 @@ function rootMask() {
 						close(listIngroupdir[outputfileno]);
 					}
 				}
+				if (!is("Batch Mode"))
+					setBatchMode(true);
+				selectWindow("Log");
+				print("Masking image stack for Group " + groupname + ", it may look like nothing is happening...");
+				
 				open(groupdir + "Group " + groupname + ".tif");
-				///!
-				/// setBatchMode(false);
-				setBatchMode(true); // this can be true
 				img = getTitle();
 				run("Set Scale...", "global");
 				run("Subtract Background...", "rolling=50 stack");
@@ -791,7 +800,6 @@ function rootMask() {
 				close(img);
 				selectWindow("Stack");
 				rename(img);
-				 setBatchMode("show");
 				setOption("BlackBackground", false);
 				run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
 
@@ -815,11 +823,10 @@ function rootMask() {
 
 				// run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 				// run("Options...", "iterations=1 count=2 pad do=Erode stack");
-				setBatchMode("show"); //this has to be "show" here!
-				setBatchMode(true);
+				
 				overlay = true;
-
 				if (overlay == true) {
+				setBatchMode("show"); //this has to be "show" here for overlay/flatten
 				// overlay the root masks
 				img = getTitle(); ///
 				nS = nSlices; ///
@@ -866,9 +873,10 @@ function rootMask() {
 
 
 function rootSkel() { //look for smallest area that encompasses a seedling
-	setBatchMode(false);
 	print("Finding seedling skeletons");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
+	if (is("Batch Mode"))
+		setBatchMode(false); // has to be false for roi manager to work
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
@@ -1012,11 +1020,7 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 
 					run("Duplicate...", "use");
 					tempmultipleskel = getTitle();
-					/*
-					roitopy = 0;
-					roimidx = getWidth()/2;
-					toScaled(roitopy, roimidx);
-					*/
+
 					run("Create Selection");
 					selectiontype = selectionType();
 
@@ -1041,32 +1045,35 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 						lastpos = ((nS-1) * roicount) + rootno; //position in last image
 						xmlast = Table.get("XM", lastpos, rsctsv);
 						ymlast = Table.get("YM", lastpos, rsctsv);
+						xmlastwithinroi = xmlast - rootboundx;
+						ymlastwithinroi = ymlast - rootboundy;
 						containsrsc = false;
 						testindex = -1;
 						pointindex = -1;
 						containspoint = false;
-						while (containsrsc == false) {
-							testindex += 1;
-							if (testindex == lengthspositions.length-1) {
-									testindex = 0;
-									containsrsc = true;
-									containspoint = true;
-								}
-							maxlengthindex = lengthspositions[testindex];
+						while (containsrsc == false) { // while skeleton does not contain rsc
+							testindex += 1; // test next skeleton
+							//if (testindex == lengthspositions.length-1) { // if last skeleton
+							//		testindex = 0; // assume max length skeleton is actual seedling
+							//		containsrsc = true; // to get out of loop
+							//		containspoint = true; // to get out of loop
+							//	}
+							maxlengthindex = lengthspositions[testindex]; // array with lengths, descending order
 							roiManager("select", maxlengthindex);
-							Roi.getContainedPoints(xpoints, ypoints);
+							Roi.getContainedPoints(xpoints, ypoints); // get all points in current skeleton
 							exitloop = false;
 							pointindex = -1;
-							while (containspoint == false && exitloop == false) {
-								pointindex += 1;
-								if (pointindex == xpoints.length-1 ) {
-									exitloop = true;
+							while (containspoint == false && exitloop == false) { // while point is not close to (0.1cm) xm/ym last
+								pointindex += 1;  // check next point
+								if (pointindex == xpoints.length-1 ) { // if last point
+									exitloop = true; // to enable exit loop
 								}
-								diffx = abs(xpoints[pointindex] - xmlast);
-								diffy = abs(ypoints[pointindex] - ymlast);
+								diffx = abs(xpoints[pointindex] - xmlastwithinroi); // distance from xm last
+								diffy = abs(ypoints[pointindex] - ymlastwithinroi); // distance from ym last
 								toScaled(diffx, diffy);
-								if (diffx < 0.1 || diffy < 0.1) {
+								if (diffx < 0.1 && diffy < 0.1) {
 									containspoint = true;
+									containsrsc = true;
 								}
 							}
 						}
@@ -1109,6 +1116,7 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 }
 
 function rootGrowth() {
+
 	print("Tracking root growth");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
@@ -1130,7 +1138,7 @@ function rootGrowth() {
 						close(listIngroupdir[outputfileno]);
 					}
 				}
-				setBatchMode(false);
+
 				open(groupdir + groupname + " rootmask.tif");
 				rootmask = getTitle();
 				roiManager("reset");
@@ -1140,9 +1148,12 @@ function rootGrowth() {
 				nS = nSlices;
 				rgm = "rootgrowthmeasurement";
 				Table.create(rgm);
-				setBatchMode(true);
+				if (is("Batch Mode"))
+					setBatchMode(false); // for roi manager to work
 				open(groupdir + groupname + " seedlingskels.zip");
 				roicount = roiManager("count");
+				setBatchMode(true);
+				setBatchMode("hide");
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
 					for (rootno = 0; rootno < roicount; rootno ++) {
 						run("Clear Results");
@@ -1175,7 +1186,7 @@ function rootGrowth() {
 								roiManager("select", objectno);
 								run("Area to Line");
 								roiManager("update");
-							}	
+							}
 							roiManager("deselect"); //nothing is selected
 							roiManager("multi-measure"); //all rois measured
 							lengthsarray = Table.getColumn("Length", "Results");
@@ -1193,6 +1204,10 @@ function rootGrowth() {
 
 						if (selectiontype == -1) {
 							if (sliceno > 1) {
+								prevsliceno = sliceno - 2; //minus 1 for previous slice, minus 1 for table index start from 0
+								prevtpindex = (prevsliceno * roicount) + rootno;
+								// previous time point index
+								//to reference same ROI from previous slice
 								prevlength = Table.get("Root length", nrrgm-1, rgm);
 								maxlength = prevlength;
 							} else {
@@ -1214,17 +1229,15 @@ function rootGrowth() {
 				}
 
 				Table.save(groupdir + groupname + " " + rgm + ".tsv", rgm);
-				
+
 
 				// graphical output
-				setBatchMode("hide");
-				setBatchMode(true);
 				roiManager("reset");
 				roiManager("Show All with labels");
 				roiManager("Associate", "true");
 				roiManager("Centered", "false");
 				roiManager("UseNames", "true");
-				open(groupdir + groupname + " seedlingskels.zip");	
+				open(groupdir + groupname + " seedlingskels.zip");
 				oriarray = Array.getSequence(roicount);
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
 					for (rootno = 0; rootno < roicount; rootno ++) {
@@ -1250,8 +1263,8 @@ function rootGrowth() {
 				run("Flatten", "stack");
 				open(groupdir + groupname + " rootstartlabelled.tif");
 				run("Combine...", "stack1=["+ groupname + " rootstartlabelled.tif] stack2=["+ groupname + " rootmask.tif]");
-				saveAs("Tiff", groupdir + groupname + " rootgrowthdetection.tif");				
-				
+				saveAs("Tiff", groupdir + groupname + " rootgrowthdetection.tif");
+
 				list = getList("window.titles");
 				Array.deleteValue(list, "Log");
 				for (i=0; i<list.length; i++) {
