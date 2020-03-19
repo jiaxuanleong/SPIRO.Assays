@@ -1040,8 +1040,9 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 						lengthsarray = Table.getColumn("Length", "Results");
 						// xmarray = Table.getColumn("XM", "Results");
 						// ymarray = Table.getColumn("YM", "Results");
+
 						lengthspositions = Array.rankPositions(lengthsarray);
-						Array.reverse(lengthspositions);
+						desclengthspositions = Array.reverse(lengthspositions);
 
 						lastpos = ((nS-1) * roicount) + rootno; //position in last image
 						xmlast = Table.get("XM", lastpos, rsctsv);
@@ -1049,26 +1050,15 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 						xmlastwithinroi = xmlast - rootboundx;
 						ymlastwithinroi = ymlast - rootboundy;
 						containsrsc = false;
-						testindex = -1;
-						pointindex = -1;
+						positionarrayindex = 0;
+						pointindex = 0;
 						containspoint = false;
-						while (containsrsc == false) { // while skeleton does not contain rsc
-							testindex += 1; // test next skeleton
-							//if (testindex == lengthspositions.length-1) { // if last skeleton
-							//		testindex = 0; // assume max length skeleton is actual seedling
-							//		containsrsc = true; // to get out of loop
-							//		containspoint = true; // to get out of loop
-							//	}
-							maxlengthindex = lengthspositions[testindex]; // array with lengths, descending order
-							roiManager("select", maxlengthindex);
+						while (containsrsc == false && positionarrayindex != desclengthspositions.length-1) { // while skeleton does not contain rsc
+							testposition = desclengthspositions[positionarrayindex]; // array with lengths, descending order
+							roiManager("select", testposition);
 							Roi.getContainedPoints(xpoints, ypoints); // get all points in current skeleton
-							exitloop = false;
-							pointindex = -1;
-							while (containspoint == false && exitloop == false) { // while point is not close to (0.1cm) xm/ym last
-								pointindex += 1;  // check next point
-								if (pointindex == xpoints.length-1 ) { // if last point
-									exitloop = true; // to enable exit loop
-								}
+							pointindex = 0;
+							while (containspoint == false && pointindex != xpoints.length-1) { // while point is not close to (0.1cm) xm/ym last								
 								diffx = abs(xpoints[pointindex] - xmlastwithinroi); // distance from xm last
 								diffy = abs(ypoints[pointindex] - ymlastwithinroi); // distance from ym last
 								toScaled(diffx, diffy);
@@ -1076,11 +1066,13 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 									containspoint = true;
 									containsrsc = true;
 								}
+								pointindex += 1;  // check next point
 							}
+							positionarrayindex += 1; // test next skeleton
 						}
-
-						lengthspositionsX = Array.deleteIndex(lengthspositions, testindex); //remove index of longest length
-						roiManager("select", lengthspositionsX);
+						positionarrayindex -=1; //remove the last addition of while loop
+						desclengthspositionsX = Array.deleteIndex(desclengthspositions, positionarrayindex); //remove index of longest length
+						roiManager("select", desclengthspositionsX);
 						roiManager("delete"); //so it is not deleted here
 						roiManager("select", 0);
 						Roi.getBounds(rootx, rooty, rootw, rooth);
@@ -1104,6 +1096,8 @@ function rootSkel() { //look for smallest area that encompasses a seedling
 					roiManager("Remove Slice Info");
 					if (rootno > 0) {
 						roiManager("open", groupdir + groupname + " seedlingskels.zip");
+					} else {
+						
 					}
 					roiManager("save", groupdir + groupname + " seedlingskels.zip");
 					close(tempmultipleskel);
