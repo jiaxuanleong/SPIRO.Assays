@@ -278,7 +278,7 @@ function seedPositions() {
 							Table.set("Trash ROI", nrTp, row, tp);
 						}
 						circ = getResult("Circ.", row); // or does not fit normal seed shape
-						if (circ < 0.5) {
+						if (circ < 0.4) {
 							Table.set("Trash ROI", nrTp, row, tp); //set as trash to be deleted
 						}
 					}
@@ -686,6 +686,7 @@ function rootStart() {
 					ym = Table.get("YM", row, rsc);
 					sliceno = Table.get("Slice", row, rsc);
 					roino = Table.get("ROI", row, rsc);
+					roiManager("Associate", "true");
 					setSlice(sliceno);
 					makePoint(xm, ym);
 					roiManager("add");
@@ -1208,13 +1209,20 @@ function rootGrowth() {
 								prevtpindex = (prevsliceno * roicount) + rootno;
 								// previous time point index
 								//to reference same ROI from previous slice
-								prevlength = Table.get("Root length", nrrgm-1, rgm);
+								prevlength = Table.get("Root length", prevtpindex, rgm);
 								maxlength = prevlength;
+								/*
+								print("selection type" + selectiontype +
+								"\n sliceno" + sliceno +
+								"\n rootno" + rootno+1 +
+								"\n prevsliceno " + prevsliceno + 
+								"\n prevtpindex " + prevtpindex +
+								"\n prevlength " + prevlength + "\n next") ;
+								*/
 							} else {
 								maxlength = 0;
 							}
 						}
-
 							nrrgm = Table.size(rgm);
 							Table.set("Slice no.", nrrgm, sliceno, rgm);
 							selectWindow(rootmask);
@@ -1227,9 +1235,7 @@ function rootGrowth() {
 							run("Close");
 					}
 				}
-
 				Table.save(groupdir + groupname + " " + rgm + ".tsv", rgm);
-
 
 				// graphical output
 				roiManager("reset");
