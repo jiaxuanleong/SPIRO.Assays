@@ -204,7 +204,7 @@ for(group in unique(data.long$Group)) {
   mgtse <- SEGermTime(germ.counts = germstats$GermCount[germstats$Group == group], 
                       intervals = germstats$ApproxTime[germstats$Group == group])
   nseed <- sum(germstats$GermCount[germstats$Group == group])
-  nongerm <- sum(is.na(data.peruid$`Germination Time (h)`[data.peruid$Group == group]))
+  nongerm <- sum(is.na(data.peruid$`Germination Time (h)`[which(data.peruid$Group == group)]))
   
   t50s <- c(t50s, t50)
   groups <- c(groups, group)
