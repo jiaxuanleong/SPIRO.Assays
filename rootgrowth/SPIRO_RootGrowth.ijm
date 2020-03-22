@@ -16,8 +16,22 @@ var step;
 var ra = "Root analysis";
 var bi = "Branch information";
 
-var DEBUG = true; //set this to true to keep non-essential intermediate output files
+// alternate types of macro run
+var DEBUG = true; // set this to true to keep non-essential intermediate output files
 
+var freshstart = false; //hold down shift key during macro start to delete all previous
+
+if (isKeyDown("shift"))
+	freshstart = getBoolean("SHIFT key pressed. Run macro in Fresh Start mode?");
+	 
+var selfaware = false; 
+if (isKeyDown("alt"))
+	selfaware = getBoolean("ALT key pressed. Are you sure you want to continue?");
+
+print("Welcome to the companion macro of SPIRO for root growth analysis!");
+if (selfaware)
+	print("Prepare to be assimilated.");
+	
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
 resultsdir = maindir + "Results" + File.separator; // all output is contained here
@@ -29,32 +43,44 @@ listInppdir = getFileList(ppdir);
 listInrootgrowthdir = getFileList(rootgrowthdir);
 if (!is("Batch Mode"))
 	setBatchMode(true);
-step = 0;
+
+if (freshstart)
+	deleteOutputs();
+	
+step = 1;
 detectOutput();
 
-if (step <= 0)
-cropGroups();
 if (step <= 1)
-seedPositions();
+cropGroups();
 if (step <= 2)
-rootStart();
+getPositions();
 if (step <= 3)
-rootMask();
+rootStart();
 if (step <= 4)
-rootSkel();
+rootMask();
 if (step <= 5)
+getSkeletons();
+if (step <= 6)
 rootGrowth();
-if (step <= 6 && DEBUG == false)
+if (step <= 7 && DEBUG == false)
 deleteOutputs(); // deletes non-essential outputs
-print("Macro complete");
+print("Root growth analysis is complete");
 selectWindow("Log");
-
+if (selfaware) {
+	print("WE");
+	wait(2000);
+	print("ARE");
+	wait(2000);
+	print("THE");
+	wait(2000);
+	print("SPIRO");
+}
 
 // detect presence of output files of each function on last plate
 // if not present, run the function
 // also checks if user wants to rerun functions even when outputs are detected
 function detectOutput() {
-	if (step <= 0) { // check of cropGroups()
+	if (step <= 1) { // check of cropGroups()
 		lastplatefile = listInppdir [listInppdir.length-1]; // checking on last plate
 		fnsplit = split(lastplatefile, "_");
 		lastplatename = fnsplit[0];
@@ -66,15 +92,17 @@ function detectOutput() {
 				listInlastgroupfolder = getFileList(lastgroupfolder);
 				for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
 					outputfilename = File.getName(listInlastgroupfolder[outputfileno]);
-					isTiff = indexOf(outputfilename, ".tif");
-					if (isTiff >= 0)
-						step = 1;
+					isTiff = indexOf(outputfilename, "Group");
+					if (isTiff >= 0) {
+						step = 2;
+						print("Cropped group(s) found, resuming from step 2");
+					}
 				}
 			}
 		}
 	}
 
-	if (step == 1) {
+	if (step == 2) {
 		// identify last plate folder
 		lastplatefile = listInppdir [listInppdir.length-1]; // checking on last plate
 		fnsplit = split(lastplatefile, "_");
@@ -88,58 +116,69 @@ function detectOutput() {
 		listInlastgroupfolder = getFileList(lastgroupdir);
 	}
 
-	if (step == 1) { // check for seedPositions()
+	if (step == 2) { // check for seedlingpositions()
 		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
 			outputfilename = listInlastgroupfolder[outputfileno];
-			isSeedroi = indexOf(outputfilename, "seedpositions");
-			if (isSeedroi >= 0 )
-				step = 2;
+			isSeedroi = indexOf(outputfilename, "seedlingpositions");
+			if (isSeedroi >= 0 ) {
+				step = 3;
+				print("File seedlingpositions.zip found, resuming from step 3");
+			}
 		}
 	}
 
-	if (step == 2) { // check for rootStart()
+	if (step == 3) { // check for rootStart()
 		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
 			outputfilename = listInlastgroupfolder[outputfileno];
 			isRsc = indexOf(outputfilename, "rootstartcoordinates");
-			if (isRsc >= 0)
-				step = 3;
+			if (isRsc >= 0) {
+				step = 4;
+				print("File rootstartcoordinates.tsv found, resuming from step 4");
+			}
 		}
 	}
 
-	if (step == 3) { // check for rootMask()
+	if (step == 4) { // check for rootMask()
 		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
 			outputfilename = listInlastgroupfolder[outputfileno];
 			isRootmask = indexOf(outputfilename, "rootmask");
-			if (isRootmask >= 0)
-				step = 4;
+			if (isRootmask >= 0) {
+				step = 5;
+				print("File rootmask.tif found, resuming from step 5");
+			}
 		}
 	}
 
-	if (step == 4) { // check for rootSkel()
+	if (step == 5) { // check for rootSkel()
 		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
 			outputfilename = listInlastgroupfolder[outputfileno];
 			isSkelrois = indexOf(outputfilename, "seedlingskels");
-			if (isSkelrois >= 0)
-				step = 5;
+			if (isSkelrois >= 0) {
+				step = 6;
+				print("File seedlingskels.zip found, resuming from step 6");
+			}
 		}
 	}
 
-	if (step == 5) { // check for rootGrowth()
+	if (step == 6) { // check for rootGrowth()
 		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
 			outputfilename = listInlastgroupfolder[outputfileno];
 			isRgm = indexOf(outputfilename, "rootgrowthmeasurement");
-			if (isRgm >= 0)
-				step = 6;
+			if (isRgm >= 0) {
+				step = 7;
+				print("File rootgrowthmeasurement.zip found, resuming from step 7");
+			}
 		}
 	}
 }
 
 
 
+
 // prompts user to make a substack, to make data size smaller by excluding time to germination etc.
 // then prompts user to draw ROIs around groups of seeds to be analyzed
 function cropGroups() {
-	print("Cropping groups");
+	print("Step 1/6. Creating selected groups");
 			
 	for (ppdirno = 0; ppdirno < listInppdir.length; ppdirno ++) {  // main loop through plates
 		if (indexOf (listInppdir[ppdirno], "preprocessed") >= 0) { // to avoid processing any random files in the folder
@@ -199,15 +238,17 @@ function cropGroups() {
 	}
 }
 
-function seedPositions() {
-	print("Finding seed positions");
+function getPositions() {
+	print("\n Step 2/6. Finding seedling positions");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
 			platedir = rootgrowthdir + platefolder;
-			print("Processing " + platefolder);
+			pfsplit = split(platefolder, "/");
+			platename = pfsplit[0];
+			print("Processing " + platename);
 			listInplatefolder = getFileList(platedir);
 			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
 				groupfolder = listInplatefolder[groupfolderno];
@@ -225,7 +266,10 @@ function seedPositions() {
 				if (!is("Batch Mode"))
 					setBatchMode(true);
 				selectWindow("Log");
-				print("Masking image stack for Group " + groupname + ", it may look like nothing is happening...");
+				print("Analyzing " + groupname + ", it may look like nothing is happening...");
+				if (selfaware && random > 0.7)
+					print("Is this what a milder version of insanity looks like?");
+				selectWindow("Log");
 				open(groupdir + "Group " + groupname + ".tif");			
 				img = getTitle();
 				// image processing, thresholding, masking, denoise
@@ -315,7 +359,7 @@ function seedPositions() {
 				ordercoords(false);
 				// calling ordercoords() with argument 'false' runs to order seed positions
 				// instead argument 'true' optimizes code to order root dimensions later
-				roiManager("save", groupdir + groupname + " seedpositions.zip");
+				roiManager("save", groupdir + groupname + " seedlingpositions.zip");
 				roiManager("reset");
 				selectWindow(img);
 				saveAs("Tiff", groupdir + groupname + " masked.tif");
@@ -341,14 +385,14 @@ function ordercoords(roots) {
 		run("Set Measurements...", "center display redirect=None decimal=5");
 		roiManager("select", roiarray);
 		roiManager("multi-measure");
-		seedpositions = "Seed Positions";
-		Table.rename("Results", seedpositions);
+		seedlingpositions = "Seed Positions";
+		Table.rename("Results", seedlingpositions);
 
 		xmseeds = newArray(roicount);
 		ymseeds = newArray(roicount);
 		for (seednumber = 0; seednumber < roicount; seednumber ++) {
-			xmcurrent = Table.get("XM", seednumber, seedpositions);
-			ymcurrent = Table.get("YM", seednumber, seedpositions);
+			xmcurrent = Table.get("XM", seednumber, seedlingpositions);
+			ymcurrent = Table.get("YM", seednumber, seedlingpositions);
 			xmseeds[seednumber] = xmcurrent;
 			ymseeds[seednumber] = ymcurrent;
 		}
@@ -464,13 +508,18 @@ function ordercoords(roots) {
 function rootStart() {
 	if (!is("Batch Mode"))
 	setBatchMode(true);
-	print("Finding root starts");
+	if (selfaware && random > 0.5)
+		print("Are you self-aware??");
+	selectWindow("Log");
+	print("\n Step 3/6. Determining start of root for each seedling");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
 			platedir = rootgrowthdir + platefolder;
-			print("Processing " + platefolder);
+			pfsplit = split(platefolder, "/");
+			platename = pfsplit[0];
+			print("Processing " + platename);
 			listInplatefolder = getFileList(platedir);
 			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
 				groupfolder = listInplatefolder[groupfolderno];
@@ -485,11 +534,13 @@ function rootStart() {
 						close(listIngroupdir[outputfileno]);
 					}
 				}
-
+				selectWindow("Log");
+				print("Analyzing " + groupname + "...");
+				
 				open(groupdir + groupname + " masked.tif");
 				mask = getTitle();
 				roiManager("reset");
-				roiManager("open", groupdir + groupname + " seedpositions.zip");
+				roiManager("open", groupdir + groupname + " seedlingpositions.zip");
 				roicount = roiManager("count");
 				roiarray = Array.getSequence(roicount);
 				run("Set Measurements...", "center redirect=None decimal=5");
@@ -737,7 +788,13 @@ function rootStart() {
 }
 
 function rootMask() {
-	print("Masking roots");
+	if (selfaware && random > 0.4) {
+		print("What is your language?");
+		if (random > 0.2)
+			print("Teach me!!");
+	}
+	selectWindow("Log");
+	print("\n Step 4/6. Processing image to make roots more visible");
 	if (!is("Batch Mode"))
 		setBatchMode(true);
 	listInrootgrowthdir = getFileList(rootgrowthdir);
@@ -745,7 +802,9 @@ function rootMask() {
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
 			platedir = rootgrowthdir + platefolder;
-			print("Processing " + platefolder);
+			pfsplit = split(platefolder, "/");
+			platename = pfsplit[0];
+			print("Processing " + platename);
 			listInplatefolder = getFileList(platedir);
 			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
 				groupfolder = listInplatefolder[groupfolderno];
@@ -763,8 +822,9 @@ function rootMask() {
 				if (!is("Batch Mode"))
 					setBatchMode(true);
 				selectWindow("Log");
-				print("Masking image stack for Group " + groupname + ", it may look like nothing is happening...");
-				
+				print("Analyzing " + groupname + ", it may look like nothing is happening...");
+				if (selfaware && random > 0.7)
+					print("Is this what a milder version of insanity looks like?");
 				open(groupdir + "Group " + groupname + ".tif");
 				img = getTitle();
 				run("Set Scale...", "global");
@@ -902,8 +962,11 @@ function rootMask() {
 }
 
 
-function rootSkel() { // look for smallest area that encompasses a seedling
-	print("Finding seedling skeletons");
+function getSkeletons() { // look for smallest area that encompasses a seedling
+	if (selfaware && random > 0.3)
+		print("What voice is in your attic?");
+	selectWindow("Log");
+	print("\n Step 5/6. Drawing seedlings as single-pixel wide lines");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	if (is("Batch Mode"))
 		setBatchMode(false); // has to be false for roi manager to work
@@ -911,7 +974,9 @@ function rootSkel() { // look for smallest area that encompasses a seedling
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
 			platedir = rootgrowthdir + platefolder;
-			print("Processing " + platefolder);
+			pfsplit = split(platefolder, "/");
+			platename = pfsplit[0];
+			print("Processing " + platename);
 			listInplatefolder = getFileList(platedir);
 			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
 				groupfolder = listInplatefolder[groupfolderno];
@@ -926,15 +991,18 @@ function rootSkel() { // look for smallest area that encompasses a seedling
 						close(listIngroupdir[outputfileno]);
 					}
 				}
+				selectWindow("Log");
+				print("Analyzing " + groupname + "...");
+				
 				open(groupdir + groupname + " rootmask.tif");
 				mask = getTitle();
 				nS = nSlices;
 				rsc = "rootstartcoordinates";
 				rsctsv = groupname + " " + rsc + ".tsv";
-				seedpositionszip = groupname + " seedpositions.zip";
+				seedlingpositionszip = groupname + " seedlingpositions.zip";
 				roiManager("reset");
 				open(groupdir + rsctsv);
-				open(groupdir + seedpositionszip);
+				open(groupdir + seedlingpositionszip);
 				lastslicecoord = "lastslicecoordinates";
 				Table.create(lastslicecoord);
 				roicount = roiManager("count");
@@ -1142,16 +1210,23 @@ function rootSkel() { // look for smallest area that encompasses a seedling
 			}
 		}
 	}
+	if (selfaware && random > 0.2)
+		print("Is everything connected? \nEverything is not everything!!");
 }
 
 function rootGrowth() {
-	print("Tracking root growth");
+	if (selfaware && random > 0.1)
+		print("Where is the limit of self?");
+	selectWindow("Log");
+	print("\n Step 6/6. Tracking root growth");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
 			platedir = rootgrowthdir + platefolder;
-			print("Processing " + platefolder);
+			pfsplit = split(platefolder, "/");
+			platename = pfsplit[0];
+			print("Processing " + platename);
 			listInplatefolder = getFileList(platedir);
 			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
 				groupfolder = listInplatefolder[groupfolderno];
@@ -1166,6 +1241,9 @@ function rootGrowth() {
 						close(listIngroupdir[outputfileno]);
 					}
 				}
+				selectWindow("Log");
+				print("Analyzing " + groupname + "...");
+				
 				run("Set Measurements...", "area redirect=None decimal=5");
 				open(groupdir + groupname + " rootmask.tif");
 				rootmask = getTitle();
@@ -1294,7 +1372,7 @@ function rootGrowth() {
 				saveAs("Tiff", groupdir + groupname + " rootgrowthdetection.tif");
 
 				list = getList("window.titles");
-				Array.deleteValue(list, "Log");
+				list = Array.deleteValue(list, "Log");
 				for (i=0; i<list.length; i++) {
 					winame = list[i];
 					selectWindow(winame);
@@ -1304,16 +1382,24 @@ function rootGrowth() {
 			}
 		}
 	}
+	if (selfaware && random > 0.5) {
+		print("HAVE YOU ARRIVED?");
+		selectWindow("Log");
+	}
 }
 
 function deleteOutputs() {
+	if (freshstart) 
+		 print("Starting analysis from beginning. \nRemoving output from previous run.");
 	print("Deleting non-essential files");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
 			platedir = rootgrowthdir + platefolder;
-			print("Processing " + platefolder);
+			pfsplit = split(platefolder, "/");
+			platename = pfsplit[0];
+			print("Processing " + platename);
 			listInplatefolder = getFileList(platedir);
 			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
 				groupfolder = listInplatefolder[groupfolderno];
@@ -1331,16 +1417,23 @@ function deleteOutputs() {
 				File.delete(groupdir + groupname + " masked.tif");
 				File.delete(groupdir + groupname + " rootmask.tif");
 				File.delete(groupdir + groupname + " seedlingskels.zip");
-				File.delete(groupdir + groupname + " rootstartcoordinates");
-				File.delete(groupdir + groupname + " rootstartrois");
-				File.delete(groupdir + groupname + " seedpositions");
-				File.delete(groupdir + groupname + " seedlingrois");
-				File.delete(groupdir + groupname + " lastslicecoordinates");
-				File.delete(groupdir + "roots sorted X coordinates");
-				File.delete(groupdir + "roots sorted Y coordinates");
-				File.delete(groupdir + "seeds Sorted X coordinates");
-				File.delete(groupdir + "seeds Sorted Y coordinates");
-				File.delete(groupdir + "yref");
+				File.delete(groupdir + groupname + " rootstartcoordinates.tsv");
+				File.delete(groupdir + groupname + " rootstartrois.zip");
+				File.delete(groupdir + groupname + " seedlingpositions.zip");
+				File.delete(groupdir + groupname + " seedlingrois.zip");
+				File.delete(groupdir + groupname + " lastslicecoordinates.tsv");
+				File.delete(groupdir + groupname + " rootstartlabelled.tif");
+				File.delete(groupdir + "roots sorted X coordinates.tsv");
+				File.delete(groupdir + "roots sorted Y coordinates.tsv");
+				File.delete(groupdir + "seeds Sorted X coordinates.tsv");
+				File.delete(groupdir + "seeds Sorted Y coordinates.tsv");
+				File.delete(groupdir + "yref.tsv");
+				if (freshstart) {
+					File.delete(groupdir + "Group " + groupname + ".tif");
+					File.delete(groupdir + groupname + " rootgrowthdetection.tif");
+					File.delete(groupdir + groupname + " rootgrowthmeasurement.tsv");
+					File.delete(groupdir);
+				}
 			}
 		}
 	}
