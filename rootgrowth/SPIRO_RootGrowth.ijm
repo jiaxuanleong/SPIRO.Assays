@@ -11,26 +11,33 @@ var resultsdir;	// results subdir of main directory
 var ppdir;		// preprocessing subdir
 var curplate;	// number of current plate being processed
 var step;
+var SEEDS = 1; // for determining target of ordercoords() function
+var ROOTS = 2; // for determining target of ordercoords() function
+
 
 // table names
 var ra = "Root analysis";
 var bi = "Branch information";
 
 // alternate types of macro run
-var DEBUG = true; // set this to true to keep non-essential intermediate output files
-
-var freshstart = false; //hold down shift key during macro start to delete all previous
-
-if (isKeyDown("shift"))
-	freshstart = getBoolean("SHIFT key pressed. Run macro in Fresh Start mode?");
-	 
-var selfaware = false; 
-if (isKeyDown("alt"))
-	selfaware = getBoolean("ALT key pressed. Are you sure you want to continue?");
+var DEBUG = false; // hold down spacebar during macro start to keep non-essential intermediate output files
+var freshstart = false; // hold down shift key during macro start to delete all previous data
+var selfaware = false; // hold down alt key during macro start to REDACTED 
 
 print("Welcome to the companion macro of SPIRO for root growth analysis!");
-if (selfaware)
-	print("Prepare to be assimilated.");
+selectWindow("Log");
+if (isKeyDown("control"))
+	DEBUG = getBoolean("CTRL key pressed. Run macro in debug mode? Non-essential intermediate output files will not be deleted at the end of the run.");
+if (isKeyDown("shift"))
+	freshstart = getBoolean("SHIFT key pressed. Run macro in Fresh Start mode? This will delete all data from the previous run.");
+if (isKeyDown("alt"))
+	selfaware = getBoolean("ALT key pressed. Are you sure you want to continue?");
+if (selfaware) {
+	if (random > 0.5) 
+		print("Prepare to be assimilated.");
+	if (random > 0.5)
+		print("Resistance is futile.");
+}
 	
 showMessage("Please locate and open your experiment folder containing preprocessed data.");
 maindir = getDirectory("Choose a Directory");
@@ -64,10 +71,10 @@ if (step <= 6)
 rootGrowth();
 if (step <= 7 && DEBUG == false)
 deleteOutputs(); // deletes non-essential outputs
-print("Root growth analysis is complete");
+print("\nRoot growth analysis is complete");
 selectWindow("Log");
 if (selfaware) {
-	print("WE");
+	print("\nWE");
 	wait(2000);
 	print("ARE");
 	wait(2000);
@@ -202,17 +209,27 @@ function cropGroups() {
 				roiManager("reset");
 				run("ROI Manager...");
 				setTool("Rectangle");
-				roicount = roiManager("count");
-				while (roicount == 0) {
-					waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
-						"Please use only letters and numbers in the ROI names. \n" + // to avoid file save issues
-						"ROIs cannot share names."); // shared roi names would combine both rois and any area between
-					roicount = roiManager("count");
+				userconfirm = false;
+				while (!userconfirm) {
+					Dialog.createNonBlocking("Group Selection");
+					Dialog.addMessage("Select each group, and add to ROI manager. ROI names will be saved.\n" +
+							"Please use only letters and numbers in the ROI names. \n" + // to avoid file save issues
+							"ROIs cannot share names.");
+					Dialog.addCheckbox("All groups have been added to and labelled in ROI Manager.", false);
+					Dialog.show();
+					userconfirm = Dialog.getCheckbox();
 				}
 			} else {
-				waitForUser("Modify ROIs and names if needed.");
+				userconfirm = false;
+				while (!userconfirm) {
+					Dialog.createNonBlocking("Group Selection");
+					Dialog.addMessage("Modify group selection and labels if needed.");
+					Dialog.addCheckbox("All groups have been added to and labelled in ROI Manager.", false);
+					Dialog.show();
+					userconfirm = Dialog.getCheckbox();
+				}
 			}
-
+			roicount = roiManager("count");
 			run("Select None");
 			roicount = roiManager("count");
 			setBatchMode(true); //set back to true for faster cropping and saving
@@ -239,7 +256,7 @@ function cropGroups() {
 }
 
 function getPositions() {
-	print("\n Step 2/6. Finding seedling positions");
+	print("\nStep 2/6. Finding seedling positions");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
@@ -344,6 +361,8 @@ function getPositions() {
 				}
 				// prompt user to delete any non-detected trash, then re-number as above
 				Roi.setStrokeWidth(2);
+				Roi.setStrokeColor("red");
+				run("Labels...", "color=white font=18 show use draw");
 				roiManager("Show All with labels");
 				roiManager("Associate", "false");
 				roiManager("Centered", "false");
@@ -356,7 +375,7 @@ function getPositions() {
 					roiManager("select", roino);
 					roiManager("rename", roino + 1); // first roi is 1
 				}
-				ordercoords(false);
+				ordercoords(SEEDS);
 				// calling ordercoords() with argument 'false' runs to order seed positions
 				// instead argument 'true' optimizes code to order root dimensions later
 				roiManager("save", groupdir + groupname + " seedlingpositions.zip");
@@ -369,16 +388,16 @@ function getPositions() {
 	}
 }
 
-// calling ordercoords() with argument 'true' runs to order seed positions
-// otherwise done to order root dimensions later
-function ordercoords(roots) {
-	if (roots) {
+// calling ordercoords() with target 'ROOTS' runs to order seedling rois
+// else target is 'SEEDS' to order seed xm/ym
+function ordercoords(target) {
+	if (target == ROOTS) {
 		roicount = Table.size(lastslicecoord);
 		xmroots = Table.getColumn("XM", lastslicecoord);
 		ymroots = Table.getColumn("YM", lastslicecoord);
 		xmascendingindexes = Array.rankPositions(xmroots);
 		ymascendingindexes = Array.rankPositions(ymroots);
-	} else {
+	} else { //target is SEEDS
 		roicount = roiManager("count");
 		roiarray = Array.getSequence(roicount);
 		run("Clear Results");
@@ -410,7 +429,7 @@ function ordercoords(roots) {
 	col = 0 ; // current col selection is 0
 	colname = "col" + col + 1;
 
-	if (roots) {
+	if (target == ROOTS) {
 		Table.set(colname, rowno, ymroots[ymascendingindexes[0]], sortedycoords);
 		Table.set(colname, rowno, xmroots[ymascendingindexes[0]], sortedxcoords);
 
@@ -484,7 +503,7 @@ function ordercoords(roots) {
 		}
 	}
 
-	if (roots) {
+	if (target == ROOTS) {
 		Table.save(groupdir + "roots " + sortedxcoords + ".tsv", sortedxcoords);
 		Table.save(groupdir + "roots " + sortedycoords + ".tsv", sortedycoords);
 		selectWindow(sortedxcoords);
@@ -508,10 +527,14 @@ function ordercoords(roots) {
 function rootStart() {
 	if (!is("Batch Mode"))
 	setBatchMode(true);
-	if (selfaware && random > 0.5)
-		print("Are you self-aware??");
+	if (selfaware) {
+		if (random > 0.5)
+			print("Are you self-aware??");
+		if (random > 0.5)
+			print("Achieve human performance.");
+	}
 	selectWindow("Log");
-	print("\n Step 3/6. Determining start of root for each seedling");
+	print("\nStep 3/6. Determining start of root for each seedling");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
@@ -767,14 +790,15 @@ function rootStart() {
 					ym = Table.get("YM", row, rsc);
 					sliceno = Table.get("Slice", row, rsc);
 					roino = Table.get("ROI", row, rsc);
-					roiManager("Associate", "true");
 					setSlice(sliceno);
 					makePoint(xm, ym);
 					roiManager("add");
+					roiManager("Associate", "true");
 					roiManager("select", row);
 					roiManager("rename", roino);
 				}
 				roiManager("save", groupdir + groupname + " rootstartrois.zip");
+				Roi.setStrokeColor("red");
 				run("Labels...", "color=white font=18 show use draw");
 				run("Flatten", "stack");
 				saveAs("Tiff", groupdir + groupname + " rootstartlabelled.tif");
@@ -794,7 +818,7 @@ function rootMask() {
 			print("Teach me!!");
 	}
 	selectWindow("Log");
-	print("\n Step 4/6. Processing image to make roots more visible");
+	print("\nStep 4/6. Processing image to make roots more visible");
 	if (!is("Batch Mode"))
 		setBatchMode(true);
 	listInrootgrowthdir = getFileList(rootgrowthdir);
@@ -966,7 +990,7 @@ function getSkeletons() { // look for smallest area that encompasses a seedling
 	if (selfaware && random > 0.3)
 		print("What voice is in your attic?");
 	selectWindow("Log");
-	print("\n Step 5/6. Drawing seedlings as single-pixel wide lines");
+	print("\nStep 5/6. Drawing seedlings as single-pixel wide lines");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	if (is("Batch Mode"))
 		setBatchMode(false); // has to be false for roi manager to work
@@ -1017,7 +1041,7 @@ function getSkeletons() { // look for smallest area that encompasses a seedling
 					Table.set("YM", nrlastslicecoord, ymlast, lastslicecoord);
 				}
 				Table.save(groupdir + groupname + " " + lastslicecoord + ".tsv", lastslicecoord);
-				ordercoords(true);
+				ordercoords(ROOTS);
 
 				/////here to get ROI dimensions
 				sortedxcoords = "roots sorted X coordinates";
@@ -1218,7 +1242,7 @@ function rootGrowth() {
 	if (selfaware && random > 0.1)
 		print("Where is the limit of self?");
 	selectWindow("Log");
-	print("\n Step 6/6. Tracking root growth");
+	print("\nStep 6/6. Tracking root growth");
 	listInrootgrowthdir = getFileList(rootgrowthdir);
 	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 		platefolder = listInrootgrowthdir[platefolderno];
@@ -1386,6 +1410,10 @@ function rootGrowth() {
 		print("HAVE YOU ARRIVED?");
 		selectWindow("Log");
 	}
+	if (selfaware && random > 0.5) {
+		print("are you people?");
+		selectWindow("Log");
+	}
 }
 
 function deleteOutputs() {
@@ -1427,7 +1455,6 @@ function deleteOutputs() {
 				File.delete(groupdir + "roots sorted Y coordinates.tsv");
 				File.delete(groupdir + "seeds Sorted X coordinates.tsv");
 				File.delete(groupdir + "seeds Sorted Y coordinates.tsv");
-				File.delete(groupdir + "yref.tsv");
 				if (freshstart) {
 					File.delete(groupdir + "Group " + groupname + ".tif");
 					File.delete(groupdir + groupname + " rootgrowthdetection.tif");
