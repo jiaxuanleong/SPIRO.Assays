@@ -77,22 +77,26 @@ function cropGroup() {
 	setTool("Rectangle");
 
 	if (plateanalysisno == 0) {
-		roiManager("reset");
-		waitForUser("Select each group, and add to ROI manager. ROI names will be saved.\n" +
-		"Please do not use dashes in the ROI names or we will complain about it later.\n" +
-		"ROIs cannot share names.");
+		userconfirm = false;
+		while (!userconfirm) {
+			Dialog.createNonBlocking("Group Selection");
+			Dialog.addMessage("Select each group, and add to ROI manager. ROI names will be saved.\n" +
+					"Please use only letters and numbers in the ROI names. \n" + // to avoid file save issues
+					"ROIs cannot share names.");
+			Dialog.addCheckbox("All groups have been added to and labelled in ROI Manager.", false);
+			Dialog.show();
+			userconfirm = Dialog.getCheckbox();
+		}
+	} else {
+		userconfirm = false;
+		while (!userconfirm) {
+			Dialog.createNonBlocking("Group Selection");
+			Dialog.addMessage("Modify group selection and labels if needed.");
+			Dialog.addCheckbox("All groups have been added to and labelled in ROI Manager.", false);
+			Dialog.show();
+			userconfirm = Dialog.getCheckbox();
+		}
 	}
-
-	if (plateanalysisno > 0) {
-		waitForUser("Modify ROI and names if needed.");
-	}
-
-	while (roiManager("count") <= 0) {
-		waitForUser("Select each group and add to ROI manager. ROI names will be saved.\n" +
-		"Please do not use dashes in the ROI names or we will complain about it later\n" +
-		"ROIs cannot share names.");
-	};
-
 	run("Select None");
 
 	setBatchMode(true);
@@ -103,11 +107,13 @@ function cropGroup() {
 	for (x=0; x<roicount; ++x) {
 		roiManager("Select", x);
 		roiname = Roi.getName;
+		/*
 		while (indexOf(roiname, "-") > 0) {
 			waitForUser("ROI names cannot contain dashes '-'! Please modify the name, then click OK.");
 			roiManager("Select", x);
 			roiname = Roi.getName;
 		}
+		*/
 		genodir = germnsubdir + "/" + roiname + "/";
 		if (!File.isDirectory(genodir)) {
 			File.makeDirectory(genodir);
@@ -268,14 +274,13 @@ function seedAnalysis() {
 
 //creates a binary mask and reduces noise
 function seedMask() {
-	run("8-bit");
 	run("Subtract Background...", "rolling=30 stack");
-	run("Median...", "radius=1 stack");
+	// run("Median...", "radius=1 stack");
 	setAutoThreshold("MaxEntropy dark");
-	run("Convert to Mask", "method=MaxEntropy background=Dark");
+	run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
 	run("Options...", "iterations=1 count=4 do=Dilate stack");
+	run("Remove Outliers...", "radius=2 threshold=50 which=Dark stack");
 	run("Remove Outliers...", "radius=3 threshold=50 which=Dark stack");
-	run("Remove Outliers...", "radius=5 threshold=50 which=Dark stack");
 }
 
 // delete temporary files
