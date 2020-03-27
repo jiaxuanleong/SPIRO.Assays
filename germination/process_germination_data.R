@@ -11,6 +11,8 @@ library(zoo)
 library(doParallel)
 library(foreach)
 library(ggplot2)
+library(survival)
+library(survminer)
 
 detect_germination <- function(ds) {
   # figure out the imaging frequency
@@ -231,7 +233,7 @@ names(germstats.pergroup) <- c('Group', 't50 (h)', 'Mean Germination Time (h)', 
 write.table(germstats.pergroup, file=paste0(rundir, "/descriptive_stats.tsv"), sep='\t', row.names=F)
 
 if (length(unique(data.long$Group)) > 1) {
-  # generate table for t-test results
+  # generate table for t-tests
   pvals <- as.data.frame(t(combn(unique(data.long$Group), 2)))
   colnames(pvals) <- c('Group.1', 'Group.2')
   pvals$Group.1 <- as.character(pvals$Group.1)
@@ -240,6 +242,7 @@ if (length(unique(data.long$Group)) > 1) {
   germination.pvals <- seedsize.pvals <- pvals
   
   for (i in seq(1, nrow(pvals))) {
+    # first we check the p value
     tg <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
                  data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
     ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
@@ -259,4 +262,34 @@ if (length(unique(data.long$Group)) > 1) {
 } else {
   cat("Only one group in output, skipping t-tests.\n")
 }
+
+if (length(unique(data.long$Group)) > 1) {
+  # generate table for kaplan-meier plots
+  # we only compare two groups for each analysis -- 
+  #   please make your own custom analysis if this is inappropriate for your data!
+  cmps <- as.data.frame(t(combn(unique(data.long$Group), 2)))
+  colnames(cmps) <- c('Group.1', 'Group.2')
+  cmps$Group.1 <- as.character(cmps$Group.1)
+  cmps$Group.2 <- as.character(cmps$Group.2)
+  data.surv <- data.peruid[data.peruid$Note=='Seed processed normally.',]
+  data.surv$event <- 1
+  data.surv$event[which(is.na(data.surv$`Germination Time (h)`))] <- 0
+  # ungerminated seeds have a 0 for event and a time equal to end of assay
+  data.surv$`Germination Time (h)`[which(is.na(data.surv$`Germination Time (h)`))] <- max(data$ElapsedHours)
+
+  # make a kaplan-meier plot for all groups
+  survobj <- Surv(time=data.surv$`Germination Time (h)`, event=data.surv$event)
+  sfit <- survfit(survobj~Group, data=data.surv)
+  p <- ggsurvplot(sfit, pval=T)
+  suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/KaplanMeier-allgroups.pdf"), width=25, height=15, units="cm"))
+  
+  for (i in seq(1, nrow(pvals))) {
+    ds <- data.surv %>% filter(Group == cmps$Group.1[i] | Group == cmps$Group.2[i])
+    survobj <- Surv(time=ds$`Germination Time (h)`, event=ds$event)
+    sfit <- survfit(survobj~Group, data=ds)
+    p <- ggsurvplot(sfit, pval=T)
+    suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/KaplanMeier-", cmps$Group.1[i], "_vs_", cmps$Group.2[i], ".pdf"), width=25, height=15, units="cm"))
+  }
+}
+
 cat(paste0("Statistics have been written to the directory ", rundir, "\n"))
