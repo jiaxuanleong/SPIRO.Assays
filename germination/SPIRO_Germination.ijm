@@ -35,6 +35,7 @@ if (!is("Batch Mode"))
 	setBatchMode(true);
 
 if (freshstart)
+deleteOutput();
 
 cropGroups();
 seedAnalysis();
