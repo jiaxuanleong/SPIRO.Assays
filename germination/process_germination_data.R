@@ -217,10 +217,14 @@ for(group in unique(data.long$Group)) {
   
   # make germination graph
   pdf(paste0(rundir, "/germinationplot-", group, ".pdf"), width=7, height=5)
-  graph <- FourPHFfit(germ.counts = germstats$GermCount[germstats$Group == group], 
+  tryCatch(graph <- FourPHFfit(germ.counts = germstats$GermCount[germstats$Group == group], 
                       intervals = germstats$ApproxTime[germstats$Group == group],
                       total.seeds = length(unique(data$UID[data$Group == group])),
-                      tmax = max(germstats$ApproxTime[germstats$Group == group]))
+                      tmax = max(germstats$ApproxTime[germstats$Group == group])),
+           error=function(e) {
+             cat(paste0("Unable to generate germination plot for group ", group, ":\n"))
+             cat(paste0(e$message, "\n"))
+           })
   print(plot(graph) + labs(x="Time (h)"))
   dev.off()
 }
@@ -243,10 +247,15 @@ if (length(unique(data.long$Group)) > 1) {
   
   for (i in seq(1, nrow(pvals))) {
     # first we check the p value
-    tg <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
-                 data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
-    ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
-                 data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.2[i]])
+    tryCatch({tg <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
+                           data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
+              ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
+                           data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.2[i]])},
+              error=function(e) {
+                cat(paste0("Unable to compare groups ", pvals$Group.1[i], "(x) to ", pvals$Group.2[i], "(y):\n"))
+                cat(paste0(e$message, "\n"))
+    })
+    
     germination.pvals$p.value[i] <- tg$p.value
     seedsize.pvals$p.value[i] <- ts$p.value
   }
@@ -283,7 +292,7 @@ if (length(unique(data.long$Group)) > 1) {
   p <- ggsurvplot(sfit, pval=T)
   suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/KaplanMeier-allgroups.pdf"), width=25, height=15, units="cm"))
   
-  for (i in seq(1, nrow(pvals))) {
+  for (i in seq(1, nrow(cmps))) {
     ds <- data.surv %>% filter(Group == cmps$Group.1[i] | Group == cmps$Group.2[i])
     survobj <- Surv(time=ds$`Germination Time (h)`, event=ds$event)
     sfit <- survfit(survobj~Group, data=ds)
