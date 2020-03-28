@@ -52,7 +52,7 @@ if (!is("Batch Mode"))
 	setBatchMode(true);
 
 if (freshstart)
-	deleteOutputs();
+	deleteOutput();
 	
 step = 1;
 detectOutput();
@@ -70,7 +70,7 @@ getSkeletons();
 if (step <= 6)
 rootGrowth();
 if (step <= 7 && DEBUG == false)
-deleteOutputs(); // deletes non-essential outputs
+deleteOutput(); // deletes non-essential outputs
 print("\nRoot growth analysis is complete");
 selectWindow("Log");
 if (selfaware) {
@@ -310,54 +310,54 @@ function getPositions() {
 					roiManager("split");
 					roiManager("select", 0);
 					roiManager("delete");
+				}
 
-					// delete trash ROI which are features detected as below a certain area
-					// using table as a workaround to roi indexes changing if deletion happens one by one
-					roicount = roiManager("count");
-					roiarray = Array.getSequence(roicount);
-					run("Set Measurements...", "area center shape redirect=None decimal=5");
-					roiManager("select", roiarray);
-					roiManager("multi-measure");
-					tp = "Trash positions";
-					Table.create(tp);
-					selectWindow(img);
-					maxYimg = getHeight();
-					toScaled(maxYimg);
-					nr = nResults;
-					for (row = 0; row < nr; row ++) {
-						nrTp = Table.size(tp); // number of rows
-						area = getResult("Area", row);
-						if (area < 0.0005) { // detected object is very small
-							Table.set("Trash ROI", nrTp, row, tp);
-						}
-						if (area > 0.02) { // or very large
-							Table.set("Trash ROI", nrTp, row, tp);
-						}
-						ym = getResult("YM", row);
-						distancetomaxY = maxYimg - ym; //distance of detected object from bottom of image
-						if (distancetomaxY < 1) { // less than 1cm
-							Table.set("Trash ROI", nrTp, row, tp);
-						}
-						circ = getResult("Circ.", row); // or does not fit normal seed shape
-						if (circ < 0.4) {
-							Table.set("Trash ROI", nrTp, row, tp); //set as trash to be deleted
-						}
+				// delete trash ROI which are features detected as below a certain area
+				// using table as a workaround to roi indexes changing if deletion happens one by one
+				roicount = roiManager("count");
+				roiarray = Array.getSequence(roicount);
+				run("Set Measurements...", "area center shape redirect=None decimal=5");
+				roiManager("select", roiarray);
+				roiManager("multi-measure");
+				tp = "Trash positions";
+				Table.create(tp);
+				selectWindow(img);
+				// maxYimg = getHeight();
+				// toScaled(maxYimg);
+				nr = nResults;
+				for (row = 0; row < nr; row ++) {
+					nrTp = Table.size(tp); // number of rows
+					area = getResult("Area", row);
+					if (area < 0.0005) { // detected object is very small
+						Table.set("Trash ROI", nrTp, row, tp);
 					}
-					if (Table.size(tp) > 0) {
-						trasharray = Table.getColumn("Trash ROI", tp);
-						roiManager("select", trasharray);
-						roiManager("delete");
+					if (area > 0.02) { // or very large
+						Table.set("Trash ROI", nrTp, row, tp);
 					}
-					close(tp);
-					close("Results");
+					// ym = getResult("YM", row);
+					// distancetomaxY = maxYimg - ym; //distance of detected object from bottom of image
+					// if (distancetomaxY < 1) { // less than 1cm
+						// Table.set("Trash ROI", nrTp, row, tp);
+					// }
+					circ = getResult("Circ.", row); // or does not fit normal seed shape
+					if (circ < 0.4) {
+						Table.set("Trash ROI", nrTp, row, tp); //set as trash to be deleted
+					}
+				}
+				if (Table.size(tp) > 0) {
+					trasharray = Table.getColumn("Trash ROI", tp);
+					roiManager("select", trasharray);
+					roiManager("delete");
+				}
+				close(tp);
+				close("Results");
 
-					// number remaining ROIs
-					roicount = roiManager("count");
-					roiarray = Array.getSequence(roicount);
-					for (roino = 0 ; roino < roicount; roino ++) {
-						roiManager("select", roino);
-						roiManager("rename", roino + 1); // first roi is 1
-					}
+				// number remaining ROIs
+				roicount = roiManager("count");
+				roiarray = Array.getSequence(roicount);
+				for (roino = 0 ; roino < roicount; roino ++) {
+					roiManager("select", roino);
+					roiManager("rename", roino + 1); // first roi is 1
 				}
 				// prompt user to delete any non-detected trash, then re-number as above
 				Roi.setStrokeWidth(2);
@@ -520,8 +520,6 @@ function ordercoords(target) {
 		selectWindow(sortedycoords);
 		run("Close");
 	}
-
-
 }
 
 function rootStart() {
@@ -703,8 +701,8 @@ function rootStart() {
 								}
 								if (count > 0)
 									totalarea = Table.get("Total Area", Table.size-1, summarytable);
+								erosionround += 1;
 							}
-							erosionround += 1;
 						}
 						
 						if (erosionround < 10 && count != 0) {
@@ -1089,7 +1087,7 @@ function getSkeletons() { // look for smallest area that encompasses a seedling
 						ysecondrow = Table.get(getcolname, nyrow+1, sortedycoordstsv);
 					}
 					ydiff = ysecondrow - yfirstrow;
-					roiheight = ydiff - 0.2; // cuts off bottom of roi so it doesnt cut into next row
+					roiheight = ydiff - 0.1; // cuts off bottom of roi so it doesnt cut into next row
 				} else {
 					yfirstrow = Table.get("col1", 0, sortedycoordstsv);
 					roiheight = getHeight() - yfirstrow;
@@ -1392,7 +1390,21 @@ function rootGrowth() {
 				run("Colors...", "foreground=black background=black selection=red");
 				run("Flatten", "stack");
 				open(groupdir + groupname + " rootstartlabelled.tif");
+
+				nS = nSlices;
+				slicelabelarray = newArray(nS);
+				for (sliceno = 0; sliceno < nS; sliceno++) {
+					setSlice(sliceno+1);
+					slicelabel = getMetadata("Label");
+					slicelabelarray[sliceno] = slicelabel;
+				}
 				run("Combine...", "stack1=["+ groupname + " rootstartlabelled.tif] stack2=["+ groupname + " rootmask.tif]");
+			
+				for (sliceno = 0; sliceno < nS; sliceno++) {
+					setSlice(sliceno+1);
+					setMetadata("Label", slicelabelarray[sliceno]);
+				}
+				
 				saveAs("Tiff", groupdir + groupname + " rootgrowthdetection.tif");
 
 				list = getList("window.titles");
@@ -1416,7 +1428,7 @@ function rootGrowth() {
 	}
 }
 
-function deleteOutputs() {
+function deleteOutput() {
 	if (freshstart) 
 		 print("Starting analysis from beginning. \nRemoving output from previous run.");
 	print("Deleting non-essential files");
@@ -1455,6 +1467,7 @@ function deleteOutputs() {
 				File.delete(groupdir + "roots sorted Y coordinates.tsv");
 				File.delete(groupdir + "seeds Sorted X coordinates.tsv");
 				File.delete(groupdir + "seeds Sorted Y coordinates.tsv");
+				
 				if (freshstart) {
 					File.delete(groupdir + "Group " + groupname + ".tif");
 					File.delete(groupdir + groupname + " rootgrowthdetection.tif");
