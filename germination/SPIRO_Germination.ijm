@@ -183,7 +183,7 @@ function seedAnalysis() {
 				for (row = 0; row < nr; row ++) {
 					nrTp = Table.size(tp); // number of rows
 					area = getResult("Area", row);
-					if (area < 0.0005) { // detected object is very small
+					if (area < 0.002) { // detected object is very small
 						Table.set("Trash ROI", nrTp, row, tp);
 					}
 					if (area > 0.02) { // or very large
