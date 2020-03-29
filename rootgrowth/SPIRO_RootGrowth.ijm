@@ -1285,6 +1285,7 @@ function rootGrowth() {
 				roicount = roiManager("count");
 				setBatchMode(true);
 				setBatchMode("hide");
+				
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
 					for (rootno = 0; rootno < roicount; rootno ++) {
 						run("Clear Results");
@@ -1303,11 +1304,16 @@ function rootGrowth() {
 						selectWindow(rootmask);
 						setSlice(sliceno);
 						roiManager("select", 0);
+
 						Roi.getBounds(skelx, skely, skelw, skelh);
-						offsetskelx = 0.01;
-						offsetskelw = 0.02;
+						offsetskelx = 0.02;
+						offsetskelw = 0.04;
 						toUnscaled(offsetskelx, offsetskelw);
-						makeRectangle(skelx - offsetskelx, rscy, skelw + offsetskelw, skelh); //widen slightly 
+						staticoffset = 0.02;
+						toUnscaled(staticoffset);
+						bottomoffset = rscy - skely;
+						makeRectangle(skelx - offsetskelx, rscy, skelw + offsetskelw, skelh - bottomoffset + staticoffset);
+						
 						roiManager("update");
 						run("Duplicate...", "use");
 						tempskel = getImageID();
@@ -1376,13 +1382,20 @@ function rootGrowth() {
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
 					for (rootno = 0; rootno < roicount; rootno ++) {
 						rscindex = ((sliceno-1)*roicount) + rootno;
-						selectWindow(rootmask);
-						roiManager("select", rootno);
-						Roi.getBounds(skelx, skely, skelw, skelh);
 						rscy = Table.get("YM", rscindex, rsctsv);
 						selectWindow(rootmask);
 						setSlice(sliceno);
-						makeRectangle(skelx, rscy, skelw, skelh);
+						roiManager("select", rootno);
+						
+						Roi.getBounds(skelx, skely, skelw, skelh);
+						offsetskelx = 0.02;
+						offsetskelw = 0.04;
+						toUnscaled(offsetskelx, offsetskelw);
+						staticoffset = 0.02;
+						toUnscaled(staticoffset);
+						bottomoffset = rscy - skely;
+						makeRectangle(skelx - offsetskelx, rscy, skelw + offsetskelw, skelh - bottomoffset + staticoffset);
+						
 						roiManager("add");
 						curroicount = roiManager("count");
 						roiManager("select", curroicount-1);
