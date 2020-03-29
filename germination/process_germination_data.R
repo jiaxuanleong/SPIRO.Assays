@@ -293,14 +293,16 @@ if (length(unique(data.long$Group)) > 1) {
   # make a kaplan-meier plot for all groups
   survobj <- Surv(time=data.surv$`Germination Time (h)`, event=data.surv$event)
   sfit <- survfit(survobj~Group, data=data.surv)
-  p <- ggsurvplot(sfit, pval=T)
+  p <- ggsurvplot(sfit, pval=T, fun=function(y) { return(1-y) }) +
+    labs(x='Elapsed Time (h)', y='Fraction of germinated seeds')
   suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-allgroups.pdf"), width=25, height=15, units="cm"))
   
   for (i in seq(1, nrow(cmps))) {
     ds <- data.surv %>% filter(Group == cmps$Group.1[i] | Group == cmps$Group.2[i])
     survobj <- Surv(time=ds$`Germination Time (h)`, event=ds$event)
     sfit <- survfit(survobj~Group, data=ds)
-    p <- ggsurvplot(sfit, pval=T)
+    p <- ggsurvplot(sfit, pval=T, fun=function(y) { return(1-y) }) +
+      labs(x='Elapsed Time (h)', y='Fraction of germinated seeds')
     suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", cmps$Group.1[i], "_vs_", cmps$Group.2[i], ".pdf"), width=25, height=15, units="cm"))
   }
 }
