@@ -170,7 +170,7 @@ if (length(files) > 0) {
     if (errtype == 'EARLY_LARGE_AREA') {
       cat('Large non-seed object detected in ROI. Time range has been truncated.\n')
       cat('Affected seeds: \n')
-      cat(paste0(log$UID[log$Type == 'EARLY_LARGE_AREA']), '\n')
+      cat(paste0(log$UID[log$Type == 'EARLY_LARGE_AREA'], '\n'))
       cat('\n')
       err_largeobj <- data.frame(UID=log$UID[log$Type == 'EARLY_LARGE_AREA'], Note='Large non-seed object detected in ROI. Time range was truncated.')
     } else if (errtype == 'DUPE') {
