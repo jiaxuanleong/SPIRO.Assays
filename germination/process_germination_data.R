@@ -67,7 +67,7 @@ if (.Platform$OS.type == 'unix') {
 }
 
 resultsdir <- paste0(dir, '/Results')
-outdir <- paste0(resultsdir, '/Germination assay')
+outdir <- paste0(resultsdir, '/Germination')
 
 # set up output dir
 if (dir.exists(paste0(outdir, '/Analysis output'))) {
@@ -275,8 +275,8 @@ if (length(unique(data.long$Group)) > 1) {
   cat("Only one group in output, skipping t-tests.\n")
 }
 
-dir.create(paste0(rundir, "/Kaplan-Meier Plots"))
 if (length(unique(data.long$Group)) > 1) {
+  dir.create(paste0(rundir, "/Kaplan-Meier Plots"))
   # generate table for kaplan-meier plots
   # we only compare two groups for each analysis -- 
   #   please make your own custom analysis if this is inappropriate for your data!

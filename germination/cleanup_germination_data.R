@@ -132,10 +132,10 @@ if (.Platform$OS.type == 'unix') {
 }
 
 resultsdir <- paste0(dir, '/Results')
-outdir <- paste0(resultsdir, '/Germination assay')
+outdir <- paste0(resultsdir, '/Germination')
 
 # get all matching .tsv files in the directory
-files <- list.files(path = outdir, pattern = 'seed germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
+files <- list.files(path = outdir, pattern = ' germination analysis.tsv$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 
 allout <- toolarge <- err_largeobj <- err_multiobj <- NULL
 
@@ -158,7 +158,7 @@ if (length(files) > 0) {
   stopCluster(cl)
   
   # check the logs
-  logfiles <- list.files(path = outdir, pattern = 'seed germination analysis.tsv.log$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
+  logfiles <- list.files(path = outdir, pattern = ' germination analysis.tsv.log$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
   log <- NULL
   for (f in logfiles) {
     logfile <- read_tsv(f, col_types=c(UID=col_character(), Type=col_character()))
