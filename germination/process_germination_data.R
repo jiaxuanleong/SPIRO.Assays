@@ -251,14 +251,16 @@ if (length(unique(data.long$Group)) > 1) {
     tryCatch({tg <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
                            data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
               ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
-                           data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.2[i]])},
-              error=function(e) {
+                           data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.2[i]])
+              germination.pvals$p.value[i] <- tg$p.value
+              seedsize.pvals$p.value[i] <- ts$p.value
+             },
+             error=function(e) {
                 cat(paste0("Unable to compare groups ", pvals$Group.1[i], "(x) to ", pvals$Group.2[i], "(y):\n"))
                 cat(paste0(e$message, "\n"))
+                germination.pvals$p.value[i] <- NA
+                seedsize.pvals$p.value[i] <- NA
     })
-    
-    germination.pvals$p.value[i] <- tg$p.value
-    seedsize.pvals$p.value[i] <- ts$p.value
   }
   
   # generate corrected p-values according to the false discovery rate (fdr) method
