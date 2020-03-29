@@ -872,15 +872,15 @@ function rootMask() {
 				nightslicelabel = getInfo("slice.label");
 
 				nS = nSlices;
-				setSlice(nightslice);
-				run("Duplicate...", "use");
-				nightimg = "FirstNightImg";
-				rename(nightimg);
 				selectWindow(img);
 				setSlice(dayslice);
 				run("Duplicate...", "use");
 				dayimg = "FirstDayImg";
 				rename(dayimg);
+				setSlice(nightslice);
+				run("Duplicate...", "use");
+				nightimg = "FirstNightImg";
+				rename(nightimg);
 
 
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
@@ -974,8 +974,9 @@ function rootMask() {
 				close(img);
 				run("Images to Stack");
 				}
-				// run("Options...", "iterations=2 count=1 pad do=Dilate stack");
+				
 				run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
+				run("Options...", "iterations=1 count=1 pad do=Dilate stack");
 				saveAs("Tiff", groupdir + groupname + " rootmask.tif");
 				close(groupname + " rootmask.tif");
 			}
@@ -1301,7 +1302,7 @@ function rootGrowth() {
 						setSlice(sliceno);
 						roiManager("select", 0);
 						Roi.getBounds(skelx, skely, skelw, skelh);
-						makeRectangle(skelx, rscy, skelw, skelh);
+						makeRectangle(skelx-0.01, rscy, skelw+0.02, skelh); //widen slightly 
 						roiManager("update");
 						run("Duplicate...", "use");
 						tempskel = getImageID();
@@ -1473,6 +1474,8 @@ function deleteOutput() {
 					File.delete(groupdir + groupname + " rootgrowthdetection.tif");
 					File.delete(groupdir + groupname + " rootgrowthmeasurement.tsv");
 					File.delete(groupdir);
+					freshstart = false; 
+					//turns it back to false so essential output is not deleted at end of macro
 				}
 			}
 		}
