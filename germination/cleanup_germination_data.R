@@ -10,8 +10,8 @@ library(doParallel)
 library(readr)
 
 # below are cutoffs for area filtering
-upper_area_threshold = 0.012
-lower_area_threshold = 0.0012
+upper_area_threshold = 0.02
+lower_area_threshold = 0.002
 
 # extract datetime from strings such as "plate1-20190602-082944-day"
 getdate <- function(name) {
