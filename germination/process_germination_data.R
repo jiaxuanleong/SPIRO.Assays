@@ -196,6 +196,7 @@ germstats$ApproxTime <- round(germstats$Slice * round(avgTimePerSlice, 2), 2)
 
 # now calculate some germination metrics
 groups <- t50s <- mgts <- mgtses <- nseeds <- nongerms <- NULL
+dir.create(paste0(rundir, "/Germination Plots"))
 for(group in unique(data.long$Group)) {
   # calculate t50 for summary file
   t50 <- t50(germ.counts = germstats$GermCount[germstats$Group == group], 
@@ -216,7 +217,7 @@ for(group in unique(data.long$Group)) {
   nongerms <- c(nongerms, nongerm)
   
   # make germination graph
-  pdf(paste0(rundir, "/germinationplot-", group, ".pdf"), width=7, height=5)
+  pdf(paste0(rundir, "/Germination Plots/germinationplot-", group, ".pdf"), width=7, height=5)
   tryCatch(graph <- FourPHFfit(germ.counts = germstats$GermCount[germstats$Group == group], 
                       intervals = germstats$ApproxTime[germstats$Group == group],
                       total.seeds = length(unique(data$UID[data$Group == group])),
@@ -272,6 +273,7 @@ if (length(unique(data.long$Group)) > 1) {
   cat("Only one group in output, skipping t-tests.\n")
 }
 
+dir.create(paste0(rundir, "/Kaplan-Meier Plots"))
 if (length(unique(data.long$Group)) > 1) {
   # generate table for kaplan-meier plots
   # we only compare two groups for each analysis -- 
@@ -290,14 +292,14 @@ if (length(unique(data.long$Group)) > 1) {
   survobj <- Surv(time=data.surv$`Germination Time (h)`, event=data.surv$event)
   sfit <- survfit(survobj~Group, data=data.surv)
   p <- ggsurvplot(sfit, pval=T)
-  suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/KaplanMeier-allgroups.pdf"), width=25, height=15, units="cm"))
+  suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-allgroups.pdf"), width=25, height=15, units="cm"))
   
   for (i in seq(1, nrow(cmps))) {
     ds <- data.surv %>% filter(Group == cmps$Group.1[i] | Group == cmps$Group.2[i])
     survobj <- Surv(time=ds$`Germination Time (h)`, event=ds$event)
     sfit <- survfit(survobj~Group, data=ds)
     p <- ggsurvplot(sfit, pval=T)
-    suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/KaplanMeier-", cmps$Group.1[i], "_vs_", cmps$Group.2[i], ".pdf"), width=25, height=15, units="cm"))
+    suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", cmps$Group.1[i], "_vs_", cmps$Group.2[i], ".pdf"), width=25, height=15, units="cm"))
   }
 }
 
