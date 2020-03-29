@@ -328,7 +328,7 @@ function getPositions() {
 				for (row = 0; row < nr; row ++) {
 					nrTp = Table.size(tp); // number of rows
 					area = getResult("Area", row);
-					if (area < 0.0005) { // detected object is very small
+					if (area < 0.0012) { // detected object is very small
 						Table.set("Trash ROI", nrTp, row, tp);
 					}
 					if (area > 0.02) { // or very large
@@ -438,7 +438,7 @@ function ordercoords(target) {
 			ymroot1 = ymroots[ymascendingindexes[roino-1]];
 			// toScaled(ymroot2, ymroot1);
 			ydiff =  ymroot2 - ymroot1;
-			if (ydiff > 1) {
+			if (ydiff > 0.3) {
 				rowno += 1;
 				col = 0;
 			} else {
@@ -877,6 +877,8 @@ function rootMask() {
 				run("Duplicate...", "use");
 				dayimg = "FirstDayImg";
 				rename(dayimg);
+				
+				selectWindow(img);
 				setSlice(nightslice);
 				run("Duplicate...", "use");
 				nightimg = "FirstNightImg";
@@ -1302,7 +1304,10 @@ function rootGrowth() {
 						setSlice(sliceno);
 						roiManager("select", 0);
 						Roi.getBounds(skelx, skely, skelw, skelh);
-						makeRectangle(skelx-0.01, rscy, skelw+0.02, skelh); //widen slightly 
+						offsetskelx = 0.01;
+						offsetskelw = 0.02;
+						toUnscaled(offsetskelx, offsetskelw);
+						makeRectangle(skelx - offsetskelx, rscy, skelw + offsetskelw, skelh); //widen slightly 
 						roiManager("update");
 						run("Duplicate...", "use");
 						tempskel = getImageID();
