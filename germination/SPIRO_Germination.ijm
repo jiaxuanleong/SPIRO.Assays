@@ -240,7 +240,7 @@ function seedAnalysis() {
 		
 				for (roino = 1; roino < roicount; roino++) {
 					ydiff = ymseeds[ymascendingindexes[roino]] - ymseeds[ymascendingindexes[roino-1]];
-					if (ydiff > 1) {
+					if (ydiff > 0.25) {
 						rowno = rowno + 1;
 						col = 0;
 					} else {
