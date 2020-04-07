@@ -436,7 +436,6 @@ function ordercoords(target) {
 		for (roino = 1; roino < roicount; roino++) {
 			ymroot2 = ymroots[ymascendingindexes[roino]];
 			ymroot1 = ymroots[ymascendingindexes[roino-1]];
-			// toScaled(ymroot2, ymroot1);
 			ydiff =  ymroot2 - ymroot1;
 			if (ydiff > 0.3) {
 				rowno += 1;
@@ -445,7 +444,6 @@ function ordercoords(target) {
 				col += 1;
 			}
 			colname = "col" + col + 1;
-			// toUnscaled(ymroot2);
 			Table.set(colname, rowno, ymroot2, sortedycoords);
 			Table.set(colname, rowno, xmroots[ymascendingindexes[roino]], sortedxcoords);
 		}
@@ -455,7 +453,7 @@ function ordercoords(target) {
 
 		for (roino = 1; roino < roicount; roino++) {
 			ydiff = ymseeds[ymascendingindexes[roino]] - ymseeds[ymascendingindexes[roino-1]];
-			if (ydiff > 1) {
+			if (ydiff > 0.3) {
 				rowno = rowno + 1;
 				col = 0;
 			} else {
@@ -506,10 +504,7 @@ function ordercoords(target) {
 	if (target == ROOTS) {
 		Table.save(groupdir + "roots " + sortedxcoords + ".tsv", sortedxcoords);
 		Table.save(groupdir + "roots " + sortedycoords + ".tsv", sortedycoords);
-		selectWindow(sortedxcoords);
-		run("Close");
-		selectWindow(sortedycoords);
-		run("Close");
+		
 	} else {
 		Table.save(groupdir + "seeds " + sortedxcoords + ".tsv", sortedxcoords);
 		Table.save(groupdir + "seeds " + sortedycoords + ".tsv", sortedycoords);
@@ -911,6 +906,27 @@ function rootMask() {
 				selectWindow(nightimg);
 				rename(nightslicelabel);
 				run("Images to Stack");
+
+				setSlice(1);
+				run("Select All");
+				run("Copy");
+				setSlice(dayslice);
+				run("Add Slice");
+				run("Paste");
+				setMetadata("Label", dayslicelabel);
+				setSlice(1);
+				run("Delete Slice");
+
+				setSlice(2);
+				run("Select All");
+				run("Copy");
+				setSlice(nightslice);
+				run("Add Slice");
+				run("Paste");
+				setMetadata("Label", nightslicelabel);
+				setSlice(2);
+				run("Delete Slice");
+				
 				close(img);
 				selectWindow("Stack");
 				rename(img);
@@ -920,7 +936,7 @@ function rootMask() {
 				for (sliceno = 1; sliceno <= nS; sliceno ++) {
 					selectWindow(img);
 					setSlice(sliceno);
-					curslicelabel = getInfo("slice.label");
+					curslice = getInfo("slice.label");
 
 					if (indexOf(curslicelabel, "day") > 0) {
 						run("Remove Outliers...", "radius=5 threshold=50 which=Bright slice");
@@ -1026,8 +1042,8 @@ function getSkeletons() { // look for smallest area that encompasses a seedling
 				rsctsv = groupname + " " + rsc + ".tsv";
 				seedlingpositionszip = groupname + " seedlingpositions.zip";
 				roiManager("reset");
-				open(groupdir + rsctsv);
 				open(groupdir + seedlingpositionszip);
+				open(groupdir + rsctsv);
 				lastslicecoord = "lastslicecoordinates";
 				Table.create(lastslicecoord);
 				roicount = roiManager("count");
@@ -1041,194 +1057,58 @@ function getSkeletons() { // look for smallest area that encompasses a seedling
 					Table.set("XM", nrlastslicecoord, xmlast, lastslicecoord);
 					Table.set("YM", nrlastslicecoord, ymlast, lastslicecoord);
 				}
-				Table.save(groupdir + groupname + " " + lastslicecoord + ".tsv", lastslicecoord);
+				//Table.save(groupdir + groupname + " " + lastslicecoord + ".tsv", lastslicecoord);
 				ordercoords(ROOTS);
+				selectWindow(lastslicecoord);
+				run("Close");
+				run("Set Measurements...", "center redirect=None decimal=5");
+				roiManager("deselect"); // nothing is selected
+				roiManager("multi-measure"); // all rois measured
+				roiManager("reset");
+				Table.rename("Results", lastslicecoord);
+				noOfroots = Table.size(lastslicecoord);
+				selectWindow(mask);
+				setSlice(nSlices);
+				run("Create Selection");
+				selectiontype = selectionType();
 
-				/////here to get ROI dimensions
-				sortedxcoords = "roots sorted X coordinates";
-				sortedxcoordstsv = sortedxcoords + ".tsv";
-				open(groupdir + sortedxcoordstsv);
-				Table.showRowIndexes(false);
-				Table.showRowNumbers(false);
-				colnames = Table.headings(sortedxcoordstsv);
-				colnamessplit = split(colnames, "	");
-				colno = lengthOf(colnamessplit);
-
-				if (colno > 1) {
-					getcol = 1;
-					getcolname = "col" + getcol;
-					// columns might have zeroes at the beginning due to uneven number of columns, and these values need to be skipped
-					xfirstcol = Table.get(getcolname, 0, sortedxcoordstsv);
-					while (xfirstcol <= 0) {
-						getcol = getcol + 1;
-						getcolname = "col" + getcol;
-						xfirstcol = Table.get(getcolname, 0, sortedxcoordstsv);
-						}
-
-				getcol2 = getcol + 1;
-				getcol2name = "col" + getcol2;
-				xsecondcol = Table.get(getcol2name, 0, sortedxcoordstsv);
-				// xfirstcol and xsecondcol are names for the first two non-zero columns
-				xdiff = xsecondcol - xfirstcol;
-				roiwidth = 2*xdiff;
-				} else {
-					xfirstcol = Table.get("col1", 0, sortedxcoordstsv);
-					roiwidth = getWidth();
-				}
-				sortedycoords = "roots sorted Y coordinates";
-				sortedycoordstsv = sortedycoords + ".tsv";
-				open(groupdir + sortedycoordstsv);
-				rowno = Table.size (sortedycoordstsv) - 1;
-				if (rowno > 1) {
-					// getcolname already defines the first non-zero column, as obtained above
-					nyrow = 0;
-					yfirstrow = Table.get(getcolname, nyrow, sortedycoordstsv);
-					ysecondrow = Table.get(getcolname, nyrow+1, sortedycoordstsv);
-					while (ysecondrow <= 0) {
-						getcol += 1;
-						getcolname = "col" + getcol;
-						ysecondrow = Table.get(getcolname, nyrow+1, sortedycoordstsv);
-					}
-					ydiff = ysecondrow - yfirstrow;
-					roiheight = ydiff - 0.1; // cuts off bottom of roi so it doesnt cut into next row
-				} else {
-					yfirstrow = Table.get("col1", 0, sortedycoordstsv);
-					roiheight = getHeight() - yfirstrow;
-				}
-
-				groupwidth = getWidth();
-				nrlastslicecoord = Table.size(lastslicecoord);
-				roiManager("reset"); // resets the points made in ordercoords()
-
-				setSlice(nS);
-				for (row = 0; row < rowno + 1; row ++) {
-					for (col = 0; col < colno; col ++) {
-						colname = "col" + col + 1;
-						xm = Table.get(colname, row, sortedxcoordstsv);
-						ym = Table.get(colname, row, sortedycoordstsv);
-						if (xm > 0 && ym > 0) {
-							roiytopleft = ym - 0.4; // offset at the top because cotyledons shift downwards comparing first slice to LNI
-							roixtopleft = xm - (0.5*roiwidth);
-							toUnscaled(roixtopleft, roiytopleft);
-							toUnscaled(roiwidth, roiheight);
-							if (roixtopleft < 0)
-							roixtopleft = 0;
-							if (roiytopleft < 0)
-							roiytopleft = 0;
-							makeRectangle(roixtopleft, roiytopleft, roiwidth, roiheight);
-							roiManager("add");
-							roiManager("select", roiManager("count")-1);
-							roiManager("rename", roiManager("count"));
-							roiManager("select", roiManager("count")-1);
-							roiManager("Remove Slice Info");
-							toScaled(roiwidth, roiheight); // revert so it can be recalculated
-						}
-					}
-				}
-				roiManager("save", groupdir + groupname + " seedlingrois.zip");
-
-				setSlice(nS);
-				run("Clear Results");
-				rootroicount = roiManager("count");
-				roiarraysdling = Array.getSequence(rootroicount);
-
-				for (rootno = 0; rootno < rootroicount; rootno ++) {
-					if (rootno > 0) {
-					roiManager("reset");
-					roiManager("open", groupdir + groupname + " seedlingrois.zip");
-					}
-					seedlingroicount = roiManager("count");
-					if (seedlingroicount > 1) {
-						roiarraysdlingX = Array.deleteValue(roiarraysdling, rootno); // delete current roi from array
-						roiManager("select", roiarraysdlingX); // so it isnt deleted in roi manager
-						roiManager("delete");
-					}
-					
+				if (selectiontype == 9) {
+					roiManager("split");
 					roiManager("select", 0);
-					Roi.getBounds(rootboundx, rootboundy, rootboundw, rootboundh);
-
-					run("Duplicate...", "use");
-					tempmultipleskel = getTitle();
-
-					run("Create Selection");
-					selectiontype = selectionType();
-
-					if (selectiontype == 9) {
-						roiManager("split");
-						roiManager("select", 0);
-						roiManager("delete");
-						noOfobjects = roiManager("count");
-						for (objectno = 0; objectno < noOfobjects; objectno ++) {
-							roiManager("select", objectno);
-							run("Area to Line");
-							roiManager("update");
-						}
-						roiManager("deselect"); // nothing is selected
-						roiManager("measure"); // all rois measured
-						lengthsarray = Table.getColumn("Length", "Results");
-						// xmarray = Table.getColumn("XM", "Results");
-						// ymarray = Table.getColumn("YM", "Results");
-
-						lengthspositions = Array.rankPositions(lengthsarray);
-						desclengthspositions = Array.reverse(lengthspositions);
-
-						lastpos = ((nS-1) * roicount) + rootno; //position in last image
-						xmlast = Table.get("XM", lastpos, rsctsv);
-						ymlast = Table.get("YM", lastpos, rsctsv);
-						xmlastwithinroi = xmlast - rootboundx;
-						ymlastwithinroi = ymlast - rootboundy;
-						containsrsc = false;
-						positionarrayindex = 0;
-						pointindex = 0;
-						containspoint = false;
-						while (containsrsc == false && positionarrayindex != desclengthspositions.length) { // while skeleton does not contain rsc
-							testposition = desclengthspositions[positionarrayindex]; // array with lengths, descending order
-							roiManager("select", testposition);
-							Roi.getContainedPoints(xpoints, ypoints); // get all points in current skeleton	
-							for (pointindex = 0; pointindex < xpoints.length; pointindex ++) {
-								diffx = abs(xpoints[pointindex] - xmlastwithinroi); // distance from xm last
-								diffy = abs(ypoints[pointindex] - ymlastwithinroi); // distance from ym last
-								toScaled(diffx, diffy);
-								if (diffx < 0.1 && diffy < 0.1) {
-									containspoint = true;
-									containsrsc = true;
+					roiManager("delete");
+					noOfobjects = roiManager("count");
+					roistodelete = "roistodelete";
+					Table.create(roistodelete);
+					//containspoint = false;
+				for (objectno = 0; objectno < noOfobjects; objectno ++) {
+					containsrsc = false;
+					roiManager("select", objectno);
+					Roi.getContainedPoints(xpoints, ypoints); // get all points in current object	
+					for (pointindex = 0; pointindex < xpoints.length; pointindex ++) { //for each point
+						for (rootindex = 0; rootindex < noOfroots; rootindex ++) { //test if it matches any of the rsc
+							xmcur = Table.get("XM", rootindex, lastslicecoord); 
+							ymcur = Table.get("YM", rootindex, lastslicecoord);
+							toUnscaled(xmcur, ymcur);
+							diffx = abs(xpoints[pointindex] - xmcur); // distance from xm last slice of current object
+							diffy = abs(ypoints[pointindex] - ymcur); 
+							toScaled(diffx, diffy);
+							if (diffx < 0.08 && diffy < 0.08) {
+								containsrsc = true;
+								roiManager("select", objectno);
+								roiManager("rename", IJ.pad(rootindex+1, 2));
+								roiManager("Remove Slice Info");
 								}
 							}
-							positionarrayindex += 1;
 						}
-						positionarrayindex -= 1;
-						if (positionarrayindex == desclengthspositions.length)
-							exit("skeleton matching rsc not found");
-						desclengthspositionsX = Array.deleteIndex(desclengthspositions, positionarrayindex); //remove index of longest length
-						roiManager("select", desclengthspositionsX);
-						roiManager("delete"); //so it is not deleted here
-						roiManager("select", 0);
-						Roi.getBounds(rootx, rooty, rootw, rooth);
-						close("Results");
+						if (containsrsc == false) {
+							tsroidelete = Table.size(roistodelete);
+							Table.set("roiindex", tsroidelete, objectno, roistodelete);
+						}
 					}
-					
-					if (selectiontype < 9 && selectiontype != -1) {
-						roiManager("add");
-						Roi.getBounds(rootx, rooty, rootw, rooth);
-						 roiManager("select", 0);
-						 roiManager("delete");
-					}
-
-					if (selectiontype > -1) {
-						selectWindow(mask);
-						roiManager("select", 0);
-						Roi.move(rootboundx+rootx, rootboundy+rooty);
-						roiManager("update");
-					}
-					roiManager("select", 0);
-					roiManager("rename", IJ.pad(rootno+1, 2)); // names roi according to seed number
-					roiManager("Remove Slice Info");
-					if (rootno > 0) {
-						roiManager("open", groupdir + groupname + " seedlingskels.zip");
-					}
-					roiManager("save", groupdir + groupname + " seedlingskels.zip");
-					close(tempmultipleskel);
 				}
+				roiarraytodelete = Table.getColumn("roiindex", roistodelete);
+				roiManager("select", roiarraytodelete);
+				roiManager("delete");
 				roiManager("sort");
 				roiManager("save", groupdir + groupname + " seedlingskels.zip");
 				close(mask);
