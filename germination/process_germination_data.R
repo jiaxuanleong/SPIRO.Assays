@@ -243,7 +243,6 @@ if (length(unique(data.long$Group)) > 1) {
   colnames(pvals) <- c('Group.1', 'Group.2')
   pvals$Group.1 <- as.character(pvals$Group.1)
   pvals$Group.2 <- as.character(pvals$Group.2)
-  pvals$p.value <- NA
   germination.pvals <- seedsize.pvals <- pvals
   
   for (i in seq(1, nrow(pvals))) {
@@ -256,7 +255,7 @@ if (length(unique(data.long$Group)) > 1) {
               seedsize.pvals$p.value[i] <- ts$p.value
              },
              error=function(e) {
-                cat(paste0("Unable to compare groups ", pvals$Group.1[i], "(x) to ", pvals$Group.2[i], "(y):\n"))
+                cat(paste0("Unable to compare groups ", pvals$Group.1[i], "(x) to ", pvals$Group.2[i], "(y): "))
                 cat(paste0(e$message, "\n"))
                 germination.pvals$p.value[i] <- NA
                 seedsize.pvals$p.value[i] <- NA
@@ -280,10 +279,7 @@ if (length(unique(data.long$Group)) > 1) {
   # generate table for kaplan-meier plots
   # we only compare two groups for each analysis -- 
   #   please make your own custom analysis if this is inappropriate for your data!
-  cmps <- as.data.frame(t(combn(unique(data.long$Group), 2)))
-  colnames(cmps) <- c('Group.1', 'Group.2')
-  cmps$Group.1 <- as.character(cmps$Group.1)
-  cmps$Group.2 <- as.character(cmps$Group.2)
+  pvals$km.logrank <- NA
   data.surv <- data.peruid[data.peruid$Note=='Seed processed normally.',]
   data.surv$event <- 1
   data.surv$event[which(is.na(data.surv$`Germination Time (h)`))] <- 0
@@ -293,18 +289,26 @@ if (length(unique(data.long$Group)) > 1) {
   # make a kaplan-meier plot for all groups
   survobj <- Surv(time=data.surv$`Germination Time (h)`, event=data.surv$event)
   sfit <- survfit(survobj~Group, data=data.surv)
-  p <- ggsurvplot(sfit, pval=T, fun=function(y) { return(1-y) }) +
+  p <- ggsurvplot(sfit, pval=F, fun=function(y) { return(1-y) }) +
     labs(x='Elapsed Time (h)', y='Fraction of germinated seeds')
-  suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-allgroups.pdf"), width=25, height=15, units="cm"))
+  suppressWarnings(ggsave(p$plot, 
+                          filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-allgroups.pdf"), 
+                          width=25, height=15, units="cm"))
   
   for (i in seq(1, nrow(cmps))) {
     ds <- data.surv %>% filter(Group == cmps$Group.1[i] | Group == cmps$Group.2[i])
     survobj <- Surv(time=ds$`Germination Time (h)`, event=ds$event)
     sfit <- survfit(survobj~Group, data=ds)
-    p <- ggsurvplot(sfit, pval=T, fun=function(y) { return(1-y) }) +
+    p <- ggsurvplot(sfit, pval=F, fun=function(y) { return(1-y) }) +
       labs(x='Elapsed Time (h)', y='Fraction of germinated seeds')
-    suppressWarnings(ggsave(p$plot, filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", cmps$Group.1[i], "_vs_", cmps$Group.2[i], ".pdf"), width=25, height=15, units="cm"))
+    suppressWarnings(ggsave(p$plot, 
+                            filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", cmps$Group.1[i], "_vs_", cmps$Group.2[i], ".pdf"), 
+                            width=25, height=15, units="cm"))
+    # get p-value (standard log-rank)
+    pvals$km.logrank[i] <- surv_pvalue(sfit)$pval
   }
+  names(pvals) <- c('Group 1', 'Group 2', 'Log-Rank p-value')
+  write.table(pvals, file=paste0(rundir, "/survival-analysis.tsv"), sep='\t', row.names=F)
 }
 
 cat(paste0("Statistics have been written to the directory ", rundir, "\n"))
