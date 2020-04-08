@@ -43,7 +43,7 @@ if (.Platform$OS.type == 'unix') {
 }
 
 resultsdir <- paste0(dir, '/Results')
-outdir <- paste0(resultsdir, '/Root growth assay')
+outdir <- paste0(resultsdir, '/Root Growth')
 
 # set up output dir
 if (dir.exists(paste0(outdir, '/Analysis output'))) {
@@ -61,7 +61,7 @@ rundir <- paste0(outdir, '/Analysis output/', run_number)
 dir.create(rundir, showWarnings=F)
 
 if (file.exists(paste0(outdir, "/rootgrowth.postQC.tsv"))) {
-  data <- read.table(paste0(outdir, "/rootgrowth.postQC.tsv"), header=T, stringsAsFactors=F)
+  data <- read.table(paste0(outdir, "/rootgrowth.postQC.tsv"), header=T, stringsAsFactors=F, row.names=NULL)
 } else {
   stop("rootgrowth.postQC.tsv not found in specified directory. Did you run cleanup_rootgrowth_data.R?\n")
 }
