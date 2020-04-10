@@ -1,11 +1,25 @@
-## Background
+<p align="center">
+  <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Hardware%20files/SPIRO%20logo.jpg?raw=true" height="50" title="SPIRO">
+  <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/SPIRO%20text%20logo.png?raw=true" width="100" title="SPIRO">
+</p>
+<p align="center">
+    <b>S</b>mart <b>P</b>late <b>I</b>maging <b>Ro</b>bot semi-automated assays
 
-These two assays were developed for high-throughput analysis of data acquired by [SPIRO](https://www.alyonaminina.org/spiro), the [Smart Plate Imaging RObot](https://github.com/jonasoh/spiro). The assay were optimized for imaging <i>Arabidopsis thaliana</i> seeds and seedlings, but can be optimized for other species. 
+<br>
+<br>
+
+The assays were developed for high-throughput analysis of data acquired by [SPIRO](https://www.alyonaminina.org/spiro), the [Smart Plate Imaging RObot](https://github.com/jonasoh/spiro). The assays were optimized for the typical plant model organism, <i>Arabidopsis thaliana</i>, but can be tuned for other species. 
+
+Currently available SPIRO assays:
+- Seed Germinaiton assay
+- Root growth assay
+
 
 Each assay comprises three major steps:
-1. Image processing using the ImageJ macro `SPIRO_Preprocessing`
+1. Raw data pre-processing using the ImageJ macro `SPIRO_Preprocessing`
 2. Image analysis using the ImageJ macro `SPIRO_Germination` or `SPIRO_RootGrowth`
-3. Further data analysis using the accompanying R scripts
+3. Quantitative data analysis using the accompanying R scripts
+
 
 ## Image processing
 
