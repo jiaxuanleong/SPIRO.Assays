@@ -1,3 +1,24 @@
+List.setCommands;
+if(List.get("TurboReg ")!="") {
+	turboreginstalled = true;
+} else {
+	turboreginstalled = false;
+}
+if(List.get("MultiStackReg")!="") {
+	multistackreginstalled = true;
+} else {
+	multistackreginstalled = false;
+}
+if (!turboreginstalled || !multistackreginstalled) {
+	Dialog.create("Plugin not found");
+	Dialog.addMessage("Plugins TurboReg and/or MultiStackReg not found. Please refer to SPIRO manual for installation instructions.");
+	Dialog.addCheckbox("I understand.", false);
+	Dialog.show();
+	usercheck = Dialog.getCheckbox();
+	if (usercheck == true)
+		exit;
+}
+
 //requirements for file organization
 //main directory containing all images sorted by plate into subdirectories
 //requirements for image naming

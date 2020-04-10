@@ -1071,8 +1071,9 @@ function getSkeletons() { // look for smallest area that encompasses a seedling
 				setSlice(nSlices);
 				run("Create Selection");
 				selectiontype = selectionType();
-
+				
 				if (selectiontype == 9) {
+					//run("Set Measurements...", "area redirect=None decimal=5");
 					roiManager("split");
 					roiManager("select", 0);
 					roiManager("delete");
@@ -1083,35 +1084,60 @@ function getSkeletons() { // look for smallest area that encompasses a seedling
 				for (objectno = 0; objectno < noOfobjects; objectno ++) {
 					containsrsc = false;
 					roiManager("select", objectno);
-					Roi.getContainedPoints(xpoints, ypoints); // get all points in current object	
-					for (pointindex = 0; pointindex < xpoints.length; pointindex ++) { //for each point
-						for (rootindex = 0; rootindex < noOfroots; rootindex ++) { //test if it matches any of the rsc
-							xmcur = Table.get("XM", rootindex, lastslicecoord); 
-							ymcur = Table.get("YM", rootindex, lastslicecoord);
-							toUnscaled(xmcur, ymcur);
-							diffx = abs(xpoints[pointindex] - xmcur); // distance from xm last slice of current object
-							diffy = abs(ypoints[pointindex] - ymcur); 
-							toScaled(diffx, diffy);
-							if (diffx < 0.08 && diffy < 0.08) {
-								containsrsc = true;
-								roiManager("select", objectno);
-								roiManager("rename", IJ.pad(rootindex+1, 2));
-								roiManager("Remove Slice Info");
+					//roiManager("measure");
+					//areaobj = getResult("Area", nResults-1);
+					//if (areaobj >= 0.002) {
+						Roi.getContainedPoints(xpoints, ypoints); // get all points in current object	
+						for (pointindex = 0; pointindex < xpoints.length; pointindex ++) { //for each point
+							for (rootindex = 0; rootindex < noOfroots; rootindex ++) { //test if it matches any of the rsc
+								xmcur = Table.get("XM", rootindex, lastslicecoord); 
+								ymcur = Table.get("YM", rootindex, lastslicecoord);
+								toUnscaled(xmcur, ymcur);
+								diffx = abs(xpoints[pointindex] - xmcur); // distance from xm last slice of current object
+								diffy = abs(ypoints[pointindex] - ymcur); 
+								toScaled(diffx, diffy);
+								if (diffx < 0.1 && diffy < 0.1) {
+									containsrsc = true;
+									roiManager("select", objectno);
+									roiManager("rename", IJ.pad(rootindex+1, 2));
+									roiManager("Remove Slice Info");
 								}
 							}
 						}
-						if (containsrsc == false) {
-							tsroidelete = Table.size(roistodelete);
-							Table.set("roiindex", tsroidelete, objectno, roistodelete);
-						}
+					//}
+					//if (containsrsc == false || areaobj < 0.002) {
+					if (containsrsc == false) {
+						tsroidelete = Table.size(roistodelete);
+						Table.set("roiindex", tsroidelete, objectno, roistodelete);
 					}
 				}
-				roiarraytodelete = Table.getColumn("roiindex", roistodelete);
-				roiManager("select", roiarraytodelete);
-				roiManager("delete");
-				roiManager("sort");
-				roiManager("save", groupdir + groupname + " seedlingskels.zip");
-				close(mask);
+			}
+			roiarraytodelete = Table.getColumn("roiindex", roistodelete);
+			roiManager("select", roiarraytodelete);
+			roiManager("delete");
+			roiManager("sort");
+			// check for multiple skels to one rsc
+			roicount = roiManager("count");
+			roiarray = Array.getSequence(roicount);
+			for (roiindex = 0; roiindex < roicount-1; roiindex++){
+				roiManager("select", roiindex);
+				roiname = Roi.getName;
+				roiManager("select", roiindex+1);
+				nextroiname = Roi.getName;
+				if (indexOf(roiname, nextroiname) == 0) {
+					roiManager("select", newArray(roiindex, roiindex+1));
+					roiManager("Combine");
+					Roi.setName(roiname);
+					roiManager("add");
+					roiManager("select", newArray(roiindex, roiindex+1));
+					roiManager("delete");
+					roiindex -= 1;
+					roicount -= 1;
+					roiManager("sort");
+				}
+			}
+			roiManager("save", groupdir + groupname + " seedlingskels.zip");
+			close(mask);
 			}
 		}
 	}
