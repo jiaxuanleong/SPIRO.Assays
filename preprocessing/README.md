@@ -15,7 +15,8 @@ The first step in either of the SPIRO assays is preprocessing of the raw data. I
 - Converting images to 8-bit to facilitate further segmentation
 - If needed, correcting for accidental drift during cube rotation
 
-The preprocessed data for each Petri plate will be saved in the experiment folder: Experiment name/Results/Preprocessing/plate<i>n</i>/plate<i>n</i>_preprocessed.tiff
+The preprocessed data for each Petri plate will be saved in the experiment folder: <p>
+  Experiment name/Results/Preprocessing/plate<i>n</i>/plate<i>n</i>_preprocessed.tiff
 
 
 
