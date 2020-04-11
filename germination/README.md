@@ -61,7 +61,7 @@ devtools::install_github("aravind-j/germinationmetrics")
 - If needed, manually modify group names in the `germination.postQC.tsv` file by using, for example, find/replace function in Excel
 - Run `process_germination_data.R`
 - Point the script to the experiment folder
-- Results of the analysis step are saved in the experiment folder: `Experiment name/Results/Germination/Analysis output/number of the analysis` and `germination.postQC.tsv`
+- Results of the analysis step are saved in the experiment folder: `Experiment name/Results/Germination/Analysis output/number of the analysis`. File `germination.postQC.tsv` is also saved into analysis folder to preserve the group names used for this particular analysis.
 
 
 ## Troubleshooting
