@@ -24,7 +24,7 @@ The user will be also asked to indicate groups of seeds, e.g. different genotype
 - `group name germination analysis.tsv` is the qunatitative output of the macro, it contains preimeter and area data for each seed at each time point.<br>
 For each group both files will be saved in the experiment folder: ` Experiment name/Results/Germination/plateN/group name`
 
-<b>Implementation</b>:
+<b> Requirements and implementation</b>:
 - [Fiji](https://imagej.net/Fiji/Downloads) will be installed for the preeceding step of <a href="https://github.com/jiaxuanleong/SPIRO.Assays/tree/master/preprocessing">data preprocessing</a>
 - <a href="https://github.com/jiaxuanleong/SPIRO.Assays/tree/master/preprocessing">Preprocessed imaging data</a> will be  genereated in the preceeding step
 - Open Fiji
@@ -43,8 +43,7 @@ After QC, cleaned data can be fed into `process_germination_data.R` for detectio
 5. Folder `Germination Plots`contains pdf files with germination curves plots for each group
 6. Folder `Kaplan-Meier Plots`contains pdf files with  Kaplan-Meier test for pairwaise group comparison
 
-## Implementation
-
+<b> Requirements and implementation</b>:
 - Download and install [R](https://www.r-project.org/)
 - Download and install [R Studio](https://www.rstudio.com/) and [Git](https://git-scm.com/downloads) (sic! make sure that Git is enabled)
 - Install required packages by copy pasting the following into the console of the R Studio:
