@@ -54,7 +54,7 @@ After QC, cleaned data can be fed into `process_rootgrowth_data.R` for building 
 - If needed, manually modify group names in the `rootgrowth.postQC.tsv` file by using, for example, find/replace function in Excel
 - Run `process_rootgrowth_data.R`
 - Point the script to the experiment folder
-- Results of the analysis step are saved in the experiment folder: `Experiment name/Results/oot Growth/Analysis output/number of the analysis.
+- Results of the analysis step are saved in the experiment folder: `Experiment name/Results/oot Growth/Analysis output/number of the analysis.` File `rootgrowth.postQC.tsv` is also saved into analysis folder to preserve the group names used for this particular analysis.
 
 
 ## Troubleshooting
