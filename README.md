@@ -9,7 +9,7 @@
 
 <br>
 <br>
-The seed germination and root growth assays were developed for high-throughput analysis of data acquired by [SPIRO](https://www.alyonaminina.org/spiro) and optimized for the typical plant model organism, <i>Arabidopsis thaliana</i>, but can be tuned for other species. 
+The seed germination and root growth assays were developed for high-throughput analysis of data acquired by <a href="https://www.alyonaminina.org/spiro">SPIRO</a> and optimized for the typical plant model organism, <i>Arabidopsis thaliana</i>, but can be tuned for other species. 
 <br>
 Each assay comprises three major steps:
 1. Raw data preprocessing using the ImageJ macro `SPIRO_Preprocessing`
