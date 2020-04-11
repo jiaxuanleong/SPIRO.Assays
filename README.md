@@ -13,7 +13,7 @@ The seed germination and root growth assays were developed for high-throughput a
 <br>
 <br>
 
-Each assay comprises three major steps. Detailed information for implementation of each step is provided in the corresponding folders of the repository:
+Each assay comprises three major steps. <b>Detailed information for implementation of each step is provided in the corresponding folders of the repository</b>:
 <ol>
  <li>Raw data preprocessing using the ImageJ macro <a href="https://github.com/jiaxuanleong/SPIRO.Assays/tree/master/preprocessing">SPIRO_Preprocessing</a></li>
 <li>Image analysis using the ImageJ macro <a href="https://github.com/jiaxuanleong/SPIRO.Assays/tree/master/germination">SPIRO_Germination</a> or <a href="https://github.com/jiaxuanleong/SPIRO.Assays/tree/master/rootgrowth">SPIRO_RootGrowth</a></li>
