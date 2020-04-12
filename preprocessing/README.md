@@ -33,7 +33,7 @@ The preprocessed data for each Petri plate will be saved in the experiment folde
 - Download and install Fiji and two plugins listed above
 - Download or clone the <a href="https://github.com/jiaxuanleong/SPIRO.Assays">SPIRO.Assays</a> repository 
 - Open Fiji
-- In the top menu find Plugins-> Macro-> Open -> locate and open the downloded SPIRO_Germination.ijm file
+- In the top menu find Plugins-> Macro-> Open -> locate and open the downloded SPIRO_Preprocessing.ijm file
 - Follow the instructions provided by the macro
 - To reduce RAM requirement we implement a batch mode, meaning that only a subset of images is processed at each step, macro will eventually process all images present in the experiment folder. The default size of batch is set to 350 images, but can be adjusted to accomodate for shitty or super fast computers (for more info see the troubleshooting <a href="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/Preprocessing%20troubleshooting.md">table</a>).
 

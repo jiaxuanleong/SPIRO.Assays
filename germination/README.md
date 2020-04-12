@@ -9,32 +9,32 @@
   <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/germination%20v1-resized.gif?raw=true" height="200" title="SPIRO">
 <br>
 
-This semi-automated assay is designed to analyze seed germiantion using data acuired by <a href="https://www.alyonaminina.org/spiro">SPIRO</a>. It was optmized for the typical plant model organism,<i> Arabidopsis thaliana</i>, but can be potentially fine-tuned to be used for other plant species. 
+This semi-automated assay is designed to analyze seed germination using data acquired by <a href="https://www.alyonaminina.org/spiro">SPIRO</a>. It was optimized for the typical plant model organism,<i> Arabidopsis thaliana</i>, but can be tuned for other plant species. 
 
-The assay comprises automated image analysis using SPIRO_Germination macro, quantitative data quality control followed by germination detection and statistical analysis using corresponding R scripts. An overview of the assay and quick instructions are provided in the text below, for the detailed instructions, please refer to the <b>SPIRO seed germination assay manual.</b>
+The assay comprises of automated image analysis using SPIRO_Germination macro, quantitative data quality control followed by germination detection and statistical analysis using corresponding R scripts. An overview of the assay and quick instructions are provided in the text below, for the detailed instructions, please refer to the <b>SPIRO seed germination assay manual.</b>
 
 
-## SPIRO Germination macro
+## SPIRO_Germination macro
 
-The macro contains several user-guided steps that enable implementation of the assay for a broad range of expereiments with various layouts.
-The analysis allows user to select a subset time range to be used for the germination analysis. This feature is not crucial for the assay <i>per se</i>, but it reduces requirement for RAM during image segmentation, thus enabling use of the macro even on shitty computers. 
-The user will be also asked to indicate groups of seeds, e.g. different genotypes and/or treatments. This step is crucial for downstream statistical analysis of the quantitative data. If needed, grouping can be additionally manually modified after data qulaity control to enable different comparisons without reruning image analysis. The macro will produce three output files for each group of seeds:
-- `group name.tiff` contains original data cropped to the corresponding selection of the group
+The macro contains several user-guided steps that enable implementation of the assay for a broad range of experiments with various layouts.
+The analysis allows the user to select a subset of time range to be used for the germination analysis. This feature is not crucial for the assay <i>per se</i> as it does not affect germination analysis, but it reduces requirement for RAM during image segmentation, thus enabling use of the macro even on shitty computers. 
+The user will also be asked to indicate groups of seeds, e.g. different genotypes and/or treatments. This step is crucial for downstream statistical analysis of the quantitative data. If needed, grouping can be manually modified after data quality control to enable different comparisons without re-running image analysis. The macro will produce three output files for each group of seeds:
+- `group name.tiff` contains selection of the corresponding group cropped from the original image stack
 - `group name germinationlabelled.tiff` is the graphical output of the macro. It contains time-lapse side by side comparison of original and segmented images for the corresponindg group with numbered identified seeds. This information can be helpful to verify that image processing indeed identified seeds and only seeds.
-- `group name germination analysis.tsv` is the qunatitative output of the macro, it contains preimeter and area data for each seed at each time point.<br>
-For each group both files will be saved in the experiment folder: ` Experiment name/Results/Germination/plateN/group name`
+- `group name germination analysis.tsv` is the quantitative output of the macro, it contains perimeter and area data for each seed at each time point.<br>
+For each group both files will be saved in the experiment folder: ` Experiment name/Results/Germination/plate<i>n</i>/group name`
 
 <b> Requirements and implementation</b>:
-- [Fiji](https://imagej.net/Fiji/Downloads) will be installed for the preeceding step of <a href="https://github.com/jiaxuanleong/SPIRO.Assays/tree/master/preprocessing">data preprocessing</a>
-- <a href="https://github.com/jiaxuanleong/SPIRO.Assays/tree/master/preprocessing">Preprocessed imaging data</a> will be  genereated in the preceeding step
+- [Fiji](https://imagej.net/Fiji/Downloads) = ImageJ + default plugins. The macro was developed using v1.52p
+- <a href="https://github.com/jiaxuanleong/SPIRO.Assays/tree/master/preprocessing">Preprocessed imaging data</a> generated in the preceding step
 - Open Fiji
 - In the top menu find Plugins -> Macros -> Run -> locate and open `SPIRO_Germination.ijm` file in the SPIRO.Assays folder downloaded during the previous step
-- Follow the instrucitons provided by the macro
+- Follow the instructions provided by the macro
 
 
 ## R scripts
 
-Qunatitative data processsing is done in two steps. Firstly, data is put trhough quality control (QC) using `cleanup_germination_data.R`. This step will produce two ouput .tsv files. In the germination.postQC.log.tsv you can find a summary of QC, which seeds were processed normally and which has been filterd out by the QC. germination.postQC.tsv contains quantitative macro ouput data that passed quality control. <b>Importantly, in this file you can modify group names if you wish to perform different grouping for statistical analysis</b>. 
+Quantitative data processsing is done in two steps. Firstly, data is put trhough quality control (QC) using `cleanup_germination_data.R`. This step will produce two ouput .tsv files. In the germination.postQC.log.tsv you can find a summary of QC, which seeds were processed normally and which has been filterd out by the QC. germination.postQC.tsv contains quantitative macro ouput data that passed quality control. <b>Importantly, in this file you can modify group names if you wish to perform different grouping for statistical analysis</b>. 
 After QC, cleaned data can be fed into `process_germination_data.R` for detection of seed size, germination and statistical analysis. Analysis can be performed several times on the same experiment, each analysis will be saved in a separate subfolder. The analysis produces six types of output:
 1. `descriptive_stats.tsv`contains T50, mean germination time, number of germinated and ungerminated seeds for each group and mean seed size per group
 2. `germination-perseed.tsv`contains time and slice number at which germination of each seed was detected by our algorithm
@@ -66,4 +66,4 @@ devtools::install_github("aravind-j/germinationmetrics")
 
 ## Troubleshooting
 - For troubleshooting please refer to this <a href="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/Germination%20assay%20troubleshooting.md">table</a>
-- If you encounter error not listed in the table, please submit a report as a github issue. We will address it asap.
+- If you encounter an error not listed in the table, please submit a report as a github issue. We will address it ASAP.
