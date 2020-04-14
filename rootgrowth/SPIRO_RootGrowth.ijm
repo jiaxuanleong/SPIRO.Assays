@@ -166,17 +166,6 @@ function detectOutput() {
 			}
 		}
 	}
-
-	if (step == 6) { // check for rootGrowth()
-		for (outputfileno = 0 ; outputfileno < listInlastgroupfolder.length; outputfileno ++ ) {
-			outputfilename = listInlastgroupfolder[outputfileno];
-			isRgm = indexOf(outputfilename, "rootgrowthmeasurement");
-			if (isRgm >= 0) {
-				step = 7;
-				print("File rootgrowthmeasurement.zip found, resuming from step 7");
-			}
-		}
-	}
 }
 
 
@@ -1270,7 +1259,7 @@ function rootGrowth() {
 						slicelabel = getInfo("slice.label");
 						Table.set("Slice label", nrrgm, slicelabel, rgm);
 						Table.set("Root no.", nrrgm, rootno + 1, rgm);
-						Table.set("Root length (cm)", nrrgm, maxlength, rgm);
+						Table.set("Root length (cm)", nrrgm, maxlength/2, rgm); // divided by two as skeletons are two-pixel wide
 						selectImage(tempskel);
 						run("Close");
 					}
@@ -1397,11 +1386,11 @@ function deleteOutput() {
 					File.delete(groupdir + "Group " + groupname + ".tif");
 					File.delete(groupdir + groupname + " rootgrowthdetection.tif");
 					File.delete(groupdir + groupname + " rootgrowthmeasurement.tsv");
-					File.delete(groupdir);
-					freshstart = false; 
-					//turns it back to false so essential output is not deleted at end of macro
+					File.delete(groupdir);			
 				}
 			}
 		}
 	}
+	freshstart = false; 
+	//turns it back to false so essential output is not deleted at end of macro
 }
