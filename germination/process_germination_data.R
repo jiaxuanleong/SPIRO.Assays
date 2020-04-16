@@ -13,6 +13,7 @@ library(foreach)
 library(ggplot2)
 library(survival)
 library(survminer)
+library(readr)
 
 detect_germination <- function(ds) {
   # figure out the imaging frequency
@@ -85,7 +86,7 @@ rundir <- paste0(outdir, '/Analysis output/', run_number)
 dir.create(rundir, showWarnings=F)
 
 if (file.exists(paste0(outdir, "/germination.postQC.tsv"))) {
-  data <- read.table(paste0(outdir, "/germination.postQC.tsv"), header=T, stringsAsFactors=F)
+  data <- read_tsv(paste0(outdir, "/germination.postQC.tsv"))
 } else {
   stop("germination.postQC.tsv not found in specified directory. Did you run cleanup_germination_data.R?\n")
 }
