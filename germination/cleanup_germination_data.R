@@ -68,7 +68,7 @@ processfile <- function(file, logdir) {
     ElapsedHours <- c(ElapsedHours, elapsed(startdate, d))
   }
   data <- NULL
-  data$UID <- paste0(plates, '_', ImgSource, '_', SeedPos)
+  data$UID <- paste0(plates, '_', ImgSource, '_', SeedPos, '_', paste0(sample(LETTERS, 8, replace=T), collapse=''))
   data$Group <- paste0(plates[1], '_', ImgSource[1])
   resultfile <- select(resultfile, -Label)
   data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
