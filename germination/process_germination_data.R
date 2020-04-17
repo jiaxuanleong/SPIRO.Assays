@@ -93,7 +93,9 @@ if (file.exists(paste0(outdir, "/germination.postQC.tsv"))) {
 
 # copy postQC input file to rundir for reference
 file.copy(paste0(outdir, "/germination.postQC.tsv"), rundir)
-file.copy(paste0(outdir, "/germination.postQC.log.tsv"), rundir)
+if (file.exists(outdir, "/germination.postQC.log.tsv")) {
+  file.copy(paste0(outdir, "/germination.postQC.log.tsv"), rundir)
+}
 
 data$dPerim <- data$ddPerim <- 0
 data$Germinated <- 0
@@ -160,9 +162,13 @@ names(data.peruid)[4] <- 'Germination Detected on Frame'
 names(data.peruid)[5] <- 'Seed Size (cm2)'
 
 # combine with QC notes
-seedlog <- read.table(paste0(outdir, "/germination.postQC.log.tsv"), header=T, stringsAsFactors=F)
-data.peruid <- merge(data.peruid, seedlog, all=T)
-write.table(data.peruid, file=paste0(rundir, "/germination-perseed.tsv"), sep='\t', row.names=F)
+if (file.exists(outdir, "/germination.postQC.log.tsv")) {
+  seedlog <- read.table(paste0(outdir, "/germination.postQC.log.tsv"), header=T, stringsAsFactors=F)
+  data.peruid <- merge(data.peruid, seedlog, all=T)
+  write.table(data.peruid, file=paste0(rundir, "/germination-perseed.tsv"), sep='\t', row.names=F)
+} else {
+  data.peruid$Note <- NA
+}
 
 # merge group and uid so we can keep both in the conversion long->wide->long
 data$GroupUID<-paste(data$Group, data$UID, sep="!")
