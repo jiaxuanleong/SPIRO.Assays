@@ -268,4 +268,4 @@ p <- ggplot(chartdata, aes(x=Group, fill=as.factor(Days), y=`Growth rate (mm/h)`
 suppressWarnings(ggsave(p, filename=paste0(graphsdir, "/growthrate-barchart.pdf"), width=25, height=15, units="cm"))
 
 cat(paste0("Writing summary graphs and table to ", graphsdir, ".\n"))
-write.table(chartdata, file=paste0(rundir, "/rootgrowth-and-rates.tsv"), sep='\t', row.names = F)
+write.table(chartdata, file=paste0(graphsdir, "/rootgrowth-and-rates.tsv"), sep='\t', row.names = F)
