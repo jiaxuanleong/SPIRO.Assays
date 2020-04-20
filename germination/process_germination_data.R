@@ -93,7 +93,7 @@ if (file.exists(paste0(outdir, "/germination.postQC.tsv"))) {
 
 # copy postQC input file to rundir for reference
 file.copy(paste0(outdir, "/germination.postQC.tsv"), rundir)
-if (file.exists(outdir, "/germination.postQC.log.tsv")) {
+if (file.exists(paste0(outdir, "/germination.postQC.log.tsv"))) {
   file.copy(paste0(outdir, "/germination.postQC.log.tsv"), rundir)
 }
 
@@ -162,7 +162,7 @@ names(data.peruid)[4] <- 'Germination Detected on Frame'
 names(data.peruid)[5] <- 'Seed Size (cm2)'
 
 # combine with QC notes
-if (file.exists(outdir, "/germination.postQC.log.tsv")) {
+if (file.exists(paste0(outdir, "/germination.postQC.log.tsv"))) {
   seedlog <- read.table(paste0(outdir, "/germination.postQC.log.tsv"), header=T, stringsAsFactors=F)
   data.peruid <- merge(data.peruid, seedlog, all=T)
   write.table(data.peruid, file=paste0(rundir, "/germination-perseed.tsv"), sep='\t', row.names=F)
