@@ -302,14 +302,14 @@ if (length(unique(data.long$Group)) > 1) {
                           filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-allgroups.pdf"), 
                           width=25, height=15, units="cm"))
   
-  for (i in seq(1, nrow(cmps))) {
-    ds <- data.surv %>% filter(Group == cmps$Group.1[i] | Group == cmps$Group.2[i])
+  for (i in seq(1, nrow(pvals))) {
+    ds <- data.surv %>% filter(Group == pvals$Group.1[i] | Group == pvals$Group.2[i])
     survobj <- Surv(time=ds$`Germination Time (h)`, event=ds$event)
     sfit <- survfit(survobj~Group, data=ds)
     p <- ggsurvplot(sfit, pval=F, fun=function(y) { return(1-y) }) +
       labs(x='Elapsed Time (h)', y='Fraction of germinated seeds')
     suppressWarnings(ggsave(p$plot, 
-                            filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", cmps$Group.1[i], "_vs_", cmps$Group.2[i], ".pdf"), 
+                            filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", pvals$Group.1[i], "_vs_", pvals$Group.2[i], ".pdf"), 
                             width=25, height=15, units="cm"))
     # get p-value (standard log-rank)
     pvals$km.logrank[i] <- surv_pvalue(sfit)$pval
