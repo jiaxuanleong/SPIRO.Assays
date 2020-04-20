@@ -7,7 +7,6 @@ var maindir;	// main directory
 var resultsdir;	// results subdir of main directory
 var ppdir;		// preprocessing subdir
 var curplate;	// number of current plate being processed
-var step;
 
 // alternate types of macro run
 var DEBUG = false; // hold down spacebar during macro start to keep non-essential intermediate output files
@@ -60,11 +59,17 @@ function cropGroups() {
 				setBatchMode(false); // has to be false for ROI Manager to open, and to display image
 	
 			open(ppdir + platefile);
-			waitForUser("Create substack",
-						"Please note first and last slice to be included for root growth analysis, and indicate it in the next step.");
-						roiManager("deselect");
-						run("Make Substack...");
-						setSlice(nSlices);
+			userconfirm = false;
+			while (!userconfirm) {
+				Dialog.createNonBlocking("Time range selection");
+				Dialog.addMessage("Please note first and last slice to be included for root growth analysis, and indicate it in the next step.");
+				Dialog.addCheckbox("First and last slices have been noted", false);
+				Dialog.show();
+				userconfirm = Dialog.getCheckbox();
+			}
+				roiManager("deselect");
+				run("Make Substack...");
+				setSlice(nSlices);
 			if (ppdirno == 0) {
 				roiManager("reset");
 				run("ROI Manager...");
@@ -124,8 +129,7 @@ function seedAnalysis() {
 		platefolder = listIngermdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
 			platedir = germdir + platefolder;
-			pfsplit = split(platefolder, "/");
-			platename = pfsplit[0];
+			platename = File.getName(platedir);
 			print("Processing " + platename);
 			listInplatefolder = getFileList(platedir);
 			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
@@ -362,11 +366,11 @@ function seedAnalysis() {
 
 function deleteOutput() {
 	print("Starting analysis from beginning. \nRemoving output from previous run.");
-	listInrootgrowthdir = getFileList(rootgrowthdir);
-	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
-		platefolder = listInrootgrowthdir[platefolderno];
+	listIngermdir = getFileList(germdir);
+	for (platefolderno = 0; platefolderno < listIngermdir.length; platefolderno ++) {  // main loop through plates
+		platefolder = listIngermdir[platefolderno];
 		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
-			platedir = rootgrowthdir + platefolder;
+			platedir = germdir + platefolder;
 			pfsplit = split(platefolder, "/");
 			platename = pfsplit[0];
 			print("Processing " + platename);
