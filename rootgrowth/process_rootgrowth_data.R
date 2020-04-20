@@ -178,3 +178,94 @@ if (ngroups > 1) {
 } else {
   # if we only have one group
 }
+
+# make some old-school figures and tables (24-h resolution, 3 days)
+graphsdir <- paste0(rundir, '/Illustrative Tables and Graphs')
+dir.create(graphsdir)
+
+# how many 24-hour periods do we divide the data into
+days <- floor(max(allout$RelativeElapsedHours) / 24)
+#days <- 3
+
+# store results in matrices, one for length and one for rate
+rootlengths <- matrix(nrow=ngroups, ncol=days)
+growthrates <- matrix(nrow=ngroups, ncol=days)
+rootlengths.sd <- matrix(nrow=ngroups, ncol=days)
+growthrates.sd <- matrix(nrow=ngroups, ncol=days)
+
+y <- 0
+
+for(group in groups) {
+  # keep track of current row
+  y <- y + 1
+  
+  ds <- data[data$Group == group, ]
+  # round time points if we have data from multiple experiments in the group, makes things easier
+  # N.B.! this may fail if the experiments have different (and weird) imaging frequencies.
+  # current solution should work with any frequency that is a divisor of 60
+  ds$roundtime = round(ds$RelativeElapsedHours, 1)
+  
+  ds.pruned <- ds[ds$roundtime == 0.0, ]
+  
+  # calculate root length on per-day basis
+  for (i in 1:days) {
+    tp <- min(abs(24 * i - ds$roundtime))
+    prevtp <- min(abs(24 * (i - 1) - ds$roundtime))
+    rootlengths[y, i] <-
+      mean(ds$PrimaryRootLength[ds$roundtime == tp + 24 * i], na.rm = T)
+    rootlengths.sd[y, i] <-
+      sd(ds$PrimaryRootLength[ds$roundtime == tp + 24 * i], na.rm = T)
+    
+    # keep the data for later
+    ds.pruned <- rbind(ds.pruned, ds[ds$roundtime == tp + 24 * i, ])
+  }
+  
+  # calculate root growth rates
+  ds.pruned %>% arrange(roundtime) %>% group_by(UID) %>%
+    mutate(rate=(PrimaryRootLength-last(PrimaryRootLength))/(roundtime-last(roundtime)),
+           overall_rate=PrimaryRootLength/roundtime) -> ds.pruned
+  
+  for (i in 1:days) {
+    growthrates[y, i] <- mean(ds.pruned$rate[ds.pruned$roundtime == unique(ds.pruned$roundtime)[i+1]], na.rm=T)
+    growthrates.sd[y, i] <- sd(ds.pruned$rate[ds.pruned$roundtime == unique(ds.pruned$roundtime)[i+1]], na.rm=T)
+  }
+}
+
+# we want rates in μm/h
+growthrates <- growthrates * 10
+growthrates.sd <- growthrates.sd * 10
+
+chartdata <- NULL
+y <- 0
+
+for (group in groups) {
+  y <- y + 1
+  for (i in 1:days) {
+    chartdata <- rbind(chartdata, c(group, i, rootlengths[y, i], rootlengths.sd[y, i], growthrates[y, i], growthrates.sd[y, i]))
+  }
+}
+chartdata <- as.data.frame(chartdata, stringsAsFactors = F)
+names(chartdata) <- c('Group', 'Days', 'Root length (cm)', 'Root length SD', 'Growth rate (mm/h)', 'Growth rate SD')
+# creating dataframe changes datatypes for some reason
+for(i in 2:ncol(chartdata)) {
+  chartdata[,i] <- as.numeric(chartdata[,i])
+}
+
+p <- ggplot(chartdata, aes(x=Group, fill=as.factor(Days), y=`Root length (cm)`, ymax=`Root length (cm)`+`Root length SD`, ymin=`Root length (cm)`-`Root length SD`)) + 
+  geom_col(position="dodge") + 
+  geom_errorbar(position="dodge") + 
+  theme(axis.text.x = element_text(angle = -90, vjust=0.5)) +
+  labs(fill="Days")
+
+suppressWarnings(ggsave(p, filename=paste0(graphsdir, "/rootgrowth-barchart.pdf"), width=25, height=15, units="cm"))
+
+p <- ggplot(chartdata, aes(x=Group, fill=as.factor(Days), y=`Growth rate (mm/h)`, ymax=`Growth rate (mm/h)`+`Growth rate SD`, ymin=`Growth rate (mm/h)`-`Growth rate SD`)) + 
+  geom_col(position="dodge") + 
+  geom_errorbar(position="dodge") + 
+  theme(axis.text.x = element_text(angle = -90, vjust=0.5)) +
+  labs(fill="Days")
+
+suppressWarnings(ggsave(p, filename=paste0(graphsdir, "/growthrate-barchart.pdf"), width=25, height=15, units="cm"))
+
+cat(paste0("Writing summary graphs and table to ", graphsdir, ".\n"))
+write.table(chartdata, file=paste0(rundir, "/rootgrowth-and-rates.tsv"), sep='\t', row.names = F)
