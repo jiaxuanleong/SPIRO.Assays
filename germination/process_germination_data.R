@@ -287,7 +287,10 @@ if (length(unique(data.long$Group)) > 1) {
   # we only compare two groups for each analysis -- 
   #   please make your own custom analysis if this is inappropriate for your data!
   pvals$km.logrank <- NA
-  data.surv <- data.peruid[data.peruid$Note=='Seed processed normally.',]
+  
+  # include only seeds that were processed normally or status is unknown (i.e., log file missing)
+  data.surv <- data.peruid[data.peruid$Note=='Seed processed normally.' | is.na(data.peruid$Note),]
+
   data.surv$event <- 1
   data.surv$event[which(is.na(data.surv$`Germination Time (h)`))] <- 0
   # ungerminated seeds have a 0 for event and a time equal to end of assay
