@@ -38,7 +38,7 @@ deleteOutput();
 
 cropGroups();
 seedAnalysis();
-print("Germination analysis is complete.");
+print("\nGermination analysis is complete.");
 selectWindow("Log");
 
 // prompts user to make a substack, to make data size smaller by excluding time after seed germination etc.
@@ -121,7 +121,7 @@ function cropGroups() {
 }
 
 function seedAnalysis() {
-	print("Step 2/2 Tracking germination...");
+	print("\nStep 2/2 Tracking germination...");
 	if (is("Batch Mode"))
 		setBatchMode(false);
 	listIngermdir = getFileList(germdir);
@@ -389,8 +389,8 @@ function deleteOutput() {
 					}
 				}
 
-				File.delete(groupdir + groupname + ".tif");
-				File.delete(groupdir + groupname + " germination analysis.tsv");
+				filedelete = File.delete(groupdir + groupname + ".tif");
+				filedelete = File.delete(groupdir + groupname + " germination analysis.tsv");
 			}
 		}
 	}

@@ -189,6 +189,7 @@ function cropGroups() {
 				setBatchMode(false); // has to be false for ROI Manager to open, and to display image
 	
 			open(ppdir + platefile);
+			userconfirm = false;
 			while (!userconfirm) {
 				Dialog.createNonBlocking("Time range selection");
 				Dialog.addMessage("Please note first and last slice to be included for root growth analysis, and indicate it in the next step.");
@@ -370,8 +371,8 @@ function getPositions() {
 					roiManager("rename", roino + 1); // first roi is 1
 				}
 				ordercoords(SEEDS);
-				// calling ordercoords() with argument 'false' runs to order seed positions
-				// instead argument 'true' optimizes code to order root dimensions later
+				// calling ordercoords() with argument 'SEEDS' runs to order seed positions
+				// instead argument 'ROOTS' optimizes code to order root dimensions later
 				roiManager("save", groupdir + groupname + " seedlingpositions.zip");
 				roiManager("reset");
 				selectWindow(img);
@@ -1323,25 +1324,23 @@ function deleteOutput() {
 				groupname = File.getName(groupdir);
 				listIngroupdir = getFileList(groupdir);
 				
-				File.delete(groupdir + groupname + " masked.tif");
-				File.delete(groupdir + groupname + " rootmask.tif");
-				File.delete(groupdir + groupname + " seedlingskels.zip");
-				File.delete(groupdir + groupname + " rootstartcoordinates.tsv");
-				File.delete(groupdir + groupname + " rootstartrois.zip");
-				File.delete(groupdir + groupname + " seedlingpositions.zip");
-				File.delete(groupdir + groupname + " seedlingrois.zip");
-				File.delete(groupdir + groupname + " lastslicecoordinates.tsv");
-				File.delete(groupdir + groupname + " rootstartlabelled.tif");
-				File.delete(groupdir + "roots sorted X coordinates.tsv");
-				File.delete(groupdir + "roots sorted Y coordinates.tsv");
-				File.delete(groupdir + "seeds Sorted X coordinates.tsv");
-				File.delete(groupdir + "seeds Sorted Y coordinates.tsv");
+				filedelete = File.delete(groupdir + groupname + " masked.tif");
+				filedelete = File.delete(groupdir + groupname + " rootmask.tif");
+				filedelete = File.delete(groupdir + groupname + " seedlingskels.zip");
+				filedelete = File.delete(groupdir + groupname + " rootstartcoordinates.tsv");
+				filedelete = File.delete(groupdir + groupname + " rootstartrois.zip");
+				filedelete = File.delete(groupdir + groupname + " seedlingpositions.zip");
+				filedelete = File.delete(groupdir + groupname + " rootstartlabelled.tif");
+				filedelete = File.delete(groupdir + "roots sorted X coordinates.tsv");
+				filedelete = File.delete(groupdir + "roots sorted Y coordinates.tsv");
+				filedelete = File.delete(groupdir + "seeds Sorted X coordinates.tsv");
+				filedelete = File.delete(groupdir + "seeds Sorted Y coordinates.tsv");
 				
 				if (freshstart) {
-					File.delete(groupdir + "Group " + groupname + ".tif");
-					File.delete(groupdir + groupname + " rootgrowthdetection.tif");
-					File.delete(groupdir + groupname + " rootgrowthmeasurement.tsv");
-					File.delete(groupdir);			
+					filedelete = File.delete(groupdir + "Group " + groupname + ".tif");
+					filedelete = File.delete(groupdir + groupname + " rootgrowthdetection.tif");
+					filedelete = File.delete(groupdir + groupname + " rootgrowthmeasurement.tsv");
+					filedelete = File.delete(groupdir);			
 				}
 			}
 		}
