@@ -80,22 +80,29 @@ ngroups <- length(groups)
 
 if (ngroups > 1) {
   ctrl <- 0
-  while (ctrl<1) {
+  while (!is.na(ctrl) & ctrl < 1) {
     cat("More than one group detected in dataset. Please indicate which group is the control.\n\n")
     i <- 0
     for (group in groups) {
       i <- i + 1
       cat(paste0("[", i, "] ", group, "\n"))
     }
+    cat("[-1] Don't run permutation tests")
     cat("\n")
     ctrl <- as.numeric(readline(prompt = "Enter the number of the control group: "))
     if (is.na(ctrl)) {
       ctrl <- 0
+    } else if (ctrl == -1) {
+      ctrl <- NA
     }
   }
-  ctrlgroup <- groups[ctrl]
-  expgroups <- groups[!groups %in% ctrlgroup]
-} else 
+  if (!is.na(ctrl)) {
+    ctrlgroup <- groups[ctrl]
+    expgroups <- groups[!groups %in% ctrlgroup]
+  } else {
+    ctrlgroup <- NA
+  }
+}
 
 # plot all data points with polynomial fit overlaid
 p <- NULL
@@ -110,42 +117,61 @@ suppressWarnings(ggsave(p, filename=paste0(rundir, "/rootgrowth-allgroups.pdf"),
 # if we have more than one group, perform pairwise comparisons against control
 stats <- NULL
 if (ngroups > 1) {
-  # fire up the cluster
-  num_cores <- max(1, detectCores() - 1)
-  cl <- makeCluster(num_cores)
-  registerDoParallel(cl)
-  
-  if (num_cores > 1) {
-    core_plural <- 'threads'
-  } else {
-    core_plural <- 'thread'
+  if (!is.na(ctrlgroup)) {
+    # fire up the cluster
+    num_cores <- max(1, detectCores() - 1)
+    cl <- makeCluster(num_cores)
+    registerDoParallel(cl)
+    
+    if (num_cores > 1) {
+      core_plural <- 'threads'
+    } else {
+      core_plural <- 'thread'
+    }
+    
+    cat(paste0("Performing permutation testing of root growth models, using ", 
+               length(cl), ' ', core_plural, ". This may take a little while...\n"))
+    
+    exactpvals <- pvals <- rss1s <- rss2s <- r2s <- NULL
+    
+    for (group in expgroups) {
+      cat("Comparing", group, "against", ctrlgroup, "--- ")
+      ds <- data[data$Group %in% c(group, ctrlgroup),]
+      mod1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
+      mod2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=ds)
+      a <- anova(mod1, mod2)
+      rss1s <- c(rss1s, a$RSS[1])
+      rss2s <- c(rss2s, a$RSS[2])
+      pvals <- c(pvals, a$`Pr(>F)`[2])
+      
+      # fit baseline model on non-permuted data, for comparison
+      basemod.1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
+      basemod.2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=ds)
+      basemod.aov <- anova(basemod.1, basemod.2)
+      base.p <- basemod.aov$`Pr(>F)`[2]
+      
+      # use %dorng% instead of %dopar% to ensure consistent results
+      better <- foreach(i=seq(tries), .combine=sum, .multicombine=T) %dorng%
+        permute(ds, base.p)
+      
+      exactpvals <- c(exactpvals, better/tries)
+      cat("the exact p-value is", better/tries, "\n")
+    }
+    
+    stopCluster(cl)
+    stats <- data.frame(Exp.Group = expgroups, Ctrl.Group = ctrlgroup, Exact.p.value = exactpvals, Model1.RSS = rss1s, Model2.RSS = rss2s)
+    cat(paste0("Writing statistics to ", rundir, "/modelfits.tsv.\n"))
+    write.table(stats, file=paste0(rundir, "/modelfits.tsv"), sep='\t', row.names = F)
   }
-
-  cat(paste0("Performing permutation testing of root growth models, using ", 
-             length(cl), ' ', core_plural, ". This may take a little while...\n"))
   
-  exactpvals <- pvals <- rss1s <- rss2s <- r2s <- NULL
-
-  for (group in expgroups) {
-    cat("Comparing", group, "against", ctrlgroup, "--- ")
-    ds <- data[data$Group %in% c(group, ctrlgroup),]
-    mod1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
-    mod2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=ds)
-    a <- anova(mod1, mod2)
-    rss1s <- c(rss1s, a$RSS[1])
-    rss2s <- c(rss2s, a$RSS[2])
-    pvals <- c(pvals, a$`Pr(>F)`[2])
-
-    # fit baseline model on non-permuted data, for comparison
-    basemod.1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
-    basemod.2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=ds)
-    basemod.aov <- anova(basemod.1, basemod.2)
-    base.p <- basemod.aov$`Pr(>F)`[2]
-
-    # use %dorng% instead of %dopar% to ensure consistent results
-    better <- foreach(i=seq(tries), .combine=sum, .multicombine=T) %dorng%
-      permute(ds, base.p)
-
+  b0s <- b1s <- b2s <- NULL
+  for (group in groups) {
+    ds <- data[data$Group == group,]
+    mod <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
+    c <- coef(mod)
+    b0s <- c(b0s, c[1])
+    b1s <- c(b1s, c[2])
+    b2s <- c(b2s, c[3])
     p <- ggplot(ds, aes(x=RelativeElapsedHours, y=PrimaryRootLength, color=Group, group=Group)) + 
       geom_point(size=.3, alpha=.5) + 
       geom_smooth(method="lm", formula = y ~ poly(x, 2, raw=T)) +
@@ -154,22 +180,6 @@ if (ngroups > 1) {
            title=paste0("Model fit for group ", group, " compared to control"))
     suppressWarnings(ggsave(p, filename = paste0(rundir, "/rootgrowth-", group, ".pdf"), width=25, height=15, units="cm"))
     
-    exactpvals <- c(exactpvals, better/tries)
-    cat("the exact p-value is", better/tries, "\n")
-  }
-
-  stopCluster(cl)
-  stats <- data.frame(Exp.Group = expgroups, Ctrl.Group = ctrlgroup, Exact.p.value = exactpvals, Model1.RSS = rss1s, Model2.RSS = rss2s)
-  cat(paste0("Writing statistics to ", rundir, "/modelfits.tsv.\n"))
-  write.table(stats, file=paste0(rundir, "/modelfits.tsv"), sep='\t', row.names = F)
-  
-  b0s <- b1s <- b2s <- NULL
-  for (group in groups) {
-    mod <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=data[data$Group == group,])
-    c <- coef(mod)
-    b0s <- c(b0s, c[1])
-    b1s <- c(b1s, c[2])
-    b2s <- c(b2s, c[3])
   }
   
   coefs <- data.frame(Group = groups, b0 = b0s, b1 = b1s, b2 = b2s)
@@ -184,7 +194,7 @@ graphsdir <- paste0(rundir, '/Illustrative Tables and Graphs')
 dir.create(graphsdir)
 
 # how many 24-hour periods do we divide the data into
-days <- floor(max(allout$RelativeElapsedHours) / 24)
+days <- floor(max(data$RelativeElapsedHours) / 24)
 #days <- 3
 
 # store results in matrices, one for length and one for rate
