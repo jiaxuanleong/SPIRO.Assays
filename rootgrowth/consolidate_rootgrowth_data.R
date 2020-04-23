@@ -33,13 +33,13 @@ plotfile <- function(file) {
            labs(title=paste0("Unprocessed graph for ", r$GID), x="Elapsed time (h)", y="Root length (cm)"))
 }
 
-processfile <- function(file) {
+processfile <- function(file, expname) {
   r <- read.delim(file, stringsAsFactors=FALSE)
   names(r) <- c('Slice', 'Label', 'Rootno', 'Length')
   d <- dirname(file)
   dirparams <- unlist(strsplit(d, '/', fixed=T))
   r$GID <- paste0(dirparams[length(dirparams)-1], '_', dirparams[length(dirparams)])
-  r$UID <- paste0(r$GID, '_', r$Rootno)
+  r$UID <- paste0(r$GID, '_', r$Rootno, '_exp:', expname)
   params <- unlist(strsplit(r$Label, '-', fixed=TRUE))
   r$date <- as.POSIXct(strptime(paste0(params[seq(2, length(params), 4)], params[seq(3, length(params), 4)]), format='%Y%m%d%H%M%S'))
   
@@ -137,11 +137,15 @@ if (length(files) < 1) {
 
 allout <- NULL
 
+d <- unlist(strsplit(dir, '/', fixed=T))
+expname <- d[length(d)]
+cat(paste0("Performing germination QC for experiment << ", expname, " >>\n\n"))
+
 cat("Processing files, please wait...\n")
 
 for (f in files) {
   # clean up file
-  out <- processfile(f)
+  out <- processfile(f, expname)
   allout <- rbind(allout, out)
   
   # plot unpropcessed data
