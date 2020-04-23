@@ -151,11 +151,15 @@ function scale() {
 	open(plate1dir + img1);
 	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
 	setTool("line");
+	xapprox = getWidth()/5*4;
+	yapprox = getHeight()/5*4;
+	run("Set... ", "zoom=50 x=["+xapprox+"] y=["+yapprox+"]"); //zoom in on approximate location of scale bar
     run("Set Measurements...", "area bounding display redirect=None decimal=3");
+    
     userconfirm = false;
 	while (!userconfirm) { 
 		Dialog.createNonBlocking("Set Scale");
-		Dialog.addMessage("Please zoom in on the scale bar on the bottom right, then hold the SHIFT key while drawing a line corresponding to 1cm.");
+		Dialog.addMessage("Based on the scale bar on bottom right of the image, draw a straight line corresponding to 1cm.");
 		Dialog.addCheckbox("Scale bar corresponding to 1cm has been drawn", false);
 		Dialog.show();
 		userconfirm = Dialog.getCheckbox();
@@ -185,7 +189,9 @@ function scale() {
 	height = 12.5;
 	toUnscaled(width, height);
 	makeRectangle(x1, y1, width, height);
+	run("Original Scale");
 	userconfirm = false;
+	selectWindow(img1);
 	while (!userconfirm) { 
 		Dialog.createNonBlocking("Crop selection");
 		Dialog.addMessage("If needed, please correct the selected area for cropping, then click OK.");
@@ -207,7 +213,9 @@ function scale() {
 function batch() {
 	if (!is("Batch Mode"))
 		setBatchMode(true);
-	print("\nStep 2/4 Detecting number of time points to determine batch mode");
+	print("\nStep 2/4 Converting images into stacks..." +
+		"\nIt may look like nothing is happening, please be patient.");
+	selectWindow("Log");
 	for (plateno = 0; plateno < listInmaindir.length; plateno ++) {
 		platefolder = listInmaindir[plateno];
 		platedir = maindir + platefolder;
@@ -217,7 +225,8 @@ function batch() {
 		if (numtp > batchsize) {
 			batched = true;
 			if (plateno == 0) 
-				print(numtp + " time points detected. Separating files into batches of size " + batchsize + "...");
+				print(numtp + " time points detected. Separating files into batches of " + batchsize + " images at a time...");
+			selectWindow("Log");
 			numloops =  numtp / batchsize; // number of loops to make batches
 			rnl = floor(numloops) + 1; //returns closest integer rounded down
 			
@@ -239,7 +248,8 @@ function batch() {
 		} else {
 			batched = false;
 			if (plateno == 0) 
-				print(numtp + " time points detected. Preprocessing will be carried out in non-batch mode");
+				print(numtp + " time points detected. Preprocessing will be carried out in a single batch.");
+			selectWindow("Log");
 			run("Image Sequence...", "open=[" + platedir + listInplatedir[0] + "] number=" + numtp +
 						" starting=1 convert_to_rgb use");
 					saveAs("Tiff", ppdir + platename + ".tif");
@@ -251,96 +261,105 @@ function batch() {
 function cropnGreenCh() {
 	if (!is("Batch Mode"))
 		setBatchMode(true);
-	print("\nStep 3/4 Cropping off unnecessary background and splitting into green channel...");
+	print("\nStep 3/4 Cropping off unnecessary background and splitting into green channel..." +
+		"\nIt may look like nothing is happening, please be patient.");
 	listInppdir = getFileList(ppdir);
 	for (fileno = 0; fileno < listInppdir.length; fileno ++) {
 		open(ppdir + listInppdir[fileno]);
 		ppstack = getTitle();
-		ppstackname = File.nameWithoutExtension;
-		print("Processing " + ppstackname);
+		if (indexOf(ppstack, "GreenCh") < 0 && indexOf(ppstack, "preprocessed") < 0) {
+			ppstackname = File.nameWithoutExtension;
+			print("Processing " + ppstackname);
+			
+			/*
+			 * Crop based on position of scale bar (with user checking in scale step)
+			 */
+			xcrop = Table.get("xcrop", 0, "cropcoordinates");
+			ycrop = Table.get("ycrop", 0, "cropcoordinates");
+			wcrop = Table.get("wcrop", 0, "cropcoordinates");
+			hcrop = Table.get("hcrop", 0, "cropcoordinates");
+			makeRectangle(xcrop, ycrop, wcrop, hcrop);
+			run("Crop");
 		
-		/*
-		 * Crop based on position of scale bar (with user checking in scale step)
-		 */
-		xcrop = Table.get("xcrop", 0, "cropcoordinates");
-		ycrop = Table.get("ycrop", 0, "cropcoordinates");
-		wcrop = Table.get("wcrop", 0, "cropcoordinates");
-		hcrop = Table.get("hcrop", 0, "cropcoordinates");
-		makeRectangle(xcrop, ycrop, wcrop, hcrop);
-		run("Crop");
-
-		/* 
-		 * Split into green channel
-		 */
-
-		selectWindow(ppstack);
-		stacksize = nSlices();  //total number of slices
-		slicelabelsarray = newArray(stacksize); //an array to be filled with all slicelabels
-		for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
-			setSlice(sliceno);
-			slicelabel = getInfo("slice.label");
-			slicelabelsarray[sliceno-1] = slicelabel;
-		}
-		run("Split Channels");
-		imglist = getList("image.titles");
-		for (img = 0; img < imglist.length; img ++) { 
-			imgname = imglist[img]; 
-			if (indexOf(imgname, "red") > 0 ) {
-		    	selectWindow(imgname);				
-		    	close();
-		    }
-		    if (indexOf(imgname, "green") > 0) {
-				selectWindow(imgname);
-				for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
-					setSlice(sliceno);
-					slicelabel = slicelabelsarray[sliceno-1];
-					setMetadata("Label", slicelabel);
-				}
-					selectWindow(imgname);
-					rename(ppstack);
-		    }
-			if (indexOf(imgname, "blue") > 0) {
-				selectWindow(imgname);
-				close(); 
+			/* 
+			 * Split into green channel
+			 */
+		
+			selectWindow(ppstack);
+			stacksize = nSlices();  //total number of slices
+			slicelabelsarray = newArray(stacksize); //an array to be filled with all slicelabels
+			for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
+				setSlice(sliceno);
+				slicelabel = getInfo("slice.label");
+				slicelabelsarray[sliceno-1] = slicelabel;
 			}
+			run("Split Channels");
+			imglist = getList("image.titles");
+			for (img = 0; img < imglist.length; img ++) { 
+				imgname = imglist[img]; 
+				if (indexOf(imgname, "red") > 0 ) {
+			    	selectWindow(imgname);				
+			    	close();
+			    }
+			    if (indexOf(imgname, "green") > 0) {
+					selectWindow(imgname);
+					for (sliceno = 1; sliceno <= stacksize; sliceno ++) {
+						setSlice(sliceno);
+						slicelabel = slicelabelsarray[sliceno-1];
+						setMetadata("Label", slicelabel);
+					}
+						selectWindow(imgname);
+						rename(ppstack);
+			    }
+				if (indexOf(imgname, "blue") > 0) {
+					selectWindow(imgname);
+					close(); 
+				}
+			}
+			
+			saveAs("Tiff", ppdir + ppstackname + "_GreenCh.tif");
+			close();			 
+			filedelete = File.delete(ppdir + ppstackname + ".tif");
+		} else {
+			close();
 		}
-		
-		saveAs("Tiff", ppdir + ppstackname + "_GreenCh.tif");
-		close();			 
-		filedelete = File.delete(ppdir + ppstackname + ".tif");
+		if (fileno == listInppdir.length - 1) {
+			selectWindow("cropcoordinates");
+			run("Close");
+		}
 	}
-	selectWindow("cropcoordinates");
-	run("Close");
 }
 
 
 function register(rMode) {
 	if (!is("Batch Mode"))
 		setBatchMode(true);
-	print("\nStep 4/4 Correcting drift...\n It may look like nothing is happening, please be patient");
+	print("\nStep 4/4 Correcting drift...\n It may look like nothing is happening, please be patient.");
 	listInppdir = getFileList(ppdir);
 	listInppdirlength = listInppdir.length;
 
 	if (rMode == rNonbatched) {
 		for (plateno = 0; plateno < listInppdir.length; plateno ++) {
-			grplatefile = listInppdir[plaS69-LNS8-FZ8P-S9B2teno]; //GREENCH
+			grplatefile = listInppdir[plateno]; //GREENCH
 			grplatename = File.getName(ppdir + grplatefile);
-			pfsplit = split(grplatename, "_");
-			platename = pfsplit[0];
-			print("Processing " + platename); 
-			open(ppdir + grplatename);
-
-			run("Subtract Background...", "rolling=30 stack");
-		    tfn = ppdir + "Transformation";
-		    run("MultiStackReg", "stack_1=" + grplatename + " action_1=Align file_1=" + tfn +
-		        " stack_2=None action_2=Ignore file_2=[] transformation=Translation save");
-		    close(grplatename);
-		    open(ppdir + grplatename);
-		    run("MultiStackReg", "stack_1=" + grplatename + " action_1=[Load Transformation File] file_1=" + tfn +
-		        " stack_2=None action_2=Ignore file_2=[] transformation=[Translation]");
-		    saveAs("Tiff", ppdir + platename + "_preprocessed.tif");
-		    close();
-		    filedelete = File.delete(ppdir + grplatename);
+			if (indexOf(grplatename, "GreenCh") > -1) {
+				pfsplit = split(grplatename, "_");
+				platename = pfsplit[0];
+				print("Processing " + platename); 
+				open(ppdir + grplatename);
+	
+				run("Subtract Background...", "rolling=30 stack");
+			    tfn = ppdir + "Transformation";
+			    run("MultiStackReg", "stack_1=" + grplatename + " action_1=Align file_1=" + tfn +
+			        " stack_2=None action_2=Ignore file_2=[] transformation=Translation save");
+			    close(grplatename);
+			    open(ppdir + grplatename);
+			    run("MultiStackReg", "stack_1=" + grplatename + " action_1=[Load Transformation File] file_1=" + tfn +
+			        " stack_2=None action_2=Ignore file_2=[] transformation=[Translation]");
+			    saveAs("Tiff", ppdir + platename + "_preprocessed.tif");
+			    close();
+			    filedelete = File.delete(ppdir + grplatename);
+			}
 		}
 	}
 
@@ -355,7 +374,7 @@ function register(rMode) {
 			batchfilearray = newArray(listInppdir.length);
 			for (fileno = 0; fileno < listInppdir.length; fileno ++) {
 				filename = listInppdir[fileno];
-				if (indexOf(filename, platename) > -1) {
+				if (indexOf(filename, platename) > -1 && indexOf(filename, "batch") > -1) {
 					batchfilearray[fileno] = filename;
 				}
 			}
