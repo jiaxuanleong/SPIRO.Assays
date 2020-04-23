@@ -152,7 +152,7 @@ for(uid in uids[!included]) {
 }
 
 # sort data naturally
-m<-regexpr('_([0-9]+)_[A-Z]{8}$', data.peruid$UID)
+m <- regexpr('_([0-9]+)_exp:.*$', data.peruid$UID)
 data.peruid$num <- as.numeric(regmatches(data.peruid$UID, m))
 data.peruid <- data.peruid[order(data.peruid$Group, data.peruid$num),]
 data.peruid <- data.peruid %>% select(-num)

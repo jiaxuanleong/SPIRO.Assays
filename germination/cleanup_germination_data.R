@@ -28,7 +28,7 @@ elapsed <- function(from, to) {
 }
 
 # main function for extracting data from files
-processfile <- function(file, logdir) {
+processfile <- function(file, logdir, expname) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
 
   # need to suppress warnings here as imagej saves row numbers as unnamed first column
@@ -68,7 +68,7 @@ processfile <- function(file, logdir) {
     ElapsedHours <- c(ElapsedHours, elapsed(startdate, d))
   }
   data <- NULL
-  data$UID <- paste0(plates, '_', ImgSource, '_', SeedPos, '_', paste0(sample(LETTERS, 8, replace=T), collapse=''))
+  data$UID <- paste0(plates, '_', ImgSource, '_', SeedPos, '_exp:', expname)
   data$Group <- paste0(plates[1], '_', ImgSource[1])
   resultfile <- select(resultfile, -Label)
   data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
@@ -149,11 +149,14 @@ if (length(files) > 0) {
   } else {
     core_plural <- 'thread'
   }
+  d <- unlist(strsplit(dir, '/', fixed=T))
+  expname <- d[length(d)]
+  cat(paste0("Performing germination QC for experiment << ", expname, " >>\n\n"))
   cat(paste0("Processing files and performing basic quality control, using ", 
              length(cl), ' ', core_plural, ". This may take a little while...\n"))
 
   allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'readr')) %dopar%
-    processfile(f, outdir)
+    processfile(f, outdir, expname)
   
   stopCluster(cl)
   
