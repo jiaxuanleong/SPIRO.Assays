@@ -139,7 +139,7 @@ allout <- NULL
 
 d <- unlist(strsplit(dir, '/', fixed=T))
 expname <- d[length(d)]
-cat(paste0("Performing germination QC for experiment << ", expname, " >>\n\n"))
+cat(paste0("Performing root growth QC for experiment << ", expname, " >>\n\n"))
 
 cat("Processing files, please wait...\n")
 
