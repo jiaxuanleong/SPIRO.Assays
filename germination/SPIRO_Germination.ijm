@@ -144,6 +144,7 @@ function seedAnalysis() {
 						groupname = substring(filename, indexofgroup + 6); // to find out group name, +6 because of the letters and a space
 					}
 				}
+				print("Analyzing " + groupname);
 				img = getTitle();
 				// masking and thresholding of seeds
 				run("Subtract Background...", "rolling=30 stack");
