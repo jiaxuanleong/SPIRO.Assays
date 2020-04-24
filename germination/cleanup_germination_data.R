@@ -30,7 +30,10 @@ elapsed <- function(from, to) {
 # main function for extracting data from files
 processfile <- function(file, logdir, expname) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
-
+  dirparams <- unlist(strsplit(dirname(file), '/', fixed=T))
+  plate <- dirparams[length(dirparams)-1]
+  group <- dirparams[length(dirparams)]
+  
   # need to suppress warnings here as imagej saves row numbers as unnamed first column
   suppressWarnings(resultfile <- read_tsv(file, 
                                           col_types=c(Area=col_double(), `Perim.`=col_double(), Slice=col_integer(),
@@ -46,7 +49,6 @@ processfile <- function(file, logdir, expname) {
     row <- resultfile[i,]
     # first, go through the file and make a list of rois and timepoints
     params <- unlist(strsplit(row$Label, ':', fixed=T))
-    ImgSource <- c(ImgSource, sub('\\.tif$', '', params[1], ignore.case=T))
 
     if (length(params) == 3) {
       # assume that if the label contains two colons (i.e. 3 extracted elements), it is the initial image
@@ -54,22 +56,18 @@ processfile <- function(file, logdir, expname) {
       r <- params[2]
       SeedPos <- c(SeedPos, r)
       d <- startdate <- getdate(params[3])
-      plate <- unlist(strsplit(params[3], '-', fixed=T))[1]
-      plates <- c(plates, plate)
       Date <- c(Date, as.character(d))
     } else {
       # this is not the first record for a seed
       SeedPos <- c(SeedPos, r)
       d <- getdate(params[2])
-      plate <- unlist(strsplit(params[2], '-', fixed=T))[1]
-      plates <- c(plates, plate)
       Date <- c(Date, as.character(d))
     }
     ElapsedHours <- c(ElapsedHours, elapsed(startdate, d))
   }
   data <- NULL
-  data$UID <- paste0(plates, '_', ImgSource, '_', SeedPos, '_exp:', expname)
-  data$Group <- paste0(plates[1], '_', ImgSource[1])
+  data$UID <- paste0(plate, '_', group, '_', SeedPos, '_exp:', expname)
+  data$Group <- paste0(plate, '_', group)
   resultfile <- select(resultfile, -Label)
   data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
   data <- check_duplicates(data, paste0(logdir, '/', basename(file), '.log'))
