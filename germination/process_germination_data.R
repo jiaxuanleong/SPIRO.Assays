@@ -318,7 +318,7 @@ if (length(unique(data.long$Group)) > 1) {
     pvals$km.logrank[i] <- surv_pvalue(sfit)$pval
   }
   names(pvals) <- c('Group 1', 'Group 2', 'Log-Rank p-value')
-  write.table(pvals, file=paste0(rundir, "/survival-analysis.tsv"), sep='\t', row.names=F)
+  write.table(pvals, file=paste0(rundir, "/germination.kaplan-meier_test.tsv"), sep='\t', row.names=F)
 }
 
 cat(paste0("Statistics have been written to the directory ", rundir, "\n"))
