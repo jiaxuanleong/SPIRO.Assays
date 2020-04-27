@@ -8,13 +8,6 @@ library(zoo)
 rm(list=ls())
 source('common/common.R')
 
-# return elapsed time in hours from two datetime strings
-elapsed <- function(from, to) {
-  f <- strptime(from, format="%Y-%m-%d %H:%M:%S")
-  t <- strptime(to, format="%Y-%m-%d %H:%M:%S")
-  return(as.numeric(difftime(t, f, units='hours')))
-}
-
 # function for plotting unprocessed data
 plotfile <- function(file) {
   r <- read.delim(file, stringsAsFactors=FALSE)

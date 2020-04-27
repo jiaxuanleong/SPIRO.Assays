@@ -44,21 +44,7 @@ dir <- choose_dir()
 
 resultsdir <- paste0(dir, '/Results')
 outdir <- paste0(resultsdir, '/Root Growth')
-
-# set up output dir
-if (dir.exists(paste0(outdir, '/Analysis output'))) {
-  runs <- list.dirs(paste0(outdir, '/Analysis output'), full.names=F, recursive=F)
-  run_number <- length(runs) + 1
-  while (file.exists(paste0(outdir, '/Analysis output/', run_number))) {
-    run_number <- run_number + 1
-  }
-} else {
-  dir.create(paste0(outdir, '/Analysis output'), recursive=T)
-  run_number <- 1
-}
-
-rundir <- paste0(outdir, '/Analysis output/', run_number)
-dir.create(rundir, showWarnings=F)
+rundir <- create_rundir(outdir)
 
 if (file.exists(paste0(outdir, "/rootgrowth.postQC.tsv"))) {
   data <- read.table(paste0(outdir, "/rootgrowth.postQC.tsv"), header=T, stringsAsFactors=F, row.names=NULL)

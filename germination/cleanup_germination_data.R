@@ -17,20 +17,6 @@ library(readr)
 upper_area_threshold = 0.02
 lower_area_threshold = 0.002
 
-# extract datetime from strings such as "plate1-20190602-082944-day"
-getdate <- function(name) {
-  params <- unlist(strsplit(name, '-', fixed=T))
-  x <- paste0(params[2:3], collapse='')
-  return(strptime(x, format='%Y%m%d%H%M%S'))
-}
-
-# return elapsed time in hours from two datetime strings
-elapsed <- function(from, to) {
-  f <- strptime(from, format="%Y-%m-%d %H:%M:%S")
-  t <- strptime(to, format="%Y-%m-%d %H:%M:%S")
-  return(as.numeric(difftime(t, f, units='hours')))
-}
-
 # main function for extracting data from files
 processfile <- function(file, logdir, expname) {
   r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
