@@ -4,6 +4,10 @@
 #   after running this script, adjust the groups in the file germination.postQC.tsv, 
 #   then run process_germination_data.R to get statistics.
 
+# clean slate
+rm(list=ls())
+source('common/common.R')
+
 library(dplyr)
 library(foreach)
 library(doParallel)
@@ -122,12 +126,7 @@ check_duplicates <- function(data, logfile) {
   return(data)
 }
 
-# there is no support for directory picker under non-windows platforms
-if (.Platform$OS.type == 'unix') {
-  dir <- readline(prompt = "Enter directory: ")
-} else {
-  dir <- choose.dir(getwd(), "Choose folder to process")
-}
+dir <- choose_dir()
 
 resultsdir <- paste0(dir, '/Results')
 outdir <- paste0(resultsdir, '/Germination')

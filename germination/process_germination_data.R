@@ -4,6 +4,10 @@
 #   statistics will be output as tsv files in the data folder.
 #   additionally, a graph indicating germination progression is generated for each group.
 
+# clean slate
+rm(list=ls())
+source('common/common.R')
+
 library(dplyr)
 library(reshape2)
 library(germinationmetrics)
@@ -60,12 +64,7 @@ detect_germination <- function(ds) {
   return(ds)
 }
 
-# there is no support for directory picker under non-windows platforms
-if (.Platform$OS.type == 'unix') {
-  dir <- readline(prompt = "Enter directory: ")
-} else {
-  dir <- choose.dir(getwd(), "Choose folder to process")
-}
+dir <- choose_dir()
 
 resultsdir <- paste0(dir, '/Results')
 outdir <- paste0(resultsdir, '/Germination')

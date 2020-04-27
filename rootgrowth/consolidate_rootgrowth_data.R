@@ -4,6 +4,10 @@ library(dplyr)
 library(ggplot2)
 library(zoo)
 
+# clean slate
+rm(list=ls())
+source('common/common.R')
+
 # return elapsed time in hours from two datetime strings
 elapsed <- function(from, to) {
   f <- strptime(from, format="%Y-%m-%d %H:%M:%S")
@@ -113,12 +117,7 @@ processfile <- function(file, expname) {
   return(r)
 }
 
-# there is no support for directory picker under non-windows platforms
-if (.Platform$OS.type == 'unix') {
-  dir <- readline(prompt = "Enter directory: ")
-} else {
-  dir <- choose.dir(getwd(), "Choose folder to process")
-}
+dir <- choose_dir()
 
 resultsdir <- paste0(dir, '/Results')
 outdir <- paste0(resultsdir, '/Root Growth')
