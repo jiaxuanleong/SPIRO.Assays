@@ -135,8 +135,6 @@ germtimes <- read_tsv(paste0(outdir, '/germination-perseed.tsv'), col_types=cols
   UID = col_character(),
   Group = col_character(),
   `Germination Time (h)` = col_double(),
-  `Germination Detected on Frame` = col_integer(),
-  `Seed Size (cm2)` = col_skip(),
   Note = col_character()
 ))
 names(germtimes)[3] <- 'time'
