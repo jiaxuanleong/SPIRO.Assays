@@ -111,8 +111,8 @@ function cropGroups() {
 				} else {
 					run("Duplicate...", "duplicate");
 				}
-				saveAs("Tiff", groupdir + "Group " + roiname + ".tif");
-				close("Group*");
+				saveAs("Tiff", groupdir + roiname + ".tif");
+				close();
 			}
 			close(platefile);
 			close("Substack*");
@@ -135,15 +135,9 @@ function seedAnalysis() {
 			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
 				groupfolder = listInplatefolder[groupfolderno];
 				groupdir = platedir + groupfolder;
+				groupname = File.getName(groupdir);
 				listIngroupdir = getFileList(groupdir);
-				for (outputfileno = 0; outputfileno < listIngroupdir.length; outputfileno ++) {
-					if (indexOf(listIngroupdir[outputfileno], "Group") >= 0) {
-						open(groupdir + listIngroupdir[outputfileno]);
-						filename = File.nameWithoutExtension;
-						indexofgroup = indexOf(filename, "Group");
-						groupname = substring(filename, indexofgroup + 6); // to find out group name, +6 because of the letters and a space
-					}
-				}
+				open(groupdir + groupname + ".tif");
 				print("Analyzing " + groupname);
 				img = getTitle();
 				// masking and thresholding of seeds
@@ -331,7 +325,7 @@ function seedAnalysis() {
 				rename(img + "mask");
 				imgmask = getTitle();
 				
-				open(groupdir + "Group " + groupname + ".tif");
+				open(groupdir + groupname + ".tif");
 				oriimg = getTitle();
 				run("RGB Color");
 				
@@ -379,16 +373,9 @@ function deleteOutput() {
 			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
 				groupfolder = listInplatefolder[groupfolderno];
 				groupdir = platedir + groupfolder;
+				groupname = File.getName(groupdir);
 				listIngroupdir = getFileList(groupdir);
-				for (outputfileno = 0; outputfileno < listIngroupdir.length; outputfileno ++) {
-					if (indexOf(listIngroupdir[outputfileno], "Group") >= 0) {
-						open(groupdir + listIngroupdir[outputfileno]);
-						filename = File.nameWithoutExtension;
-						indexofgroup = indexOf(filename, "Group");
-						groupname = substring(filename, indexofgroup + 6); // to find out group name, +6 because of the letters and a space
-						close(listIngroupdir[outputfileno]);
-					}
-				}
+				
 
 				filedelete = File.delete(groupdir + groupname + ".tif");
 				filedelete = File.delete(groupdir + groupname + " germination analysis.tsv");

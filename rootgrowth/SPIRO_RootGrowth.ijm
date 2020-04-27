@@ -25,7 +25,9 @@ var selfaware = false; // hold down alt key during macro start to REDACTED
 print("Welcome to the companion macro of SPIRO for root growth analysis!");
 selectWindow("Log");
 if (isKeyDown("control"))
-	DEBUG = getBoolean("CTRL key pressed. Run macro in debug mode? Non-essential intermediate output files will not be deleted at the end of the run.");
+	DEBUG = getBoolean("CTRL key pressed. Run macro in debug mode?\n" +
+	"Non-essential intermediate output files will not be deleted at the end of the run.\n" +
+	"Seed detection parameters may be modified.");
 if (isKeyDown("shift"))
 	freshstart = getBoolean("SHIFT key pressed. Run macro in Fresh Start mode? This will delete all data from the previous run.");
 if (isKeyDown("alt"))
@@ -322,17 +324,33 @@ function getPositions() {
 				tp = "Trash positions";
 				Table.create(tp);
 				nr = nResults;
+				if (platefolderno == 0 && groupfolderno == 0) {
+					lowerareathreshold = 0.002;
+					higherareathreshold = 0.02;
+					lowercircthreshold = 0.4;
+					if (DEBUG) {
+						Dialog.create("Seed detection parameters");
+						Dialog.addMessage("DEBUG: Detection parameters may be modified to accommodate for specific experiments");
+						Dialog.addNumber("Lower Area Threshold", 0.002);
+						Dialog.addNumber("Higher Area Threshold", 0.2);
+						Dialog.addNumber("Lower Circularity Threshold", 0.4);
+						Dialog.show();
+						lowerareathreshold = Dialog.getNumber();
+						higherareathreshold = Dialog.getNumber();
+						lowercircthreshold = Dialog.getNumber();
+					}
+				}
 				for (row = 0; row < nr; row ++) {
 					nrTp = Table.size(tp); // number of rows
 					area = getResult("Area", row);
-					if (area < 0.002) { // detected object is very small
+					if (area < lowerareathreshold) { // detected object is very small
 						Table.set("Trash ROI", nrTp, row, tp);
 					}
-					if (area > 0.02) { // or very large
+					if (area > higherareathreshold) { // or very large
 						Table.set("Trash ROI", nrTp, row, tp);
 					}
 					circ = getResult("Circ.", row); // or does not fit normal seed shape
-					if (circ < 0.4) {
+					if (circ < lowercircthreshold) {
 						Table.set("Trash ROI", nrTp, row, tp); //set as trash to be deleted
 					}
 				}
@@ -363,8 +381,9 @@ function getPositions() {
 				userconfirm = false;
 				while (!userconfirm) {
 					Dialog.createNonBlocking("User-guided seedling labelling");
-					Dialog.addMessage("Please delete any ROIs that should not be included into analysis, \n" +
-							"e.g. noise selection and seedlings that have overlapping roots");
+					Dialog.addMessage("Please delete any ROIs that should not be included into analysis," +
+							"e.g. objects wrongly recognized as seeds." +
+							"\nUnrecognized seeds can also be added as ROIs.");
 					Dialog.addCheckbox("ROIs have been checked", false);
 					Dialog.show();
 					userconfirm = Dialog.getCheckbox();
@@ -1034,7 +1053,7 @@ function rootGrowth() {
 				selectWindow("Log");
 				print("Analyzing " + groupname + "...");
 				
-				run("Set Measurements...", "area perimeter redirect=None decimal=8");
+				run("Set Measurements...", "area perimeter redirect=None decimal=5");
 				open(groupdir + groupname + " rootmask.tif");
 				rootmask = getTitle();
 				roiManager("reset");
@@ -1044,11 +1063,9 @@ function rootGrowth() {
 				nS = nSlices;
 				rgm = "rootgrowthmeasurement";
 				Table.create(rgm);
-				if (is("Batch Mode"))
-					setBatchMode(false); // for roi manager to work
+				if (!is("Batch Mode"))
+					setBatchMode(true); 
 
-				setBatchMode(true);
-				setBatchMode("hide");
 				rsccount = Table.size(rsctsv);
 				seedlingcount = rsccount / nS;
 				
@@ -1133,7 +1150,7 @@ function rootGrowth() {
 						} else {
 							rootlength = 0;
 						}
-						Table.set("Root length (cm)", nrrgm, rootlength/2, rgm); // divide two because the skeletons are two pixel wide
+						Table.set("Root length (cm)", nrrgm, rootlength/2, rgm); // divide two because the skeletons are two pixels wide
 						run("Clear Results");
 					}
 				}
@@ -1142,6 +1159,7 @@ function rootGrowth() {
 				roiManager("reset");
 				setBatchMode("show");
 				setBatchMode(false);
+				
 				open(groupdir + groupname + " rootstartrois.zip");
 				run("Labels...", "color=white font=18 show use draw");
 				run("Colors...", "foreground=black background=black selection=red");
@@ -1149,11 +1167,11 @@ function rootGrowth() {
 				roiManager("Associate", "true");
 				roiManager("Centered", "false");
 				roiManager("UseNames", "true");
-				run("Flatten", "slice");
-				run("8-bit");
+				run("Flatten", "stack");
 				
 				open(groupdir + groupname + ".tif");
 				oritif = getTitle();
+				run("RGB Color");
 				
 				nS = nSlices;
 				slicelabelarray = newArray(nS);
