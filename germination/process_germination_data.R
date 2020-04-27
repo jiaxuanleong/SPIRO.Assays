@@ -151,8 +151,7 @@ for(uid in uids[!included]) {
 }
 
 # sort data naturally
-m <- regexpr('_([0-9]+)_exp:.*$', data.peruid$UID)
-data.peruid$num <- as.numeric(regmatches(data.peruid$UID, m))
+data.peruid$num <- gsub('^plate.*_([0-9]+)_exp:.*$', '\\1', data.peruid$UID)
 data.peruid <- data.peruid[order(data.peruid$Group, data.peruid$num),]
 data.peruid <- data.peruid %>% select(-num)
 
@@ -166,14 +165,15 @@ if (file.exists(paste0(outdir, "/germination.postQC.log.tsv"))) {
   data.peruid <- merge(data.peruid, seedlog, all=T)
   write.table(data.peruid, file=paste0(rundir, "/germination-perseed.tsv"), sep='\t', row.names=F)
   if (grepl('Root Growth$', outdir)) {
-    write.table(data.peruid, file=paste0(outdir, "/germination-perseed.tsv"), sep='\t', row.names=F)
+    rg <- data.peruid[,c(1:3,6)]
+    write.table(rg, file=paste0(outdir, "/germination-perseed.tsv"), sep='\t', row.names=F)
   }
 } else {
   data.peruid$Note <- NA
 }
 
 # merge group and uid so we can keep both in the conversion long->wide->long
-data$GroupUID<-paste(data$Group, data$UID, sep="!")
+data$GroupUID <- paste(data$Group, data$UID, sep="!")
 
 # convert to wide and back again as a hacky way of making sure all seeds have equal number of slices
 data.wide <- dcast(data, Slice ~ GroupUID, value.var = "Germinated")

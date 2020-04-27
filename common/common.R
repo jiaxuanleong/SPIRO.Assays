@@ -1,7 +1,6 @@
 # common.R -
 # some functions common to other scripts
 
-
 spiro_common_included <- function() {
   return(TRUE)
 }

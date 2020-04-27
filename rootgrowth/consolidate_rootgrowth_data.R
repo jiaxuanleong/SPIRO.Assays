@@ -66,20 +66,13 @@ processfile <- function(file, expname) {
     group_by(UID) %>%
     mutate(signsum = rollapply(mablsign, 9, sum, na.rm=T, align="left", fill=NA)) -> r
 
-  # if we have more than eight consecutive increases of average root length, we assume growth has started
-  r$growing <- NA
-  r$growing[r$signsum > 8] <- TRUE
+  # use germination data to assess root growth
+  r %>% group_by(UID) %>%
+    filter(elapsed >= germtimes$time[germtimes$UID == UID[1]]) -> r
 
-  # if root starts to grow, it is considered to be growing for the remaining datapoints
-  r %>% arrange(elapsed) %>%
-    group_by(UID) %>%
-    mutate(growing = na.locf(growing, na.rm=F)) -> r
-  
-  # remove timepoints before growth starts
-  r %>% filter(growing==TRUE) -> r
-  
   # construct a normalized elapsed time value based on root growth start
-  r %>% group_by(UID) %>% 
+  r %>% arrange(elapsed) %>%
+    group_by(UID) %>% 
     mutate(normtime = elapsed - elapsed[1], dbg=elapsed[1]) -> r
 
   # identify plateaus:
@@ -87,6 +80,7 @@ processfile <- function(file, expname) {
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
     mutate(still=rollapply(mablsign, 7, function(x) { return(all(x == 0)) }, align="left", fill=NA)) -> r
+
   #truncate after plateau detected
   r$still[which(r$still == FALSE)] <- NA
   r %>% arrange(elapsed) %>%
@@ -104,16 +98,6 @@ processfile <- function(file, expname) {
   r$jump[which(is.na(r$jump))]<-FALSE
   r %>% filter(jump!=TRUE) -> r
   
-  # find roots which "start growing" when they are really long and remove them
-  r %>% arrange(elapsed) %>%
-    group_by(UID) %>%
-    summarize(startlength=Length[1]) ->> startlengths
-  
-  toolong <<- startlengths[startlengths$startlength>1,]
-  if(length(toolong$UID) > 0) {
-    r %>% filter(! UID %in% toolong$UID) -> r
-  }
-
   return(r)
 }
 
@@ -134,6 +118,11 @@ if (length(files) < 1) {
   stop()
 }
 
+if (!file.exists(paste0(outdir, '/germination-perseed.tsv'))) {
+  cat("germination-perseed.tsv not found. Run process_germination_data.R first.\n")
+  stop()
+}
+
 allout <- NULL
 
 d <- unlist(strsplit(dir, '/', fixed=T))
@@ -141,6 +130,17 @@ expname <- d[length(d)]
 cat(paste0("Performing root growth QC for experiment << ", expname, " >>\n\n"))
 
 cat("Processing files, please wait...\n")
+
+germtimes <- read_tsv(paste0(outdir, '/germination-perseed.tsv'), col_types=cols(
+  UID = col_character(),
+  Group = col_character(),
+  `Germination Time (h)` = col_double(),
+  `Germination Detected on Frame` = col_integer(),
+  `Seed Size (cm2)` = col_skip(),
+  Note = col_character()
+))
+names(germtimes)[3] <- 'time'
+names(germtimes)[4] <- 'slice'
 
 for (f in files) {
   # clean up file
@@ -151,18 +151,18 @@ for (f in files) {
   d <- dirname(f)
   dirparams <- unlist(strsplit(d, '/', fixed=T))
   GID <- paste0(dirparams[length(dirparams)-1], '_', dirparams[length(dirparams)])
-  ggsave(plotfile(f), filename=paste0(rundir, '/', GID, '_preQC.pdf'), width=25, height=15, units='cm')
+  ggsave(plotfile(f), filename=paste0(rundir, '/', GID, '_beforeQC.pdf'), width=25, height=15, units='cm')
   
   # plot processed data
   p <- ggplot(out, aes(x=elapsed, y=Length, color=UID, group=UID)) + 
     geom_point() +
     geom_line() +
     labs(title=paste0("Processed graph for ", GID), x="Elapsed time (h)", y="Root length (cm)")
-  ggsave(p, filename=paste0(rundir, '/', GID, '_postQC.pdf'), width=25, height=15, units='cm')
+  ggsave(p, filename=paste0(rundir, '/', GID, '_postQC_raw.pdf'), width=25, height=15, units='cm')
   p <- ggplot(out, aes(x=normtime, y=Length, color=UID, group=UID)) + 
     geom_point() +
     geom_line() +
-    labs(title=paste0("Processed graph for ", GID), x="Relative elapsed time (h)", y="Root length (cm)")
+    labs(title=paste0("Normalized-time graph for ", GID), x="Relative elapsed time (h)", y="Root length (cm)")
   ggsave(p, filename=paste0(rundir, '/', GID, '_postQC_normalized.pdf'), width=25, height=15, units='cm')
 }
 
