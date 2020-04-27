@@ -67,14 +67,28 @@ detect_germination <- function(ds) {
 dir <- choose_dir()
 
 resultsdir <- paste0(dir, '/Results')
-outdir <- paste0(resultsdir, '/Germination')
-rundir <- create_rundir(outdir)
+germdir <- paste0(resultsdir, '/Germination')
+rootdir <- paste0(resultsdir, '/Root Growth')
 
-if (file.exists(paste0(outdir, "/germination.postQC.tsv"))) {
-  data <- read_tsv(paste0(outdir, "/germination.postQC.tsv"))
-} else {
+if (file.exists(paste0(germdir, "/germination.postQC.tsv")) & !file.exists(paste0(rootdir, "/germination.postQC.tsv"))) {
+  outdir <- germdir
+} else if (!file.exists(paste0(germdir, "/germination.postQC.tsv")) & file.exists(paste0(rootdir, "/germination.postQC.tsv"))) {
+  outdir <- rootdir
+} else if (!file.exists(paste0(germdir, "/germination.postQC.tsv")) & !file.exists(paste0(rootdir, "/germination.postQC.tsv"))) {
   stop("germination.postQC.tsv not found in specified directory. Did you run cleanup_germination_data.R?\n")
+} else {
+  stop("germination.postQC.tsv found in both Germination and Root Growth directories. This script needs germination data from exactly one assay.")
 }
+
+data <- read_tsv(paste0(outdir, "/germination.postQC.tsv"), col_types=cols(UID = col_character(),
+                                                                           Group = col_character(),
+                                                                           ElapsedHours = col_double(),
+                                                                           Area = col_double(),
+                                                                           Perim. = col_double(),
+                                                                           Slice = col_double(),
+                                                                           SeedPos = col_double(),
+                                                                           Date = col_datetime(format = "")))
+rundir <- create_rundir(outdir)
 
 # copy postQC input file to rundir for reference
 file.copy(paste0(outdir, "/germination.postQC.tsv"), rundir)
