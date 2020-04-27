@@ -1,4 +1,6 @@
 # consolidate_rootgrowth_data.R -
+# 
+#   cleans up root growth data, and merges it with germination data
 
 library(dplyr)
 library(ggplot2)
@@ -31,7 +33,12 @@ plotfile <- function(file) {
 }
 
 processfile <- function(file, expname) {
-  r <- read.delim(file, stringsAsFactors=FALSE)
+  r <- read_tsv(file, col_types=cols(
+    `Slice No.` = col_integer(),
+    `Slice label` = col_character(),
+    `Root no.` = col_integer(),
+    `Root length (cm)` = col_double()
+  ))
   names(r) <- c('Slice', 'Label', 'Rootno', 'Length')
   d <- dirname(file)
   dirparams <- unlist(strsplit(d, '/', fixed=T))
