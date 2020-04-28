@@ -6,7 +6,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-p_load(readr, doParallel, foreach, doRNG, ggplot2, dplyr)
+p_load(readr, doParallel, foreach, doRNG, ggplot2, dplyr, glmmTMB, emmeans, multcomp)
 
 # number of repetitions for the permutation test
 tries <- 5000
@@ -94,6 +94,17 @@ p <- ggplot(data, aes(x=RelativeElapsedHours, y=PrimaryRootLength, color=Group, 
        y="Primary root length (cm)", 
        title="Primary root growth per group")
 suppressWarnings(ggsave(p, filename=paste0(rundir, "/rootgrowth-allgroups.pdf"), width=25, height=15, units="cm"))
+
+# fit the mixed model
+cat("Fitting the model, hold tight...\n")
+glmmTMB(data=data,
+        formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2) * Group + (1+poly(RelativeElapsedHours, 2) | UID),
+        REML = T) -> fit.glmmTMB
+fit.glmmTMB %>% emtrends(~Group, var="RelativeElapsedHours") -> fit.trend
+fit.cld <- cld(fit.trend)
+fit.pwpp <- pwpp(fit.trend)
+write.table(fit.cld, file=paste0(rundir, '/CLD.tsv'), row.names=F, sep='\t')
+ggsave(fit.pwpp, filename = paste0(rundir, "/Pairwise p-value plot.pdf"), width=25, height=15, units="cm")
 
 # if we have more than one group, perform pairwise comparisons against control
 stats <- NULL
