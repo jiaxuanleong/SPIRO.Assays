@@ -163,9 +163,8 @@ if (ngroups > 1) {
       geom_smooth(method="lm", formula = y ~ poly(x, 2, raw=T)) +
       labs(x="Relative time (h)",
            y="Primary root length (cm)",
-           title=paste0("Model fit for group ", group, " compared to control"))
+           title=paste0("Model fit for group ", group))
     suppressWarnings(ggsave(p, filename = paste0(rundir, "/rootgrowth-", group, ".pdf"), width=25, height=15, units="cm"))
-    
   }
   
   coefs <- data.frame(Group = groups, b0 = b0s, b1 = b1s, b2 = b2s)
