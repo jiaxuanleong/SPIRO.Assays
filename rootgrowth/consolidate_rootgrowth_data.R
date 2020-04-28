@@ -10,6 +10,9 @@ library(zoo)
 rm(list=ls())
 source('common/common.R')
 
+# ggplot theme
+th <- theme_bw() + theme(legend.position="bottom", legend.text=element_text(size=8))
+
 # function for plotting unprocessed data
 plotfile <- function(file) {
   r <- read.delim(file, stringsAsFactors=FALSE)
@@ -29,7 +32,7 @@ plotfile <- function(file) {
   return(ggplot(r, aes(x=elapsed, y=Length, color=UID, group=UID)) + 
            geom_point() + 
            geom_line() +
-           labs(title=paste0("Unprocessed graph for ", r$GID), x="Elapsed time (h)", y="Root length (cm)"))
+           labs(title=paste0("Unprocessed graph for ", r$GID), x="Elapsed time (h)", y="Root length (cm)") + th)
 }
 
 processfile <- function(file, expname) {
@@ -46,6 +49,10 @@ processfile <- function(file, expname) {
   r$UID <- paste0(r$GID, '_', r$Rootno, '_exp:', expname)
   params <- unlist(strsplit(r$Label, '-', fixed=TRUE))
   r$date <- as.POSIXct(strptime(paste0(params[seq(2, length(params), 4)], params[seq(3, length(params), 4)]), format='%Y%m%d%H%M%S'))
+  
+  # find out which seeds were processed normally by germination script
+  normseeds <- germtimes$UID[!is.na(germtimes$time)]
+  r %>% filter(UID %in% normseeds) -> r
   
   # add elapsed times
   r %>% group_by(UID) %>%
@@ -138,7 +145,6 @@ germtimes <- read_tsv(paste0(outdir, '/germination-perseed.tsv'), col_types=cols
   Note = col_character()
 ))
 names(germtimes)[3] <- 'time'
-names(germtimes)[4] <- 'slice'
 
 for (f in files) {
   # clean up file
@@ -155,12 +161,12 @@ for (f in files) {
   p <- ggplot(out, aes(x=elapsed, y=Length, color=UID, group=UID)) + 
     geom_point() +
     geom_line() +
-    labs(title=paste0("Processed graph for ", GID), x="Elapsed time (h)", y="Root length (cm)")
+    labs(title=paste0("Processed graph for ", GID), x="Elapsed time (h)", y="Root length (cm)") + th
   ggsave(p, filename=paste0(rundir, '/', GID, '_postQC_raw.pdf'), width=25, height=15, units='cm')
   p <- ggplot(out, aes(x=normtime, y=Length, color=UID, group=UID)) + 
     geom_point() +
     geom_line() +
-    labs(title=paste0("Normalized-time graph for ", GID), x="Relative elapsed time (h)", y="Root length (cm)")
+    labs(title=paste0("Normalized-time graph for ", GID), x="Relative elapsed time (h)", y="Root length (cm)") +th
   ggsave(p, filename=paste0(rundir, '/', GID, '_postQC_normalized.pdf'), width=25, height=15, units='cm')
 }
 
