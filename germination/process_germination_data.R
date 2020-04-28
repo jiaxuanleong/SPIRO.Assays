@@ -7,17 +7,8 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-
-library(dplyr)
-library(reshape2)
-library(germinationmetrics)
-library(zoo)
-library(doParallel)
-library(foreach)
-library(ggplot2)
-library(survival)
-library(survminer)
-library(readr)
+p_load(dplyr, reshape2, zoo, doParallel, foreach, ggplot2, survival, survminer)
+p_load_gh('aravind-j/germinationmetrics')
 
 detect_germination <- function(ds) {
   # figure out the imaging frequency

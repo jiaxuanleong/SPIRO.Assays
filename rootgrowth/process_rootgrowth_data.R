@@ -6,12 +6,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-
-library(readr)
-library(doParallel)
-library(foreach)
-library(doRNG)
-library(ggplot2)
+p_load(readr, doParallel, foreach, doRNG, ggplot2)
 
 # number of repetitions for the permutation test
 tries <- 5000

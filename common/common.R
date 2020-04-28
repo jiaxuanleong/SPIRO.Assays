@@ -1,6 +1,10 @@
 # common.R -
 # some functions common to other scripts
 
+if (!require('pacman')) {
+  install.packages('pacman')
+}
+
 spiro_common_included <- function() {
   return(TRUE)
 }

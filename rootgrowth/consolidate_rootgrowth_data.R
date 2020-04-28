@@ -2,13 +2,11 @@
 # 
 #   cleans up root growth data, and merges it with germination data
 
-library(dplyr)
-library(ggplot2)
-library(zoo)
-
 # clean slate
 rm(list=ls())
 source('common/common.R')
+
+p_load(dplyr, ggplot2, zoo)
 
 # ggplot theme
 th <- theme_bw() + theme(legend.position="bottom", legend.text=element_text(size=8))
@@ -51,7 +49,6 @@ processfile <- function(file, expname) {
   r$date <- as.POSIXct(strptime(paste0(params[seq(2, length(params), 4)], params[seq(3, length(params), 4)]), format='%Y%m%d%H%M%S'))
   
   # find out which seeds were processed normally by germination script
-  normseeds <- germtimes$UID[!is.na(germtimes$time)]
   r %>% filter(UID %in% normseeds) -> r
   
   # add elapsed times
@@ -145,6 +142,12 @@ germtimes <- read_tsv(paste0(outdir, '/germination-perseed.tsv'), col_types=cols
   Note = col_character()
 ))
 names(germtimes)[3] <- 'time'
+normseeds <- germtimes$UID[!is.na(germtimes$time)]
+badseeds <- germtimes$UID[is.na(germtimes$time)]
+if(length(badseeds)) {
+  cat("The following seedlings do not have a germination time, and are excluded from analysis:\n ")
+  cat(paste0(badseeds, '\n'))
+}
 
 for (f in files) {
   # clean up file

@@ -7,11 +7,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-
-library(dplyr)
-library(foreach)
-library(doParallel)
-library(readr)
+p_load(dplyr, foreach, doParallel, readr)
 
 # below are cutoffs for area filtering
 upper_area_threshold = 0.02
@@ -167,13 +163,13 @@ for (f in logfiles) {
 for (errtype in unique(log$Type)) {
   if (errtype == 'EARLY_LARGE_AREA') {
     cat('Large non-seed object detected in ROI. Time range has been truncated.\n')
-    cat('Affected seeds: \n')
+    cat('Affected seeds:\n ')
     cat(paste0(log$UID[log$Type == 'EARLY_LARGE_AREA'], '\n'))
     cat('\n')
     err_largeobj <- data.frame(UID=log$UID[log$Type == 'EARLY_LARGE_AREA'], Note='Large non-seed object detected in ROI. Time range was truncated.')
   } else if (errtype == 'DUPE') {
     cat('Multiple objects remained after filtering. Affected seeds were removed from analysis.\n')
-    cat('Affected seeds: \n')
+    cat('Affected seeds:\n ')
     cat(paste0(log$UID[log$Type == 'DUPE'], '\n'))
     cat('\n')
     err_multiobj <- data.frame(UID=log$UID[log$Type == 'DUPE'], Note='Multiple objects remained after filtering. Seed was removed from analysis.')
