@@ -150,27 +150,101 @@ function scale() {
 	img1 = listInplate1dir[0];
 	open(plate1dir + img1);
 	run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel global");
+	run("Set Measurements...", "area bounding display redirect=None decimal=3");
+    
 	setTool("line");
 	xapprox = getWidth()/5*4;
+	xmax = getWidth();
 	yapprox = getHeight()/5*4;
-	run("Set... ", "zoom=50 x=["+xapprox+"] y=["+yapprox+"]"); //zoom in on approximate location of scale bar
-    run("Set Measurements...", "area bounding display redirect=None decimal=3");
+	ymax = getHeight();
+	widthapprox = xmax - xapprox;
+	heightapprox = ymax - yapprox;
+
+   	makeRectangle(xapprox, yapprox, widthapprox, heightapprox);
+    run("Duplicate...", "use");
+   	rename("tempscalebar");
+    slicelabel = getInfo("slice.label");
+    run("8-bit");
+    run("Gaussian Blur...", "sigma=7");
     
-    userconfirm = false;
-	while (!userconfirm) { 
-		Dialog.createNonBlocking("Set Scale");
-		Dialog.addMessage("Based on the scale bar on bottom right of the image, draw a straight line corresponding to 1cm.");
-		Dialog.addCheckbox("Scale bar corresponding to 1cm has been drawn", false);
+    if (indexOf(slicelabel, "day") > -1 ) {
+		run("Subtract Background...", "rolling=90");
+	} else {
+		run("Subtract Background...", "rolling=90 light");
+	}
+	roiManager("reset");
+	setAutoThreshold("Default");
+	setOption("BlackBackground", false);
+	run("Convert to Mask");
+	run("Create Selection");
+	roiManager("Split");
+	roicount = roiManager("count");
+	for (roino = 0; roino < roicount; roino ++) {
+		roiManager("select", roino);
+		Roi.getBounds(roix, roiy, roiw, roih);
+		whratio = roiw/roih; // width to height ratio
+		if (whratio < 2.5 || whratio > 3.5) {
+			roiManager("select", roino);
+			roiManager("delete");
+			roino -= 1; 
+			roicount -= 1;
+		}
+	}
+
+	roicount = roiManager("count");
+	if (roicount > 1) {
+		for (roino = 0; roino < roicount; roino ++) {
+			roiManager("select", roino);
+			Roi.getBounds(roix, roiy, roiw, roih);
+			if (roiw < 150) {
+				roiManager("select", roino);
+				roiManager("delete");
+				roino -= 1; 
+				roicount -= 1;
+			}
+		}
+	}
+
+	if (roicount == 1) {
+		scalefail = false;
+		roiManager("select", 0);
+		Roi.getBounds(roix, roiy, roiw, roih);
+		makeLine(roix, roiy + roih/2, roix + roiw, roiy + roih/2);
+		Dialog.create("User-guided scale setting");
+		choicearray = newArray("Yes", "No");
+		Dialog.addChoice("Does the line drawn correspond to the scale bar?", choicearray);
 		Dialog.show();
-		userconfirm = Dialog.getCheckbox();
+		userchoice = Dialog.getChoice();
+	} else {
+		scalefail = true;
+		userchoice = "none";
+	}
+	
+	if (userchoice == "no" || scalefail) {
+		close("tempscalebar");
+		selectWindow(img1);
+		run("Select None");
+		run("Set... ", "zoom=50 x=["+xapprox+"] y=["+yapprox+"]"); //zoom in on approximate location of scale bar
+		userconfirm = false;
+		while (!userconfirm) { 
+			Dialog.createNonBlocking("Automatic scale detection unsucessful");
+			Dialog.addMessage("Based on the scale bar, draw a straight line corresponding to 1cm\n." +
+				"Holding down SHIFT can help in keeping line horizontal");
+			Dialog.addCheckbox("Scale bar corresponding to 1cm has been drawn", false);
+			Dialog.show();
+			userconfirm = Dialog.getCheckbox();
+		}
+	} else {
+		close("tempscalebar");
+		selectWindow(img1);
+		makeLine(xapprox + roix, yapprox + roiy, xapprox + roix + roiw, yapprox + roiy);
 	}
 	run("Set Measurements...", "area bounding display redirect=None decimal=3");
+	
 	run("Measure");
-    length = getResult('Length', nResults - 1);
-	if (userconfirm && !isNaN(length)) {
-		run("Set Scale...", "distance=" + length + " known=1 unit=cm global");
-	}
 	Table.rename("Results", "scalebar");
+	length = getResult('Length', nResults - 1);
+	run("Set Scale...", "distance=" + length + " known=1 unit=cm global");
 
 	/*
 	 * get coordinates to crop and prints it to a table for the crop function
