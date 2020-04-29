@@ -72,7 +72,7 @@ processfile <- function(file, expname) {
 
   # use germination data to assess root growth
   r %>% group_by(UID) %>%
-    filter(elapsed >= germtimes$time[germtimes$UID == UID[1]]) -> r
+    filter(Slice >= germtimes$slice[germtimes$UID == UID[1]]) -> r
 
   # construct a normalized elapsed time value based on root growth start
   r %>% arrange(elapsed) %>%
@@ -138,12 +138,12 @@ cat("Processing files, please wait...\n")
 germtimes <- read_tsv(paste0(outdir, '/germination-perseed.tsv'), col_types=cols(
   UID = col_character(),
   Group = col_character(),
-  `Germination Time (h)` = col_double(),
+  `Germination Detected on Frame` = col_double(),
   Note = col_character()
 ))
-names(germtimes)[3] <- 'time'
-normseeds <- germtimes$UID[!is.na(germtimes$time)]
-badseeds <- germtimes$UID[is.na(germtimes$time)]
+names(germtimes)[3] <- 'slice'
+normseeds <- germtimes$UID[!is.na(germtimes$slice)]
+badseeds <- germtimes$UID[is.na(germtimes$slice)]
 if(length(badseeds)) {
   cat("The following seedlings do not have a germination time, and are excluded from analysis:\n ")
   cat(paste0(badseeds, '\n'))
@@ -174,7 +174,7 @@ for (f in files) {
 }
 
 allout %>% arrange(GID, UID, normtime) %>% 
-  select(c(UID, GID, elapsed, normtime, Length, date)) -> allout
+  dplyr::select(c(UID, GID, elapsed, normtime, Length, date)) -> allout
 
 names(allout)[2] <- 'Group'
 names(allout)[3] <- 'ElapsedHours'

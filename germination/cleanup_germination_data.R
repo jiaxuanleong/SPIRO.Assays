@@ -27,7 +27,7 @@ processfile <- function(file, logdir, expname) {
                                           progress=FALSE))
   
   if ("X1" %in% names(resultfile)) {
-    resultfile <- select(resultfile, -X1)
+    resultfile <- dplyr::select(resultfile, -X1)
   }
   resultfile <- as.data.frame(resultfile)
   print(str(resultfile))
@@ -54,7 +54,7 @@ processfile <- function(file, logdir, expname) {
   data <- NULL
   data$UID <- paste0(plate, '_', group, '_', SeedPos, '_exp:', expname)
   data$Group <- paste0(plate, '_', group)
-  resultfile <- select(resultfile, -Label)
+  resultfile <- dplyr::select(resultfile, -Label)
   data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
   data <- check_duplicates(data, paste0(logdir, '/', basename(file), '.log'))
   return(data)
@@ -94,7 +94,7 @@ check_duplicates <- function(data, logfile) {
       error_uids <- c(error_uids, uid)
       error_types <- c(error_types, 'DUPE')
     } else {
-      ds <- select(ds, -n)
+      ds <- dplyr::select(ds, -n)
       # need to cast to data frame or this fails
       data <- rbind(as.data.frame(data), as.data.frame(ds))
     }
@@ -193,5 +193,5 @@ seedlog$Note <- as.character(seedlog$Note)
 if (nrow(errors) > 0) {
   seedlog <- merge(seedlog, errors, by="UID", all=T)
 }
-seedlog %>% mutate(Note = coalesce(Note.x, Note.y)) %>% select(c(UID, Note)) -> seedlog
+seedlog %>% mutate(Note = coalesce(Note.x, Note.y)) %>% dplyr::select(c(UID, Note)) -> seedlog
 write.table(seedlog, file=paste0(outdir, "/germination.postQC.log.tsv"), sep='\t', row.names=F)
