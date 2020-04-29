@@ -87,6 +87,9 @@ if (file.exists(paste0(outdir, "/germination.postQC.log.tsv"))) {
   file.copy(paste0(outdir, "/germination.postQC.log.tsv"), rundir)
 }
 
+# if Group is set to NA, do not include in analysis
+data <- data[which(!is.na(data$Group)),]
+
 data$dPerim <- data$ddPerim <- 0
 data$Germinated <- 0
 data$pav <- groups <- uids <- perims <- NULL
@@ -144,7 +147,7 @@ for(uid in uids[!included]) {
 # sort data naturally
 data.peruid$num <- gsub('^plate.*_([0-9]+)_exp:.*$', '\\1', data.peruid$UID)
 data.peruid <- data.peruid[order(data.peruid$Group, data.peruid$num),]
-data.peruid <- data.peruid %>% select(-num)
+data.peruid <- data.peruid %>% dplyr::select(-num)
 
 names(data.peruid)[3] <- 'Germination Time (h)'
 names(data.peruid)[4] <- 'Germination Detected on Frame'

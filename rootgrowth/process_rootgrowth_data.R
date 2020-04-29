@@ -52,6 +52,9 @@ data <- read_tsv(paste0(outdir, '/rootgrowth.postQC.tsv'),
                              RelativeElapsedHours=col_double(), PrimaryRootLength=col_double(),
                              Date=col_skip()))
 
+# if Group is set to NA, do not include in analysis
+data <- data[which(!is.na(data$Group)),]
+
 # copy postQC input file to rundir for reference
 file.copy(paste0(outdir, "/rootgrowth.postQC.tsv"), rundir)
 
