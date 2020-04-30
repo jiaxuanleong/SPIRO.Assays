@@ -42,15 +42,13 @@ outdir <- paste0(resultsdir, '/Root Growth')
 rundir <- create_rundir(outdir)
 
 if (file.exists(paste0(outdir, "/rootgrowth.postQC.tsv"))) {
-  data <- read.table(paste0(outdir, "/rootgrowth.postQC.tsv"), header=T, stringsAsFactors=F, row.names=NULL)
+  data <- read_tsv(paste0(outdir, '/rootgrowth.postQC.tsv'),
+                   col_types=c(UID=col_character(), Group=col_character(), ElapsedHours=col_skip(),
+                               RelativeElapsedHours=col_double(), PrimaryRootLength=col_double(),
+                               Date=col_skip()))
 } else {
   stop("rootgrowth.postQC.tsv not found in specified directory. Did you run cleanup_rootgrowth_data.R?\n")
 }
-
-data <- read_tsv(paste0(outdir, '/rootgrowth.postQC.tsv'),
-                 col_types=c(UID=col_character(), Group=col_character(), ElapsedHours=col_skip(),
-                             RelativeElapsedHours=col_double(), PrimaryRootLength=col_double(),
-                             Date=col_skip()))
 
 # if Group is set to NA, do not include in analysis
 data <- data[which(!is.na(data$Group)),]
