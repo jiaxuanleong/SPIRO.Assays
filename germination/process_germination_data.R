@@ -7,7 +7,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-p_load(dplyr, reshape2, zoo, doParallel, foreach, ggplot2, survival, survminer)
+p_load(dplyr, reshape2, readr, zoo, doParallel, foreach, ggplot2, survival, survminer)
 p_load_gh('aravind-j/germinationmetrics')
 
 detect_germination <- function(ds) {
