@@ -184,7 +184,11 @@ allout$ElapsedHours <- round(allout$ElapsedHours, 4)
 allout <- allout[,c(1:2, 8, 3:7)]
 
 write.table(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t', row.names=F)
-cat(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'.\nPlease edit that file to set up correct grouping for your experiment.\n"))
+if (!grepl('Root Growth$', outdir)) {
+  cat(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'.\nPlease edit that file to set up correct grouping for your experiment.\n"))
+} else {
+  cat(paste0("Now run consolidate_rootgrowth_data.R.\n"))
+}
 
 # create error log
 seedlog <- data.frame(UID=unique(allout$UID), Note='Seed processed normally.')
@@ -194,4 +198,6 @@ if (nrow(errors) > 0) {
   seedlog <- merge(seedlog, errors, by="UID", all=T)
 }
 seedlog %>% mutate(Note = coalesce(Note.x, Note.y)) %>% dplyr::select(c(UID, Note)) -> seedlog
-write.table(seedlog, file=paste0(outdir, "/germination.postQC.log.tsv"), sep='\t', row.names=F)
+if (!grepl('Root Growth$', outdir)) {
+  write.table(seedlog, file=paste0(outdir, "/germination.postQC.log.tsv"), sep='\t', row.names=F)
+}
