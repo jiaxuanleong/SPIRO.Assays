@@ -297,7 +297,7 @@ if (length(unique(data.long$Group)) > 1) {
   sfit <- survfit(survobj~Group, data=data.surv)
   p <- ggsurvplot(sfit, pval=F, fun=function(y) { return(1-y) }) +
     labs(x='Elapsed Time (h)', y='Fraction of germinated seeds')
-  suppressWarnings(ggsave(p$plot, 
+  suppressWarnings(ggsave(p$plot + geom_hline(yintercept=1), 
                           filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-allgroups.pdf"), 
                           width=25, height=15, units="cm"))
   
@@ -307,7 +307,7 @@ if (length(unique(data.long$Group)) > 1) {
     sfit <- survfit(survobj~Group, data=ds)
     p <- ggsurvplot(sfit, pval=F, fun=function(y) { return(1-y) }) +
       labs(x='Elapsed Time (h)', y='Fraction of germinated seeds')
-    suppressWarnings(ggsave(p$plot, 
+    suppressWarnings(ggsave(p$plot + geom_hline(yintercept=1), 
                             filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", pvals$Group.1[i], "_vs_", pvals$Group.2[i], ".pdf"), 
                             width=25, height=15, units="cm"))
     # get p-value (standard log-rank)
