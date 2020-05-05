@@ -154,7 +154,10 @@ for (f in files) {
   out <- processfile(f, expname)
   allout <- rbind(allout, out)
   
-  # plot unpropcessed data
+  # snip uids
+  out$UID <- sub('_exp:.*$', '', out$UID)
+  
+  # plot unprocessed data
   d <- dirname(f)
   dirparams <- unlist(strsplit(d, '/', fixed=T))
   GID <- paste0(dirparams[length(dirparams)-1], '_', dirparams[length(dirparams)])
