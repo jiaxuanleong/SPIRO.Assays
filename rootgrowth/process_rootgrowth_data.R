@@ -256,7 +256,7 @@ for(i in 2:ncol(chartdata)) {
 p <- ggplot(chartdata, aes(x=Group, fill=as.factor(Days), y=`Root length (cm)`, ymax=`Root length (cm)`+`Root length SD`, ymin=`Root length (cm)`-`Root length SD`)) + 
   geom_col(position="dodge") + 
   geom_errorbar(position="dodge") + 
-  theme(axis.text.x = element_text(angle = -90, vjust=0.5)) +
+  theme(axis.text.x = element_text(angle = 90, vjust=0.5)) +
   labs(fill="Days")
 
 suppressWarnings(ggsave(p, filename=paste0(graphsdir, "/rootgrowth-barchart.pdf"), width=25, height=15, units="cm"))
@@ -264,7 +264,7 @@ suppressWarnings(ggsave(p, filename=paste0(graphsdir, "/rootgrowth-barchart.pdf"
 p <- ggplot(chartdata, aes(x=Group, fill=as.factor(Days), y=`Growth rate (mm/h)`, ymax=`Growth rate (mm/h)`+`Growth rate SD`, ymin=`Growth rate (mm/h)`-`Growth rate SD`)) + 
   geom_col(position="dodge") + 
   geom_errorbar(position="dodge") + 
-  theme(axis.text.x = element_text(angle = -90, vjust=0.5)) +
+  theme(axis.text.x = element_text(angle = 90, vjust=0.5)) +
   labs(fill="Days")
 
 suppressWarnings(ggsave(p, filename=paste0(graphsdir, "/growthrate-barchart.pdf"), width=25, height=15, units="cm"))
