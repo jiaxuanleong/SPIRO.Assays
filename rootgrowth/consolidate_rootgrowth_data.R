@@ -26,10 +26,15 @@ plotfile <- function(file) {
   r %>% group_by(UID) %>%
     arrange(date) %>%
     mutate(elapsed=elapsed(date[1], date)) -> r
+
+  # get rid of divide-by-zero
+  r.tmp <- r[r$Slice > 1,]
+  TimePerSlice <- mean(r.tmp$elapsed / (r.tmp$Slice-1))
   
   return(ggplot(r, aes(x=elapsed, y=Length, color=UID, group=UID)) + 
            geom_point() + 
            geom_line() +
+           scale_x_continuous(sec.axis=sec_axis(~./TimePerSlice, breaks=seq(min(r$elapsed/TimePerSlice), max(r$elapsed/TimePerSlice), 20), name="Slice")) +
            labs(title=paste0("Unprocessed graph for ", r$GID), x="Elapsed time (h)", y="Root length (cm)") + th)
 }
 
@@ -162,11 +167,15 @@ for (f in files) {
   dirparams <- unlist(strsplit(d, '/', fixed=T))
   GID <- paste0(dirparams[length(dirparams)-1], '_', dirparams[length(dirparams)])
   ggsave(plotfile(f), filename=paste0(rundir, '/', GID, '_beforeQC.pdf'), width=25, height=15, units='cm')
+  out.tmp <- out[out$Slice > 1,]
+  TimePerSlice <- mean(out.tmp$elapsed / (out.tmp$Slice-1))
+  
   
   # plot processed data
   p <- ggplot(out, aes(x=elapsed, y=Length, color=UID, group=UID)) + 
     geom_point() +
     geom_line() +
+    scale_x_continuous(sec.axis=sec_axis(~./TimePerSlice, breaks=seq(as.integer(min(out$elapsed/TimePerSlice)), as.integer(max(out$elapsed/TimePerSlice)), 20), name="Slice")) +
     labs(title=paste0("Processed graph for ", GID), x="Elapsed time (h)", y="Root length (cm)") + th
   ggsave(p, filename=paste0(rundir, '/', GID, '_postQC_raw.pdf'), width=25, height=15, units='cm')
   p <- ggplot(out, aes(x=normtime, y=Length, color=UID, group=UID)) + 
