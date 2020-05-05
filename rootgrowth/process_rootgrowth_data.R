@@ -6,7 +6,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-p_load(readr, doParallel, foreach, doRNG, ggplot2, dplyr, glmmTMB, emmeans, multcomp, multcompView, ggeffect)
+p_load(readr, doParallel, foreach, doRNG, ggplot2, dplyr, glmmTMB, emmeans, multcomp, multcompView, ggeffects)
 
 # number of repetitions for the permutation test
 tries <- 5000
@@ -54,7 +54,9 @@ if (file.exists(paste0(outdir, "/rootgrowth.postQC.tsv"))) {
 data <- data[which(!is.na(data$Group)),]
 
 # copy postQC input file to rundir for reference
-file.copy(paste0(outdir, "/rootgrowth.postQC.tsv"), rundir)
+dir.create(paste0(rundir, '/QC Results'))
+file.copy(paste0(outdir, "/rootgrowth.postQC.tsv"), paste0(rundir, '/QC Results'))
+file.copy(paste0(outdir, "/germination-perseed.tsv"), paste0(rundir, '/QC Results'))
 
 # loop to ask the user to choose the control group
 groups <- as.character(unique(data$Group))

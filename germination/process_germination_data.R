@@ -82,9 +82,10 @@ data <- read_tsv(paste0(outdir, "/germination.postQC.tsv"), col_types=cols(UID =
 rundir <- create_rundir(outdir)
 
 # copy postQC input file to rundir for reference
-file.copy(paste0(outdir, "/germination.postQC.tsv"), rundir)
+dir.create(paste0(rundir, '/QC Results'))
+file.copy(paste0(outdir, "/germination.postQC.tsv"), paste0(rundir, '/QC Results'))
 if (file.exists(paste0(outdir, "/germination.postQC.log.tsv"))) {
-  file.copy(paste0(outdir, "/germination.postQC.log.tsv"), rundir)
+  file.copy(paste0(outdir, "/germination.postQC.log.tsv"), paste0(rundir, '/QC Results'))
 }
 
 # if Group is set to NA, do not include in analysis
