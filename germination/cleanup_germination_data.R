@@ -194,10 +194,10 @@ if (!grepl('Root Growth$', outdir)) {
 seedlog <- data.frame(UID=unique(allout$UID), Note='Seed processed normally.')
 seedlog$UID <- as.character(seedlog$UID)
 seedlog$Note <- as.character(seedlog$Note)
-if (nrow(errors) > 0) {
-  seedlog <- merge(seedlog, errors, by="UID", all=T)
-}
+seedlog <- merge(seedlog, errors, by="UID", all=T)
+seedlog$Note.y <- as.character(seedlog$Note.y)
 seedlog %>% mutate(Note = coalesce(Note.x, Note.y)) %>% dplyr::select(c(UID, Note)) -> seedlog
+
 if (!grepl('Root Growth$', outdir)) {
   write.table(seedlog, file=paste0(outdir, "/germination.postQC.log.tsv"), sep='\t', row.names=F)
 }
