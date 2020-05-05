@@ -158,12 +158,13 @@ if (file.exists(paste0(outdir, "/germination.postQC.log.tsv"))) {
   seedlog <- read.table(paste0(outdir, "/germination.postQC.log.tsv"), header=T, stringsAsFactors=F)
   data.peruid <- merge(data.peruid, seedlog, all=T)
   write.table(data.peruid, file=paste0(rundir, "/germination-perseed.tsv"), sep='\t', row.names=F)
-  if (grepl('Root Growth$', outdir)) {
-    rg <- data.peruid[,c(1,2,4,6)]
-    write.table(rg, file=paste0(outdir, "/germination-perseed.tsv"), sep='\t', row.names=F)
-  }
 } else {
   data.peruid$Note <- NA
+}
+
+if (grepl('Root Growth$', outdir)) {
+  rg <- data.peruid[,c(1,2,4,6)]
+  write.table(rg, file=paste0(outdir, "/germination-perseed.tsv"), sep='\t', row.names=F)
 }
 
 # merge group and uid so we can keep both in the conversion long->wide->long
