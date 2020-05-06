@@ -100,27 +100,46 @@ suppressWarnings(ggsave(p, filename=paste0(rundir, "/rootgrowth-allgroups.pdf"),
 
 # fit the mixed model
 cat("Fitting the model, hold tight...\n")
-glmmTMB(data=data,
-        formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2) * Group + (1+poly(RelativeElapsedHours, 2) | UID),
-        REML = T) -> fit.glmmTMB
-fit.glmmTMB %>% emtrends(~Group, var="RelativeElapsedHours") -> fit.trend
-fit.cld <- cld(fit.trend)
-fit.pwpp <- pwpp(fit.trend)
-write.table(fit.cld, file=paste0(rundir, '/CLD.tsv'), row.names=F, sep='\t')
-ggsave(fit.pwpp, filename = paste0(rundir, "/Pairwise p-value plot.pdf"), width=25, height=15, units="cm")
+if (ngroups > 1) {
+  fit.glmmTMB <- glmmTMB(data=data,
+          formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2) * Group + (1+poly(RelativeElapsedHours, 2) | UID),
+          REML = T) -> fit.glmmTMB
+  fit.glmmTMB %>% emtrends(~Group, var="RelativeElapsedHours") -> fit.trend
+  fit.cld <- cld(fit.trend)
+  fit.pwpp <- pwpp(fit.trend)
+  write.table(fit.cld, file=paste0(rundir, '/CLD.tsv'), row.names=F, sep='\t')
+  ggsave(fit.pwpp, filename = paste0(rundir, "/Pairwise p-value plot.pdf"), width=25, height=15, units="cm")
+} else {
+  fit.glmmTMB <- glmmTMB(data=data,
+          formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2) + (1+poly(RelativeElapsedHours, 2) | UID),
+          REML = T)
+}  
 
 # make trend graph
-fit.glmmTMB %>% ggeffect(terms = c("RelativeElapsedHours [24,48,72,96,120,144]","Group")) -> glmmTMB_model_ggeffects
-data %>% rename(group=Group, x=RelativeElapsedHours, predicted=PrimaryRootLength) %>%
-  dplyr::select(c(UID, x, predicted, group)) -> plotting
-glmmTMB_model_ggeffects %>% as_tibble %>%
-  ggplot(aes(x=x, y=predicted, ymin=conf.low, ymax=conf.high, fill=group, group=group)) +
-  geom_line(linetype="dashed") + 
-  geom_ribbon(alpha=.5) +
-  geom_line(data=plotting, aes(group=UID, ymin=NULL, ymax=NULL), alpha=.7) +
-  facet_wrap(~group) +
-  labs(fill='Group', y="Predicted primary root length (cm)", x="Time since root emergence (h)") -> p
-ggsave(p, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
+if (ngroups > 1) {
+  fit.glmmTMB %>% ggeffect(terms = c("RelativeElapsedHours [0,24,48,72,96,120,144]","Group")) -> glmmTMB_model_ggeffects
+  data %>% rename(group=Group, x=RelativeElapsedHours, predicted=PrimaryRootLength) %>%
+    dplyr::select(c(UID, x, predicted, group)) -> plotting
+  glmmTMB_model_ggeffects %>% as_tibble %>%
+    ggplot(aes(x=x, y=predicted, ymin=conf.low, ymax=conf.high, fill=group, group=group)) +
+    geom_line(linetype="dashed") + 
+    geom_ribbon(alpha=.5) +
+    geom_line(data=plotting, aes(group=UID, ymin=NULL, ymax=NULL), alpha=.7) +
+    facet_wrap(~group) +
+    labs(fill='Group', y="Predicted primary root length (cm)", x="Time since root emergence (h)") -> p
+  ggsave(p, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
+} else {
+  fit.glmmTMB %>% ggeffect(terms = c("RelativeElapsedHours [0,24,48,72,96,120,144]")) -> glmmTMB_model_ggeffects
+  data %>% rename(group=Group, x=RelativeElapsedHours, predicted=PrimaryRootLength) %>%
+    dplyr::select(c(UID, x, predicted, group)) -> plotting
+  glmmTMB_model_ggeffects %>% as_tibble %>%
+    ggplot(aes(x=x, y=predicted, ymin=conf.low, ymax=conf.high)) +
+    geom_line(linetype="dashed") + 
+    geom_ribbon(alpha=.5) +
+    geom_line(data=plotting, aes(group=UID, ymin=NULL, ymax=NULL), alpha=.7) +
+    labs(y="Predicted primary root length (cm)", x="Time since root emergence (h)") -> p
+  ggsave(p, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
+}
 
 # if we have more than one group, perform pairwise comparisons against control
 stats <- NULL
