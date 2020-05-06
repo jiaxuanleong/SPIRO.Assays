@@ -89,8 +89,9 @@ processfile <- function(file, expname) {
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
     mutate(still=rollapply(mablsign, 7, function(x) { return(all(x == 0)) }, align="left", fill=NA)) -> r
-
+  
   #truncate after plateau detected
+  #r$still[r$Length < 0.1] <- FALSE
   r$still[which(r$still == FALSE)] <- NA
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
@@ -101,6 +102,7 @@ processfile <- function(file, expname) {
   # mark big jumps (length increase > 0.5 cm)
   r$jump <- NA
   r$jump[abs(r$delta) > 0.5] <- TRUE
+
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
     mutate(jump = na.locf(jump, na.rm=F)) -> r
