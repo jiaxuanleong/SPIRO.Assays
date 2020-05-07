@@ -12,7 +12,9 @@ var curplate;	// number of current plate being processed
 var DEBUG = false; // hold down spacebar during macro start to keep non-essential intermediate output files
 var freshstart = false; // hold down shift key during macro start to delete all previous data
 
-print("Welcome to the companion macro of SPIRO for germination analysis!");
+print("======================================================\n"+
+	"Welcome to the companion macro of SPIRO for germination analysis!\n" +
+	"======================================================");
 selectWindow("Log");
 
 if (isKeyDown("shift"))
@@ -67,7 +69,7 @@ function cropGroups() {
 				Dialog.show();
 				userconfirm = Dialog.getCheckbox();
 			}
-				roiManager("deselect");
+				run("Select None");
 				run("Make Substack...");
 				setSlice(nSlices);
 			if (ppdirno == 0) {
@@ -78,7 +80,7 @@ function cropGroups() {
 				while (!userconfirm) {
 					Dialog.createNonBlocking("Group Selection");
 					Dialog.addMessage("Select each group, and add to ROI manager. ROI names will be saved.\n" +
-							"Please use only letters and numbers in the ROI names. \n" + // to avoid file save issues
+							"Please use only letters (a/A), numbers (1) and/or dashes (-) in the ROI names. \n" + // to avoid file save issues
 							"ROIs cannot share names.");
 					Dialog.addCheckbox("All groups have been added to and labelled in ROI Manager.", false);
 					Dialog.show();
@@ -286,13 +288,6 @@ function seedAnalysis() {
 						}
 					}
 				}
-	
-				selectWindow(seedpositions);
-				run("Close");
-				selectWindow(sortedxcoords);
-				run("Close");
-				selectWindow(sortedycoords);
-				run("Close");
 
 				run("Set Measurements...", "area perimeter stack display redirect=None decimal=5");
 				run("Clear Results");
@@ -310,9 +305,40 @@ function seedAnalysis() {
 				roiManager("Associate", "false");
 				roiManager("Centered", "false");
 				roiManager("UseNames", "false");
+				roiManager("Show All without labels");
+				run("Flatten", "stack");
+
+				roiManager("reset");
+				labelbelowYM = 0.1;
+				toUnscaled(labelbelowYM);
+				for (row = 0; row < rowno + 1; row++) {
+					for (col = 0; col < colno; col++) {
+						colname = "col" + col + 1;
+						xm = Table.get(colname, row, sortedxcoords);
+						ym = Table.get(colname, row, sortedycoords);
+						if (xm > 0 && ym > 0) {
+						toUnscaled(xm, ym);
+						makePoint(xm, ym + labelbelowYM);
+						roiManager("add");
+						roiManager("select", roiManager("count")-1);
+						roiManager("rename", roiManager("count"));
+						}
+					}
+				}
+				roiManager("Associate", "false");
+				roiManager("Centered", "false");
+				roiManager("UseNames", "true");
 				roiManager("Show All with labels");
 				run("Labels...", "color=white font=18 show use draw");
 				run("Flatten", "stack");
+
+				selectWindow(seedpositions);
+				run("Close");
+				selectWindow(sortedxcoords);
+				run("Close");
+				selectWindow(sortedycoords);
+				run("Close");
+
 				
 				slicelabelarray = newArray(nS);
 				for (sliceno = 0; sliceno < nS; sliceno++) {
@@ -345,6 +371,7 @@ function seedAnalysis() {
 					setMetadata("Label", slicelabelarray[sliceno]);
 				}
 				saveAs("Tiff", groupdir + groupname + " germinationlabelled.tif");
+				filedelete = File.delete(groupdir + groupname + ".tif");
 
 				list = getList("window.titles");
 				list = Array.deleteValue(list, "Log");
@@ -375,10 +402,11 @@ function deleteOutput() {
 				groupdir = platedir + groupfolder;
 				groupname = File.getName(groupdir);
 				listIngroupdir = getFileList(groupdir);
-				
-
 				filedelete = File.delete(groupdir + groupname + ".tif");
+				filedelete = File.delete(groupdir + groupname + " germinationlabelled.tif");
 				filedelete = File.delete(groupdir + groupname + " germination analysis.tsv");
+				filedelete = File.delete(groupdir);
+
 			}
 		}
 	}
