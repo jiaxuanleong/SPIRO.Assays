@@ -116,7 +116,7 @@ dir <- choose_dir()
 
 resultsdir <- paste0(dir, '/Results')
 outdir <- paste0(resultsdir, '/Root Growth')
-rundir <- paste0(outdir, '/Pre-analysis')
+rundir <- paste0(outdir, '/Pre-analysis Graphs')
 if (!dir.exists(rundir)) {
   dir.create(rundir)
 }
