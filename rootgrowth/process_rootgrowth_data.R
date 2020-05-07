@@ -6,34 +6,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-p_load(readr, doParallel, foreach, doRNG, ggplot2, dplyr, glmmTMB, emmeans, multcomp, multcompView, ggeffects)
-
-# number of repetitions for the permutation test
-tries <- 5000
-
-# ensure consistent results
-set.seed(924)
-
-# permutation testing function
-# returns TRUE (1) if permuted set yields lower or same p-value
-permute <- function(ds, base.p) {
-  perm_uids <- unique(ds$UID)
-  order <- sample(perm_uids)
-  newds <- ds
-  k <- 0
-
-  for (j in order) {
-    k <- k + 1
-    newds$Group[which(ds$UID == perm_uids[k])] <- ds$Group[which(ds$UID == j)][1]
-  }
-
-  mod.1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=newds)
-  mod.2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=newds)
-  mod.aov <- anova(mod.1, mod.2)
-
-  # check if p-value of ANOVA model comparison is lower than or equal to the original
-  return(mod.aov$`Pr(>F)`[2] <= base.p)
-}
+p_load(readr, ggplot2, dplyr, glmmTMB, emmeans, multcomp, multcompView, ggeffects)
 
 dir <- choose_dir()
 
@@ -62,42 +35,6 @@ file.copy(paste0(outdir, "/germination-perseed.tsv"), paste0(rundir, '/QC Result
 groups <- as.character(unique(data$Group))
 ngroups <- length(groups)
 
-if (ngroups > 1) {
-  ctrl <- 0
-  while (!is.na(ctrl) & ctrl < 1) {
-    cat("More than one group detected in dataset. Please indicate which group is the control.\n\n")
-    i <- 0
-    for (group in groups) {
-      i <- i + 1
-      cat(paste0("[", i, "] ", group, "\n"))
-    }
-    cat("[-1] Don't run permutation tests")
-    cat("\n")
-    ctrl <- as.numeric(readline(prompt = "Enter the number of the control group: "))
-    if (is.na(ctrl)) {
-      ctrl <- 0
-    } else if (ctrl == -1) {
-      ctrl <- NA
-    }
-  }
-  if (!is.na(ctrl)) {
-    ctrlgroup <- groups[ctrl]
-    expgroups <- groups[!groups %in% ctrlgroup]
-  } else {
-    ctrlgroup <- NA
-  }
-}
-
-# plot all data points with polynomial fit overlaid
-p <- NULL
-p <- ggplot(data, aes(x=RelativeElapsedHours, y=PrimaryRootLength, color=Group, group=Group)) + 
-  geom_point(size=.3, alpha=.5) +
-  geom_smooth(method="lm", formula= y ~ poly(x, 2, raw=T)) + 
-  labs(x="Time since root emergence (h)", 
-       y="Primary root length (cm)", 
-       title="Primary root growth per group")
-suppressWarnings(ggsave(p, filename=paste0(rundir, "/rootgrowth-allgroups.pdf"), width=25, height=15, units="cm"))
-
 # fit the mixed model
 cat("Fitting the model, hold tight...\n")
 if (ngroups > 1) {
@@ -106,14 +43,18 @@ if (ngroups > 1) {
           REML = T) -> fit.glmmTMB
   fit.glmmTMB %>% emtrends(~Group, var="RelativeElapsedHours") -> fit.trend
   fit.cld <- cld(fit.trend)
-  fit.pwpp <- pwpp(fit.trend)
-  write.table(fit.cld, file=paste0(rundir, '/CLD.tsv'), row.names=F, sep='\t')
+  fit.cld %>% as_tibble %>%
+    dplyr::select(c(Group, .group)) %>%
+    rename(Tukey.CLD = .group) -> fit.cld
+  fit.pwpp <- pwpp(fit.trend, values=F)
+  
+  write.table(fit.cld, file=paste0(rundir, '/Tukey CLD.tsv'), row.names=F, sep='\t')
   ggsave(fit.pwpp, filename = paste0(rundir, "/Pairwise p-value plot.pdf"), width=25, height=15, units="cm")
 } else {
   fit.glmmTMB <- glmmTMB(data=data,
           formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2) + (1+poly(RelativeElapsedHours, 2) | UID),
           REML = T)
-}  
+}
 
 # make trend graph
 if (ngroups > 1) {
@@ -141,167 +82,22 @@ if (ngroups > 1) {
   ggsave(p, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
 }
 
-# if we have more than one group, perform pairwise comparisons against control
-stats <- NULL
-if (ngroups > 1) {
-  if (!is.na(ctrlgroup)) {
-    # fire up the cluster
-    num_cores <- max(1, detectCores() - 1)
-    cl <- makeCluster(num_cores)
-    registerDoParallel(cl)
-    
-    if (num_cores > 1) {
-      core_plural <- 'threads'
-    } else {
-      core_plural <- 'thread'
-    }
-    
-    cat(paste0("Performing permutation testing of root growth models, using ", 
-               length(cl), ' ', core_plural, ". This may take a little while...\n"))
-    
-    exactpvals <- pvals <- rss1s <- rss2s <- r2s <- NULL
-    
-    for (group in expgroups) {
-      cat("Comparing", group, "against", ctrlgroup, "--- ")
-      ds <- data[data$Group %in% c(group, ctrlgroup),]
-      mod1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
-      mod2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=ds)
-      a <- anova(mod1, mod2)
-      rss1s <- c(rss1s, a$RSS[1])
-      rss2s <- c(rss2s, a$RSS[2])
-      pvals <- c(pvals, a$`Pr(>F)`[2])
-      
-      # fit baseline model on non-permuted data, for comparison
-      basemod.1 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
-      basemod.2 <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T) * Group, data=ds)
-      basemod.aov <- anova(basemod.1, basemod.2)
-      base.p <- basemod.aov$`Pr(>F)`[2]
-      
-      # use %dorng% instead of %dopar% to ensure consistent results
-      better <- foreach(i=seq(tries), .combine=sum, .multicombine=T) %dorng%
-        permute(ds, base.p)
-      
-      exactpvals <- c(exactpvals, better/tries)
-      cat("the exact p-value is", better/tries, "\n")
-    }
-    
-    stopCluster(cl)
-    stats <- data.frame(Exp.Group = expgroups, Ctrl.Group = ctrlgroup, Exact.p.value = exactpvals, Model1.RSS = rss1s, Model2.RSS = rss2s)
-    cat(paste0("Writing statistics to ", rundir, "/modelfits.tsv.\n"))
-    write.table(stats, file=paste0(rundir, "/modelfits.tsv"), sep='\t', row.names = F)
-  }
-  
-  b0s <- b1s <- b2s <- NULL
-  for (group in groups) {
-    ds <- data[data$Group == group,]
-    mod <- lm(PrimaryRootLength ~ poly(RelativeElapsedHours, 2, raw=T), data=ds)
-    c <- coef(mod)
-    b0s <- c(b0s, c[1])
-    b1s <- c(b1s, c[2])
-    b2s <- c(b2s, c[3])
-    p <- ggplot(ds, aes(x=RelativeElapsedHours, y=PrimaryRootLength, color=Group, group=Group)) + 
-      geom_point(size=.3, alpha=.5) + 
-      geom_smooth(method="lm", formula = y ~ poly(x, 2, raw=T)) +
-      labs(x="Relative time (h)",
-           y="Primary root length (cm)",
-           title=paste0("Model fit for group ", group))
-    suppressWarnings(ggsave(p, filename = paste0(rundir, "/rootgrowth-", group, ".pdf"), width=25, height=15, units="cm"))
-  }
-  
-  coefs <- data.frame(Group = groups, b0 = b0s, b1 = b1s, b2 = b2s)
-  cat(paste0("Writing model coefficients to ", rundir, "/coefficients.tsv.\n"))
-  write.table(coefs, file=paste0(rundir, "/coefficients.tsv"), sep='\t', row.names = F)
-} else {
-  # if we only have one group
-}
+glmmTMB_model_ggeffects %>% as_tibble %>% 
+  arrange(group, x) %>%
+  rename(RelativeHours = x, PredictedRootLength = predicted, Group = group) %>%
+  dplyr::select(c(Group, RelativeHours, PredictedRootLength, std.error, conf.low, conf.high)) %>%
+  mutate(PredictedRootLength=round(PredictedRootLength, 3), std.error=round(std.error, 3), conf.low=round(conf.low, 3),
+         conf.high=round(conf.high, 3)) %>%
+  filter(RelativeHours > 0) -> root.table
 
-# make some old-school figures and tables (24-h resolution, 3 days)
-graphsdir <- paste0(rundir, '/Illustrative Tables and Graphs')
-dir.create(graphsdir)
+write.table(root.table, file=paste0(rundir, '/Predicted Root Lengths.tsv'), row.names=F, sep='\t')
 
-# how many 24-hour periods do we divide the data into
-days <- floor(max(data$RelativeElapsedHours) / 24)
-#days <- 3
+p <- ggplot(root.table, aes(x=Group, y=PredictedRootLength, ymin=conf.low, ymax=conf.high, fill=as.ordered(RelativeHours))) + 
+  geom_col(position="dodge", color="black") +
+  geom_errorbar(position="dodge") +
+  scale_fill_brewer(palette='RdYlBu') +
+  theme_bw() +
+  labs(fill='Hours', y='Predicted root length (cm)')
+ggsave(p, filename=paste0(rundir, '/Root length barchart.pdf'), width=25, height=15, units="cm")
 
-# store results in matrices, one for length and one for rate
-rootlengths <- matrix(nrow=ngroups, ncol=days)
-growthrates <- matrix(nrow=ngroups, ncol=days)
-rootlengths.sd <- matrix(nrow=ngroups, ncol=days)
-growthrates.sd <- matrix(nrow=ngroups, ncol=days)
-
-y <- 0
-
-for(group in groups) {
-  # keep track of current row
-  y <- y + 1
-  
-  ds <- data[data$Group == group, ]
-  # round time points if we have data from multiple experiments in the group, makes things easier
-  # N.B.! this may fail if the experiments have different (and weird) imaging frequencies.
-  # current solution should work with any frequency that is a divisor of 60
-  ds$roundtime = round(ds$RelativeElapsedHours, 1)
-  
-  ds.pruned <- ds[ds$roundtime == 0.0, ]
-  
-  # calculate root length on per-day basis
-  for (i in 1:days) {
-    tp <- min(abs(24 * i - ds$roundtime))
-    prevtp <- min(abs(24 * (i - 1) - ds$roundtime))
-    rootlengths[y, i] <-
-      mean(ds$PrimaryRootLength[ds$roundtime == tp + 24 * i], na.rm = T)
-    rootlengths.sd[y, i] <-
-      sd(ds$PrimaryRootLength[ds$roundtime == tp + 24 * i], na.rm = T)
-    
-    # keep the data for later
-    ds.pruned <- rbind(ds.pruned, ds[ds$roundtime == tp + 24 * i, ])
-  }
-  
-  # calculate root growth rates
-  ds.pruned %>% arrange(roundtime) %>% group_by(UID) %>%
-    mutate(rate=(PrimaryRootLength-last(PrimaryRootLength))/(roundtime-last(roundtime)),
-           overall_rate=PrimaryRootLength/roundtime) -> ds.pruned
-  
-  for (i in 1:days) {
-    growthrates[y, i] <- mean(ds.pruned$rate[ds.pruned$roundtime == unique(ds.pruned$roundtime)[i+1]], na.rm=T)
-    growthrates.sd[y, i] <- sd(ds.pruned$rate[ds.pruned$roundtime == unique(ds.pruned$roundtime)[i+1]], na.rm=T)
-  }
-}
-
-# we want rates in μm/h
-growthrates <- growthrates * 10
-growthrates.sd <- growthrates.sd * 10
-
-chartdata <- NULL
-y <- 0
-
-for (group in groups) {
-  y <- y + 1
-  for (i in 1:days) {
-    chartdata <- rbind(chartdata, c(group, i, rootlengths[y, i], rootlengths.sd[y, i], growthrates[y, i], growthrates.sd[y, i]))
-  }
-}
-chartdata <- as.data.frame(chartdata, stringsAsFactors = F)
-names(chartdata) <- c('Group', 'Days', 'Root length (cm)', 'Root length SD', 'Growth rate (mm/h)', 'Growth rate SD')
-# creating dataframe changes datatypes for some reason
-for(i in 2:ncol(chartdata)) {
-  chartdata[,i] <- as.numeric(chartdata[,i])
-}
-
-p <- ggplot(chartdata, aes(x=Group, fill=as.factor(Days), y=`Root length (cm)`, ymax=`Root length (cm)`+`Root length SD`, ymin=`Root length (cm)`-`Root length SD`)) + 
-  geom_col(position="dodge") + 
-  geom_errorbar(position="dodge") + 
-  theme(axis.text.x = element_text(angle = 90, vjust=0.5)) +
-  labs(fill="Days")
-
-suppressWarnings(ggsave(p, filename=paste0(graphsdir, "/rootgrowth-barchart.pdf"), width=25, height=15, units="cm"))
-
-p <- ggplot(chartdata, aes(x=Group, fill=as.factor(Days), y=`Growth rate (mm/h)`, ymax=`Growth rate (mm/h)`+`Growth rate SD`, ymin=`Growth rate (mm/h)`-`Growth rate SD`)) + 
-  geom_col(position="dodge") + 
-  geom_errorbar(position="dodge") + 
-  theme(axis.text.x = element_text(angle = 90, vjust=0.5)) +
-  labs(fill="Days")
-
-suppressWarnings(ggsave(p, filename=paste0(graphsdir, "/growthrate-barchart.pdf"), width=25, height=15, units="cm"))
-
-cat(paste0("Writing summary graphs and table to ", graphsdir, ".\n"))
-write.table(chartdata, file=paste0(graphsdir, "/rootgrowth-and-rates.tsv"), sep='\t', row.names = F)
+cat(paste0('Wrote statistics and graphs to ', rundir, '.\n'))
