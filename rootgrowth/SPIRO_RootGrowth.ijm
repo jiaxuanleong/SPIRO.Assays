@@ -26,14 +26,18 @@ var bi = "Branch information";
 // alternate types of macro run
 var DEBUG = false; // hold down crtl during macro start to keep non-essential intermediate output files
 var freshstart = false; // hold down shift key during macro start to delete all previous data
-var selfaware = false; // hold down alt key during macro start to REDACTED 
+var selfaware = false; // hold down alt key during macro start to REDACTED
+var overlay = true; //dependent on DEBUG: prompts user on choice whether to overlay skeletons
 
-print("Welcome to the companion macro of SPIRO for root growth analysis!");
+print("======================================================\n"+
+	"Welcome to the companion macro of SPIRO for root growth analysis!\n" +
+	"======================================================");
 selectWindow("Log");
 if (isKeyDown("control"))
 	DEBUG = getBoolean("CTRL key pressed. Run macro in debug mode?\n" +
 	"Non-essential intermediate output files will not be deleted at the end of the run.\n" +
-	"Seed detection parameters may be modified.");
+	"Seed detection parameters can be modified.\n" +
+	"Overlay skeletons can be disabled.");
 if (isKeyDown("shift"))
 	freshstart = getBoolean("SHIFT key pressed. Run macro in Fresh Start mode? This will delete all data from the previous run.");
 if (isKeyDown("alt"))
@@ -62,6 +66,19 @@ if (freshstart)
 	
 step = 1;
 detectOutput();
+if (DEBUG) {
+	Dialog.create("DEBUG: Disable overlay skeletons?");
+	Dialog.addMessage("Overlay skeletons is set to run on default.\n" +
+		"This reduces broken roots but may increase noise," +
+		"please indicate if you would like to disable it");
+	Dialog.addChoice("Overlay skeletons", newArray("Enable", "Disable"));
+	Dialog.show();
+	overlaychoice = Dialog.getChoice();
+	if (overlaychoice == "Enable")
+		overlay = true;
+	if (overlaychoice == "Disable")
+		overlay = false;
+}
 
 if (step == 1) {
 	cropGroups();
@@ -161,7 +178,7 @@ function detectOutput() {
 		fullgrouparray = Array.deleteValue(fullgrouparray, 0);
 
 		finalstep = 6;
-		for (checkstep = 2; checkstep < finalstep; checkstep ++) {
+		for (checkstep = 2; checkstep <= finalstep; checkstep ++) {
 			processednoOfgroups = 0;
 			for (fullarrayindex = 0; fullarrayindex < totalnoOfgroups; fullarrayindex ++) {
 				platedir = fullplatearray[fullarrayindex];
@@ -174,13 +191,15 @@ function detectOutput() {
 				if (checkstep == 4)
 					outputfileexists = File.exists(platedir + groupfolder + groupname + " rootstartcoordinates.tsv");
 				if (checkstep == 5)
-					outputfileexists = File.exists(platedir + groupfolder + groupname + " rootmask.tif".);
-				
+					outputfileexists = File.exists(platedir + groupfolder + groupname + " rootmask.tif");
+				if (checkstep == 6)
+					outputfileexists = File.exists(platedir + groupfolder + groupname + " rootgrowthdetection.tif");
+					
 				if (outputfileexists) {
 						processednoOfgroups += 1;
 				} else {
 					noOfgroupsleft = fullgrouparray.length - processednoOfgroups;
-					reversegrouparray = Array.reverse(fullgrouparray);
+					reversegrouparray = Array.reverse(fullgrouparray); // to enable trim from end
 					reverseplatearray = Array.reverse(fullplatearray);
 					trimgrouparray = Array.trim(reversegrouparray, noOfgroupsleft);
 					trimplatearray = Array.trim(reverseplatearray, noOfgroupsleft);
@@ -188,15 +207,18 @@ function detectOutput() {
 					platesToprocess = Array.reverse(trimplatearray);
 					fullarrayindex = fullgrouparray.length; // to leave for loop
 					step = checkstep; // to resume from this step
-					checkstep = finalstep; // to leave for loop
+					checkstep = finalstep+1; // to leave for loop
+					Array.reverse(fullgrouparray); //to revert array back to original order
+					Array.reverse(fullplatearray);
 				}
 			}
 		}
 
 		resumeplatename = File.getName(platesToprocess[0]);
 		resumegroupname = File.getName(groupsToprocess[0]);
+		resumestep = step;
 		lengthOfgroupsToprocess = noOfgroupsleft;
-		print("Resuming from step " + step + " " + resumeplatename + " group " + resumegroupname);
+		print("Resuming from step " + resumestep + " " + resumeplatename + " group " + resumegroupname);
 	} 
 }
 
@@ -239,7 +261,7 @@ function cropGroups() {
 				while (!userconfirm) {
 					Dialog.createNonBlocking("Group Selection");
 					Dialog.addMessage("Select each group, and add to ROI manager. ROI names will be saved.\n" +
-							"Please use only letters and numbers in the ROI names. \n" + // to avoid file save issues
+							"Please use only letters (a/A), numbers (1) and/or dashes (-) in the ROI names. \n" + // to avoid file save issues
 							"ROIs cannot share names.");
 					Dialog.addCheckbox("All groups have been added to and labelled in ROI Manager.", false);
 					Dialog.show();
@@ -279,6 +301,44 @@ function cropGroups() {
 			close("Substack*");
 		}
 	}
+	// identify full list of plates and groups to process
+	listInrootgrowthdir = getFileList(rootgrowthdir);
+	platearray = newArray(listInrootgrowthdir.length);
+	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {
+		platefolder = listInrootgrowthdir[platefolderno];
+		platedir = rootgrowthdir + platefolder;
+		if (File.isDirectory(platedir)) {				
+			platearray[platefolderno] = platedir;
+			listInplatedir = getFileList(platedir);
+			noOfgroupsInplatedir = listInplatedir.length;
+			totalnoOfgroups = totalnoOfgroups + noOfgroupsInplatedir;
+		}
+	}
+
+	platearray = Array.deleteValue(platearray, 0);
+	fullplatearray = newArray(totalnoOfgroups);
+	fullgrouparray = newArray(totalnoOfgroups);
+	
+	fgcurindex = 0; // current index of fullgrouparray
+	
+	for (plateindexno = 0; plateindexno < listInrootgrowthdir.length; plateindexno ++) {
+		platedir = platearray[plateindexno];
+		listInplatedir = getFileList(platedir);
+		for (groupfolderno = 0; groupfolderno < listInplatedir.length; groupfolderno ++) {
+			groupfolder = listInplatedir[groupfolderno];
+			groupdir = platedir + groupfolder;
+			if (File.isDirectory(groupdir)) {
+				fullplatearray[fgcurindex] = platedir;
+				fullgrouparray[fgcurindex] = groupfolder;
+				fgcurindex += 1;
+			}
+		}
+	}
+	fullplatearray = Array.deleteValue(fullplatearray, 0);
+	fullgrouparray = Array.deleteValue(fullgrouparray, 0);
+	platesToprocess = Array.copy(fullplatearray);
+	groupsToprocess = Array.copy(fullgrouparray);
+	lengthOfgroupsToprocess = totalnoOfgroups;
 }
 
 function getPositions() {
@@ -1048,9 +1108,8 @@ function rootMask() {
 
 		// run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 		// run("Options...", "iterations=1 count=2 pad do=Erode stack");
-		
-		overlay = true;
-		if (overlay == true) {
+
+		if (overlay) {
 			setBatchMode("show"); //this has to be "show" here for overlay/flatten
 			// overlay the root masks
 			img = getTitle(); ///
@@ -1087,7 +1146,6 @@ function rootMask() {
 			close(img);
 			run("Images to Stack");
 		}
-		
 		run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 		run("Options...", "iterations=1 count=1 pad do=Dilate stack");
 		saveAs("Tiff", groupdir + groupname + " rootmask.tif");
@@ -1137,12 +1195,49 @@ function rootGrowth() {
 
 		rsccount = Table.size(rsctsv);
 		seedlingcount = rsccount / nS;
-		
+
+		/*
+		for (sliceno = 0; sliceno < nS; sliceno ++) {
+			setSlice(sliceno+1);
+			for (seedlingno = 0; seedlingno < seedlingcount; seedlingno ++) {
+				rscindex = (sliceno * seedlingcount) + seedlingno;
+				rscX = Table.get("XM", rscindex, rsctsv);
+				rscY = Table.get("YM", rscindex, rsctsv); // obtain rsc coordinates
+				
+				// a 0.15cm x 0.05cm space is cleared around rsc to prevent measurement of cotyledons below rsc
+				curslice = sliceno+1;
+				clearw = 0.15;
+				clearh = 0.05;
+				toUnscaled(clearw, clearh);
+				run("Specify...", "width=["+ clearw +"] height=["+ clearh +"] x=["+ rscX - clearw/2 +"] y=["+ rscY - clearh/2 +"] slice=["+curslice+"]");
+				setBackgroundColor(255, 255, 255);
+				run("Clear", "slice");
+				
+				////////
+				lineL = 0.1;
+				lineW = 0.02; 
+				toUnscaled(lineL, lineW);
+				lineX1 = rscX - lineL;
+				lineX2 = rscX + lineL;
+				lineY1 = rscY - lineL;
+				lineY2 = rscY + lineL;
+				selectWindow(rootmask);
+				makeLine(lineX1, lineY1, lineX2, lineY2, lineW);
+				//setBackgroundColor(0, 0, 0);
+				setBackgroundColor(255, 255, 255);
+				run("Clear", "slice");
+				makeLine(lineX1, lineY2, lineX2, lineY1, lineW);
+				run("Clear", "slice");
+				///////////
+			}
+		}
+		*/
 		for (sliceno = 0; sliceno < nS; sliceno ++) {
 			setSlice(sliceno+1);
 			roiManager("reset");
 			run("Create Selection");
-			roiManager("split");
+			if (selectionType() == 9)
+				roiManager("split");
 			objectcount = roiManager("count");
 			for (seedlingno = 0; seedlingno < seedlingcount; seedlingno ++) {
 				rscindex = (sliceno * seedlingcount) + seedlingno;
@@ -1151,6 +1246,7 @@ function rootGrowth() {
 				objectbyrsc = "objectbyrsc";
 				Table.create(objectbyrsc);
 				nrrgm = Table.size(rgm);
+		
 				for (objectno = 0; objectno < objectcount; objectno ++) {
 					roiManager("select", objectno);
 					Roi.getContainedPoints(xpointsobject, ypointsobject); // calculate for each point in object, distance to rsc
@@ -1166,19 +1262,21 @@ function rootGrowth() {
 						distancetorscSQ = (ydist*ydist) + (xdist*xdist);
 						distancetorsc = sqrt(distancetorscSQ);
 						toScaled(distancetorsc);
+						// to match objects to rsc
 						if (distancetorsc < 0.1 && tablesetonce == 0) { // if distancetorsc below 0.1, the object is assumed to be a seedling
-							Table.set("objectno", nRobjectbyrsc, objectno, objectbyrsc);
+							Table.set("objectno", nRobjectbyrsc, objectno, objectbyrsc); // object roi number copied to a table
 							roiManager("select", objectno);
-							Roi.getCoordinates(xpoints, ypoints);
-							getBoundingRect(objectx, objecty, objectw, objecth);
-							for (pointarray = 0; pointarray < xpoints.length; pointarray ++) {
+							Roi.getCoordinates(xpoints, ypoints); 
+							getBoundingRect(objectx, objecty, objectw, objecth); 
+							for (pointarray = 0; pointarray < xpoints.length; pointarray ++) { // to adjust so that coordinates within tempskel correspond to main img
 								curxpoint = xpoints[pointarray];
 								curypoint = ypoints[pointarray];
 								diffy = rscY - objecty;
 								xpoints[pointarray] = curxpoint - objectx;
-								ypoints[pointarray] = curypoint - objecty - diffy;
+								ypoints[pointarray] = curypoint - objecty - diffy; 
 							}
-							
+
+							// a small selection with the seedling is duplicated so that "clear outside" can be used to remove trash around seedling within rectangular roi
 							curslice = sliceno+1;
 							run("Specify...", "width=["+objectw+"] height=["+objecth+"] x=["+objectx+"] y=["+rscY+"] slice=["+curslice+"]");
 							run("Duplicate...", "use");
@@ -1187,7 +1285,7 @@ function rootGrowth() {
 							setBackgroundColor(255, 255, 255);
 							run("Clear Outside");
 							run("Create Selection");
-							if (selectionType() != -1) {
+							if (selectionType() != -1) { 
 								run("Measure");
 								objectlength = getResult("Perim.", nResults-1);
 							} else {
@@ -1198,16 +1296,16 @@ function rootGrowth() {
 							close("tempskel");
 						}
 					}
-					headings = Table.headings(objectbyrsc);
 				}
 				setSlice(sliceno+1);
 				slicelabel = getInfo("slice.label");
 				Table.set("Slice No.", nrrgm, sliceno+1, rgm);
 				Table.set("Slice label", nrrgm, slicelabel, rgm);
 				Table.set("Root no.", nrrgm, seedlingno+1, rgm);
-				
+				headings = Table.headings(objectbyrsc);
 				if (indexOf(headings, "objectlength") > -1) {
 					lengthArray = Table.getColumn("objectlength", objectbyrsc);
+					
 					if (lengthArray.length == 1) {
 						rootlength = lengthArray[0];
 					} else {
@@ -1223,12 +1321,11 @@ function rootGrowth() {
 				run("Clear Results");
 			}
 		}
-		
-		// graphical output
 		roiManager("reset");
-		setBatchMode("show");
 		setBatchMode(false);
 		
+		selectWindow(rootmask);
+		// graphical output
 		open(groupdir + groupname + " rootstartrois.zip");
 		run("Labels...", "color=white font=18 show use draw");
 		run("Colors...", "foreground=black background=black selection=red");
@@ -1280,7 +1377,7 @@ function rootGrowth() {
 		/* if partly resumed at this step
 		 *  now that the step is finished,
 		 *  redefine the plates and groups to process, so the next step processes the full number of groups
-		 */
+		 */		
 		platesToprocess = Array.copy(fullplatearray);
 		groupsToprocess = Array.copy(fullgrouparray);
 		lengthOfgroupsToprocess = totalnoOfgroups;
@@ -1291,29 +1388,36 @@ function deleteOutput() {
 	if (freshstart) 
 		 print("Starting analysis from beginning. \nRemoving output from previous run.");
 	print("Deleting non-essential files");
-	for (groupprocess = 0; groupprocess < lengthOfgroupsToprocess; groupprocess ++) {  
-		platedir = platesToprocess[groupprocess];
-		platename = File.getName(platedir);
-		groupfolder = groupsToprocess[groupprocess];
-		groupdir = platedir + groupfolder;
-		listIngroupdir = getFileList(groupdir);
-		groupname = File.getName(groupdir);
-		print("Processing " + platename + " " + groupname);
+	for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
+		platefolder = listInrootgrowthdir[platefolderno];
+		if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
+			platedir = rootgrowthdir + platefolder;
+			pfsplit = split(platefolder, "/");
+			platename = pfsplit[0];
+			print("Processing " + platename);
+			listInplatefolder = getFileList(platedir);
+			for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
+				groupfolder = listInplatefolder[groupfolderno];
+				groupdir = platedir + groupfolder;
+				groupname = File.getName(groupdir);
+				listIngroupdir = getFileList(groupdir);
 		
-		filedelete = File.delete(groupdir + groupname + " masked.tif");
-		filedelete = File.delete(groupdir + groupname + " rootmask.tif");
-		filedelete = File.delete(groupdir + groupname + " rootstartcoordinates.tsv");
-		filedelete = File.delete(groupdir + groupname + " rootstartrois.zip");
-		filedelete = File.delete(groupdir + groupname + " seedlingpositions.zip");
-		filedelete = File.delete(groupdir + "seeds sorted X coordinates.tsv");
-		filedelete = File.delete(groupdir + "seeds sorted Y coordinates.tsv");
-		
-		if (freshstart) {
-			filedelete = File.delete(groupdir + groupname + ".tif");
-			filedelete = File.delete(groupdir + groupname + " rootgrowthdetection.tif");
-			filedelete = File.delete(groupdir + groupname + " rootgrowthmeasurement.tsv");
-			filedelete = File.delete(groupdir + groupname + " germination analysis.tsv");
-			filedelete = File.delete(groupdir);			
+				filedelete = File.delete(groupdir + groupname + ".tif");
+				filedelete = File.delete(groupdir + groupname + " masked.tif");
+				filedelete = File.delete(groupdir + groupname + " rootmask.tif");
+				filedelete = File.delete(groupdir + groupname + " rootstartcoordinates.tsv");
+				filedelete = File.delete(groupdir + groupname + " rootstartrois.zip");
+				filedelete = File.delete(groupdir + groupname + " seedlingpositions.zip");
+				filedelete = File.delete(groupdir + "seeds sorted X coordinates.tsv");
+				filedelete = File.delete(groupdir + "seeds sorted Y coordinates.tsv");
+				
+				if (freshstart) {
+					filedelete = File.delete(groupdir + groupname + " rootgrowthdetection.tif");
+					filedelete = File.delete(groupdir + groupname + " rootgrowthmeasurement.tsv");
+					filedelete = File.delete(groupdir + groupname + " germination analysis.tsv");
+					filedelete = File.delete(groupdir);			
+				}
+			}
 		}
 	}
 	freshstart = false; 

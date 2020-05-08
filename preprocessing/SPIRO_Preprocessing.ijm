@@ -60,7 +60,9 @@ if (!turboreginstalled || !multistackreginstalled) {
 		exit;
 }
 
-print("Welcome to the companion macro of SPIRO for preprocessing!");
+print("=================================================\n"+
+	"Welcome to the companion macro of SPIRO for preprocessing!\n" +
+	"=================================================");
 selectWindow("Log");
 
 maindir = getDirectory("Choose a Directory");
