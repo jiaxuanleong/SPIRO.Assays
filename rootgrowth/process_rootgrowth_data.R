@@ -46,7 +46,7 @@ if (ngroups > 1) {
   fit.cld %>% as_tibble %>%
     dplyr::select(c(Group, .group)) %>%
     rename(Tukey.CLD = .group) -> fit.cld
-  fit.pwpp <- pwpp(fit.trend, values=F)
+  fit.pwpp <- pwpp(fit.trend, values=F) + theme_bw()
   
   write.table(fit.cld, file=paste0(rundir, '/Tukey CLD.tsv'), row.names=F, sep='\t')
   ggsave(fit.pwpp, filename = paste0(rundir, "/Pairwise p-value plot.pdf"), width=25, height=15, units="cm")
