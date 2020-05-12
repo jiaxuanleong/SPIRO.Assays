@@ -147,7 +147,7 @@ p <- ggplot(rates, aes(x=Group, y=mean, ymin=conf.low, ymax=conf.high, fill=as.o
   geom_errorbar(position="dodge") +
   scale_fill_brewer(palette='RdYlBu') +
   theme_bw() +
-  labs(fill='Hours', y='Predicted root growth rate (um/h)') +
+  labs(fill='Hours', y=expression('Predicted root growth rate ('*mu*'m/h)')) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ggsave(p, filename=paste0(rundir, '/Root growth rate barchart.pdf'), width=25, height=15, units="cm")
 
