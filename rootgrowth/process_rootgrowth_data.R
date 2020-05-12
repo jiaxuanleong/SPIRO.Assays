@@ -97,7 +97,8 @@ p <- ggplot(root.table, aes(x=Group, y=PredictedRootLength, ymin=conf.low, ymax=
   geom_errorbar(position="dodge") +
   scale_fill_brewer(palette='RdYlBu') +
   theme_bw() +
-  labs(fill='Hours', y='Predicted root length (cm)')
+  labs(fill='Hours', y='Predicted root length (cm)') +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ggsave(p, filename=paste0(rundir, '/Root length barchart.pdf'), width=25, height=15, units="cm")
 
 # make growth rate estimates by approximating derivative of fitted model
@@ -146,7 +147,8 @@ p <- ggplot(rates, aes(x=Group, y=mean, ymin=conf.low, ymax=conf.high, fill=as.o
   geom_errorbar(position="dodge") +
   scale_fill_brewer(palette='RdYlBu') +
   theme_bw() +
-  labs(fill='Hours', y='Predicted root growth rate (um/h)')
+  labs(fill='Hours', y='Predicted root growth rate (um/h)') +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 ggsave(p, filename=paste0(rundir, '/Root growth rate barchart.pdf'), width=25, height=15, units="cm")
 
 names(rates)[3] <- 'GrowthRate_um_h'
