@@ -6,7 +6,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-p_load(readr, ggplot2, dplyr, glmmTMB, emmeans, multcomp, multcompView, ggeffects)
+p_load(readr, ggplot2, dplyr, glmmTMB, emmeans, multcomp, multcompView, ggeffects, MASS, tibble)
 
 dir <- choose_dir()
 
@@ -39,7 +39,7 @@ ngroups <- length(groups)
 cat("Fitting the model, hold tight...\n")
 if (ngroups > 1) {
   fit.glmmTMB <- glmmTMB(data=data,
-          formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2) * Group + (1+poly(RelativeElapsedHours, 2) | UID),
+          formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2, raw=TRUE) * Group + (1+poly(RelativeElapsedHours, 2, raw=TRUE) | UID),
           REML = T) -> fit.glmmTMB
   fit.glmmTMB %>% emtrends(~Group, var="RelativeElapsedHours") -> fit.trend
   fit.cld <- cld(fit.trend)
@@ -52,7 +52,7 @@ if (ngroups > 1) {
   ggsave(fit.pwpp, filename = paste0(rundir, "/Pairwise p-value plot.pdf"), width=25, height=15, units="cm")
 } else {
   fit.glmmTMB <- glmmTMB(data=data,
-          formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2) + (1+poly(RelativeElapsedHours, 2) | UID),
+          formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2, raw=TRUE) + (1+poly(RelativeElapsedHours, 2, RAW=TRUE) | UID),
           REML = T)
 }
 
@@ -99,5 +99,57 @@ p <- ggplot(root.table, aes(x=Group, y=PredictedRootLength, ymin=conf.low, ymax=
   theme_bw() +
   labs(fill='Hours', y='Predicted root length (cm)')
 ggsave(p, filename=paste0(rundir, '/Root length barchart.pdf'), width=25, height=15, units="cm")
+
+# make growth rate estimates by approximating derivative of fitted model
+rates <- NULL
+for (time in c(24,48,72,96,120,144)) {
+  Xp <- stats::model.matrix(object = formula(fit.glmmTMB) %>% lme4::nobars(), 
+                            data=tibble(PrimaryRootLength=1, 
+                                        RelativeElapsedHours=time,
+                                        Group=(fit.glmmTMB$frame$Group) %>% unique))
+  Xp2 <- stats::model.matrix(object = formula(fit.glmmTMB) %>% lme4::nobars(), 
+                             data=tibble(PrimaryRootLength=1, 
+                                         RelativeElapsedHours=time+0.00001,
+                                         Group=(fit.glmmTMB$frame$Group) %>% unique))
+  
+  Vc <- vcov(fit.glmmTMB)$cond
+  model_coefs <- fixef(fit.glmmTMB)$cond
+  
+  Bu <- MASS::mvrnorm(n = 10000, 
+                      mu = model_coefs, 
+                      Sigma = Vc)
+  
+  t(Xp%*%t(Bu)) -> sim1
+  t(Xp2%*%t(Bu)) -> sim2
+  
+  sim <- (sim2-sim1)/0.00001
+  
+  # summarize and convert to um/h
+  apply(sim, MARGIN = 2, 
+        function(x){data.frame(mean=mean(x),
+                               conf.low = quantile(x, type=8, prob=0.025),
+                               conf.high = quantile(x, type=8, prob=0.975))}) %>%
+    enframe() %>%
+    unnest(value) %>%
+    mutate(RelativeElapsedHours=time,
+           Group=fit.glmmTMB$frame$Group %>% unique,
+           mean=mean*10000,
+           conf.low=conf.low*10000,
+           conf.high=conf.high*10000) %>%
+    dplyr::select(Group, RelativeElapsedHours, mean, conf.low, conf.high) -> rate
+
+  rates <- rbind(rates, rate)
+}
+
+p <- ggplot(rates, aes(x=Group, y=mean, ymin=conf.low, ymax=conf.high, fill=as.ordered(RelativeElapsedHours))) + 
+  geom_col(position="dodge", color="black") +
+  geom_errorbar(position="dodge") +
+  scale_fill_brewer(palette='RdYlBu') +
+  theme_bw() +
+  labs(fill='Hours', y='Predicted root growth rate (um/h)')
+ggsave(p, filename=paste0(rundir, '/Root growth rate barchart.pdf'), width=25, height=15, units="cm")
+
+names(rates)[3] <- 'GrowthRate_um_h'
+write.table(rates, file=paste0(rundir, '/Predicted Root Growth Rates.tsv'), row.names=F, sep='\t')
 
 cat(paste0('Wrote statistics and graphs to ', rundir, '.\n'))
