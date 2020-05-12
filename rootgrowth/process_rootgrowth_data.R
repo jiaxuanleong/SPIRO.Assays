@@ -6,7 +6,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-p_load(readr, ggplot2, dplyr, glmmTMB, emmeans, multcomp, multcompView, ggeffects, MASS, tibble)
+p_load(readr, ggplot2, dplyr, glmmTMB, emmeans, multcomp, multcompView, effects, ggeffects, MASS, tibble, tidyr)
 
 dir <- choose_dir()
 
