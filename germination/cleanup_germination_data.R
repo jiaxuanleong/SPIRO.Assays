@@ -198,6 +198,4 @@ seedlog <- merge(seedlog, errors, by="UID", all=T)
 seedlog$Note.y <- as.character(seedlog$Note.y)
 seedlog %>% mutate(Note = coalesce(Note.x, Note.y)) %>% dplyr::select(c(UID, Note)) -> seedlog
 
-if (!grepl('Root Growth$', outdir)) {
-  write.table(seedlog, file=paste0(outdir, "/germination.postQC.log.tsv"), sep='\t', row.names=F)
-}
+write.table(seedlog, file=paste0(outdir, "/germination.postQC.log.tsv"), sep='\t', row.names=F)
