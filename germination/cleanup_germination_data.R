@@ -140,8 +140,7 @@ if (num_cores > 1) {
 } else {
   core_plural <- 'thread'
 }
-d <- unlist(strsplit(dir, '/', fixed=T))
-expname <- d[length(d)]
+expname <- basename(dir)
 cat(paste0("Performing germination QC for experiment << ", expname, " >>\n\n"))
 cat(paste0("Processing files and performing basic quality control, using ", 
            length(cl), ' ', core_plural, ". This may take a little while...\n"))

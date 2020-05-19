@@ -136,8 +136,7 @@ if (!file.exists(paste0(outdir, '/germination-perseed.tsv'))) {
 
 allout <- NULL
 
-d <- unlist(strsplit(dir, '/', fixed=T))
-expname <- d[length(d)]
+expname <- basename(dir)
 cat(paste0("Performing root growth QC for experiment << ", expname, " >>\n\n"))
 
 cat("Processing files, please wait...\n")
