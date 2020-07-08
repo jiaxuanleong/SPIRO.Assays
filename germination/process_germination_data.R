@@ -8,6 +8,7 @@
 #rm(list=ls())
 source('common/common.R')
 p_load(dplyr, readr, ggplot2, survival, survminer, RcppRoll, data.table, germinationmetrics)
+options(dplyr.summarise.inform = FALSE)
 
 dir <- choose_dir()
 
@@ -95,11 +96,11 @@ data.peruid <- data %>%
   filter(Germinated == 1) %>%
   arrange(ElapsedHours) %>%
   summarize(GerminationTime = ElapsedHours[1], GerminationSlice = Slice[1],
-            SeedSize = seedsizes$SeedSize[seedsizes$UID==UID[1]], .groups='drop')
+            SeedSize = seedsizes$SeedSize[seedsizes$UID==UID[1]])
 
 seedsizes.pergroup <- seedsizes %>%
   group_by(Group) %>%
-  summarize(SeedSize = mean(SeedSize, na.rm=T), SeedSizeSD = sd(SeedSize, na.rm=T), .groups='drop')
+  summarize(SeedSize = mean(SeedSize, na.rm=T), SeedSizeSD = sd(SeedSize, na.rm=T))
 
 data.peruid <- as.data.frame(data.peruid)
 
@@ -151,7 +152,7 @@ data.long$value[is.na(data.long$value)] <- 0
 # calculate germination stats
 germstats <- data.long %>%
   group_by(Group, Slice) %>%
-  summarize(GermCount = sum(value), .groups='drop')
+  summarize(GermCount = sum(value))
 
 germstats <- germstats %>%
   group_by(Group) %>%
