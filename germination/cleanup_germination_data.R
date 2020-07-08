@@ -5,9 +5,9 @@
 #   then run process_germination_data.R to get statistics.
 
 # clean slate
-rm(list=ls())
+#rm(list=ls())
 source('common/common.R')
-p_load(dplyr, foreach, doParallel, readr)
+p_load(dplyr, foreach, doParallel, readr, zoo, RcppRoll)
 
 # below are cutoffs for area filtering
 upper_area_threshold = 0.02
@@ -30,7 +30,7 @@ processfile <- function(file, logdir, expname) {
     resultfile <- dplyr::select(resultfile, -X1)
   }
   resultfile <- as.data.frame(resultfile)
-  print(str(resultfile))
+
   for (i in 1:nrow(resultfile)) {
     row <- resultfile[i,]
     # first, go through the file and make a list of rois and timepoints
@@ -82,12 +82,18 @@ check_duplicates <- function(data, logfile) {
     # filter out large and small objects
     ds %>% filter(Area >= lower_area_threshold) %>% filter(Area <= upper_area_threshold) -> ds
     
-    # we want remove this seed if there are multiple measurements left for any slice
+    # we need to check if there are multiple measurements left for any slice
     ds %>% group_by(Slice) %>% mutate(n=n()) -> ds
+    
+    # truncate data after first occurrence of n>1
+    ds$n[ds$n==1] <- NA
+    ds$n <- na.locf(ds$n, na.rm=F)
+    ds$n[which(is.na(ds$n))] <- 1
+    ds %>% filter(n==1) -> ds
     
     # remove this uid from data, so we can add modified subset in its place
     data <- data[data$UID != uid,]
-    
+
     # if there are anomalous objects in the first slice, remove the seed from analysis
     if(max(ds$n) > 1) {
       # we have some slices left with multiple measurements -- remove the seed
@@ -131,25 +137,32 @@ if (length(rootfiles) == 0 & length(germfiles) > 0) {
 
 allout <- toolarge <- err_largeobj <- err_multiobj <- NULL
 
-num_cores <- max(1, detectCores() - 1)
-cl <- makeCluster(num_cores)
-registerDoParallel(cl)
-
-if (num_cores > 1) {
-  core_plural <- 'threads'
+if (!exists('germination.debug')) {
+  num_cores <- max(1, detectCores() - 1)
+  cl <- makeCluster(num_cores)
+  registerDoParallel(cl)
+  
+  if (num_cores > 1) {
+    core_plural <- 'threads'
+  } else {
+    core_plural <- 'thread'
+  }
+  expname <- basename(dir)
+  cat(paste0("Performing germination QC for experiment << ", expname, " >>\n\n"))
+  cat(paste0("Processing files and performing basic quality control, using ", 
+             length(cl), ' ', core_plural, ". This may take a little while...\n"))
+  
+  allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'readr', 'zoo')) %dopar%
+    processfile(f, outdir, expname)
+  
+  stopCluster(cl)
 } else {
-  core_plural <- 'thread'
+  allout <- NULL
+  expname <- basename(dir)
+  for (f in files) {
+    allout <- rbind(allout, processfile(f, outdir, expname))
+  }
 }
-expname <- basename(dir)
-cat(paste0("Performing germination QC for experiment << ", expname, " >>\n\n"))
-cat(paste0("Processing files and performing basic quality control, using ", 
-           length(cl), ' ', core_plural, ". This may take a little while...\n"))
-
-allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'readr')) %dopar%
-  processfile(f, outdir, expname)
-
-stopCluster(cl)
-
 # check the logs
 logfiles <- list.files(path = outdir, pattern = ' germination analysis.tsv.log$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 log <- NULL
