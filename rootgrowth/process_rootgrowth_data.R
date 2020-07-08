@@ -40,7 +40,7 @@ cat("Fitting the model, hold tight...\n")
 if (ngroups > 1) {
   fit.glmmTMB <- glmmTMB(data=data,
           formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2, raw=TRUE) * Group + (1+poly(RelativeElapsedHours, 2, raw=TRUE) | UID),
-          REML = T) -> fit.glmmTMB
+          REML = T)
   fit.glmmTMB %>% emtrends(~Group, var="RelativeElapsedHours") -> fit.trend
   fit.cld <- cld(fit.trend)
   fit.cld %>% as_tibble %>%
