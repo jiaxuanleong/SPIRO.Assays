@@ -63,11 +63,17 @@ data[, dPerim := roll_meanl(`Perim.`, n=rollrange, na.rm=T, fill=NA) - mean(`Per
 # set delta delta perimeter (rate of change of perimeter)
 data[, ddPerim := dPerim - shift(dPerim), by=UID][1, ddPerim := 0, by=UID]
 
+# dPerim change over the ddP range
+data[, ddPchange := shift(dPerim, n=ddprange, type="lead") - dPerim, by=UID]
+
 # rolling average of the sign of ddPerim: basically a measure of the fraction of positive ddPerims
 data[, sign_mean := roll_meanl(sign(ddPerim), n=ddprange, fill=NA), by=UID]
 
 # if the mean sign is at least 0.8, and rolling average perimeter increase is 10% or larger, the seed has germinated
-data[sign_mean>=0.8 & dPerim > mean(`Perim.`[1:rollrange])*1.1-mean(`Perim.`[1:rollrange]), Germinated := TRUE, by=UID]
+#data[sign_mean>=0.8 & dPerim > mean(`Perim.`[1:rollrange])*1.1-mean(`Perim.`[1:rollrange]), Germinated := TRUE, by=UID]
+
+# require 0.8 mean sign and increased dPerim of 0.05 over the ddprange for germination
+data[sign_mean>=0.8 & ddPchange>0.05, Germinated := TRUE, by=UID]
 
 # get the germincation slice for each uid
 germslices <- data[Germinated==TRUE, .(germslice=min(Slice)), by=UID]
