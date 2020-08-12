@@ -1,12 +1,13 @@
 # cleanup_germination_data.R -
 #
-#   imports data from germination macro and cleans it up a bit.
+#   imports data from germination macro (or root growth macro germination detection) and cleans it up a bit.
 #   after running this script, adjust the groups in the file germination.postQC.tsv, 
 #   then run process_germination_data.R to get statistics.
 
 # clean slate
-#rm(list=ls())
+rm(list=ls())
 source('common/common.R')
+
 p_load(dplyr, foreach, doParallel, readr, zoo, RcppRoll)
 
 # below are cutoffs for area filtering
@@ -15,7 +16,7 @@ lower_area_threshold = 0.002
 
 # main function for extracting data from files
 processfile <- function(file, logdir, expname) {
-  r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- NULL
+  r <- SeedPos <- Date <- ImgSource <- startdate <- ElapsedHours <- plates <- DayNight <- NULL
   dirparams <- unlist(strsplit(dirname(file), '/', fixed=T))
   plate <- dirparams[length(dirparams)-1]
   group <- dirparams[length(dirparams)]
@@ -43,11 +44,13 @@ processfile <- function(file, logdir, expname) {
       SeedPos <- c(SeedPos, r)
       d <- startdate <- getdate(params[3])
       Date <- c(Date, as.character(d))
+      DayNight <- c(DayNight, getdaynight(params[3]))
     } else {
       # this is not the first record for a seed
       SeedPos <- c(SeedPos, r)
       d <- getdate(params[2])
       Date <- c(Date, as.character(d))
+      DayNight <- c(DayNight, getdaynight(params[2]))
     }
     ElapsedHours <- c(ElapsedHours, elapsed(startdate, d))
   }
@@ -55,7 +58,7 @@ processfile <- function(file, logdir, expname) {
   data$UID <- paste0(plate, '_', group, '_', SeedPos, '_exp:', expname)
   data$Group <- paste0(plate, '_', group)
   resultfile <- dplyr::select(resultfile, -Label)
-  data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours)
+  data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours, DayNight)
   data <- check_duplicates(data, paste0(logdir, '/', basename(file), '.log'))
   return(data)
 }
@@ -154,7 +157,6 @@ if (!exists('germination.debug')) {
   
   allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'readr', 'zoo')) %dopar%
     processfile(f, outdir, expname)
-  
   stopCluster(cl)
 } else {
   allout <- NULL
@@ -193,7 +195,9 @@ errors$Note <- as.character(errors$Note)
 
 # round off ElapsedHours to ensure compatibility with spreadsheet software
 allout$ElapsedHours <- round(allout$ElapsedHours, 4)
-allout <- allout[,c(1:2, 8, 3:7)]
+
+# rearrange columns
+allout <- allout[,c(1:2, 8, 3:7, 9)]
 
 write.table(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t', row.names=F)
 if (!grepl('Root Growth$', outdir)) {

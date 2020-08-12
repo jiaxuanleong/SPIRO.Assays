@@ -5,8 +5,9 @@
 #   additionally, a graph indicating germination progression is generated for each group.
 
 # clean slate
-#rm(list=ls())
+rm(list=ls())
 source('common/common.R')
+
 p_load(dplyr, readr, ggplot2, survival, survminer, RcppRoll, data.table, germinationmetrics)
 options(dplyr.summarise.inform = FALSE)
 
@@ -36,6 +37,8 @@ if (file.exists(paste0(outdir, "/germination.postQC.log.tsv"))) {
   file.copy(paste0(outdir, "/germination.postQC.log.tsv"), paste0(rundir, '/QC Results'))
 }
 
+cat('Processing germination data...\n')
+
 # if Group is set to NA, do not include in analysis
 data <- data[which(!is.na(data$Group)),]
 
@@ -57,6 +60,21 @@ nrows <- data[, list(rows=nrow(.SD)), by=UID]
 # calculate seed size by uid
 seedsizes <- data[, .(SeedSize=mean(`Perim.`[1:rollrange])), by=.(UID, Group)]
 
+# correct for day/night difference in perimeter
+data %>% group_by(UID, DayNight) %>% filter(ElapsedHours < 24) %>%
+  summarize(m_perim=mean(`Perim.`, na.rm=T), sd_perim=sd(`Perim.`, na.rm=T)) %>%
+  ungroup() %>% 
+  group_by(UID) %>%
+  summarize(diff=m_perim[DayNight=='night'] - m_perim[DayNight=='day']) -> diffs
+
+# we may be missing some values, e.g. if there is no data for first 24 h
+x <- unique(data$UID)[! unique(data$UID) %in% diffs$UID]
+diffs <- rbind(as.data.frame(diffs), data.frame(UID=x, diff=0, stringsAsFactors=F))
+
+# subtract day/night difference from night perimeter values
+setDT(data)
+data[DayNight == 'night', `Perim.` := `Perim.` - diffs$diff[diffs$UID == .BY$UID], by=UID]
+
 # moving average perimeter increase
 data[, dPerim := roll_meanl(`Perim.`, n=rollrange, na.rm=T, fill=NA) - mean(`Perim.`[1:rollrange]), by=UID]
 
@@ -69,13 +87,10 @@ data[, ddPchange := shift(dPerim, n=ddprange, type="lead") - dPerim, by=UID]
 # rolling average of the sign of ddPerim: basically a measure of the fraction of positive ddPerims
 data[, sign_mean := roll_meanl(sign(ddPerim), n=ddprange, fill=NA), by=UID]
 
-# if the mean sign is at least 0.8, and rolling average perimeter increase is 10% or larger, the seed has germinated
-#data[sign_mean>=0.8 & dPerim > mean(`Perim.`[1:rollrange])*1.1-mean(`Perim.`[1:rollrange]), Germinated := TRUE, by=UID]
-
 # require 0.8 mean sign and increased dPerim of 0.05 over the ddprange for germination
 data[sign_mean>=0.8 & ddPchange>0.05, Germinated := TRUE, by=UID]
 
-# get the germincation slice for each uid
+# get the germination slice for each uid
 germslices <- data[Germinated==TRUE, .(germslice=min(Slice)), by=UID]
 
 # function to return exactly one instance of germination occurrence
@@ -170,6 +185,7 @@ germstats <- germstats %>%
 germstats$ApproxTime <- round(germstats$Slice * round(avgTimePerSlice, 2), 2)
 
 # now calculate some germination metrics
+cat('Calculating germination statistics...\n')
 groups <- t50s <- mgts <- mgtses <- nseeds <- nongerms <- NULL
 dir.create(paste0(rundir, "/Germination Plots"))
 for(group in unique(data.long$Group)) {

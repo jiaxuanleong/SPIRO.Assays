@@ -3,6 +3,7 @@
 
 if (!require('pacman')) {
   install.packages('pacman')
+  library(pacman)
 }
 
 spiro_common_included <- function() {
@@ -51,3 +52,7 @@ getdate <- function(name) {
   return(strptime(x, format='%Y%m%d%H%M%S'))
 }
 
+# extract day/night from filename
+getdaynight <- function(name) {
+  return(unlist(strsplit(name, '-', fixed=T))[4])
+}
