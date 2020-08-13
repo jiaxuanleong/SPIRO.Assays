@@ -8,7 +8,7 @@
 rm(list=ls())
 source('common/common.R')
 
-p_load(dplyr, foreach, doParallel, readr, zoo, RcppRoll)
+p_load(dplyr, foreach, doParallel, data.table, zoo, RcppRoll)
 
 # below are cutoffs for area filtering
 upper_area_threshold = 0.02
@@ -21,11 +21,8 @@ processfile <- function(file, logdir, expname) {
   plate <- dirparams[length(dirparams)-1]
   group <- dirparams[length(dirparams)]
   
-  # need to suppress warnings here as imagej saves row numbers as unnamed first column
-  suppressWarnings(resultfile <- read_tsv(file, 
-                                          col_types=c(Area=col_double(), `Perim.`=col_double(), Slice=col_integer(),
-                                                      UID=col_character(), Group=col_character()), 
-                                          progress=FALSE))
+  resultfile <- fread(file)
+  resultfile <- dplyr::select(resultfile, -V1)
   
   if ("X1" %in% names(resultfile)) {
     resultfile <- dplyr::select(resultfile, -X1)
@@ -111,7 +108,7 @@ check_duplicates <- function(data, logfile) {
   
   if (length(error_uids > 0)) {
     errors <- data.frame(UID=error_uids, Type=error_types)
-    write_tsv(errors, path=logfile)
+    fwrite(errors, file=logfile, sep='\t')
   }
   
   return(data)
@@ -155,7 +152,7 @@ if (!exists('germination.debug')) {
   cat(paste0("Processing files and performing basic quality control, using ", 
              length(cl), ' ', core_plural, ". This may take a little while...\n"))
   
-  allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'readr', 'zoo')) %dopar%
+  allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'data.table', 'zoo')) %dopar%
     processfile(f, outdir, expname)
   stopCluster(cl)
 } else {
@@ -169,7 +166,7 @@ if (!exists('germination.debug')) {
 logfiles <- list.files(path = outdir, pattern = ' germination analysis.tsv.log$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 log <- NULL
 for (f in logfiles) {
-  logfile <- read_tsv(f, col_types=c(UID=col_character(), Type=col_character()))
+  logfile <- fread(f)
   log <- rbind(log, logfile)
   file.remove(f)
 }
@@ -199,7 +196,7 @@ allout$ElapsedHours <- round(allout$ElapsedHours, 4)
 # rearrange columns
 allout <- allout[,c(1:2, 8, 3:7, 9)]
 
-write.table(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t', row.names=F)
+fwrite(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t')
 if (!grepl('Root Growth$', outdir)) {
   cat(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'.\nPlease edit that file to set up correct grouping for your experiment.\n"))
 } else {
@@ -214,4 +211,4 @@ seedlog <- merge(seedlog, errors, by="UID", all=T)
 seedlog$Note.y <- as.character(seedlog$Note.y)
 seedlog %>% mutate(Note = coalesce(Note.x, Note.y)) %>% dplyr::select(c(UID, Note)) -> seedlog
 
-write.table(seedlog, file=paste0(outdir, "/germination.postQC.log.tsv"), sep='\t', row.names=F)
+fwrite(seedlog, file=paste0(outdir, "/germination.postQC.log.tsv"), sep='\t')

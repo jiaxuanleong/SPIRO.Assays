@@ -6,7 +6,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-p_load(readr, ggplot2, dplyr, glmmTMB, emmeans, multcomp, multcompView, effects, ggeffects, MASS, tibble, tidyr)
+p_load(glmmTMB, data.table, ggplot2, dplyr, emmeans, multcomp, multcompView, effects, ggeffects, MASS, tibble, tidyr)
 
 dir <- choose_dir()
 
@@ -15,10 +15,7 @@ outdir <- paste0(resultsdir, '/Root Growth')
 rundir <- create_rundir(outdir)
 
 if (file.exists(paste0(outdir, "/rootgrowth.postQC.tsv"))) {
-  data <- read_tsv(paste0(outdir, '/rootgrowth.postQC.tsv'),
-                   col_types=c(UID=col_character(), Group=col_character(), ElapsedHours=col_skip(),
-                               RelativeElapsedHours=col_double(), PrimaryRootLength=col_double(),
-                               Date=col_skip()))
+  data <- fread(paste0(outdir, '/rootgrowth.postQC.tsv'))
 } else {
   stop("rootgrowth.postQC.tsv not found in specified directory. Did you run consolidate_rootgrowth_data.R?\n")
 }
@@ -48,7 +45,7 @@ if (ngroups > 1) {
     rename(Tukey.CLD = .group) -> fit.cld
   fit.pwpp <- pwpp(fit.trend, values=F) + theme_bw()
   
-  write.table(fit.cld, file=paste0(rundir, '/Tukey CLD.tsv'), row.names=F, sep='\t')
+  fwrite(fit.cld, file=paste0(rundir, '/Tukey CLD.tsv'), sep='\t')
   ggsave(fit.pwpp, filename = paste0(rundir, "/Pairwise p-value plot.pdf"), width=25, height=15, units="cm")
 } else {
   fit.glmmTMB <- glmmTMB(data=data,
@@ -90,7 +87,7 @@ glmmTMB_model_ggeffects %>% as_tibble %>%
          conf.high=round(conf.high, 3)) %>%
   filter(RelativeHours > 0) -> root.table
 
-write.table(root.table, file=paste0(rundir, '/Predicted Root Lengths.tsv'), row.names=F, sep='\t')
+fwrite(root.table, file=paste0(rundir, '/Predicted Root Lengths.tsv'), sep='\t')
 
 p <- ggplot(root.table, aes(x=Group, y=PredictedRootLength, ymin=conf.low, ymax=conf.high, fill=as.ordered(RelativeHours))) + 
   geom_col(position="dodge", color="black") +
@@ -152,6 +149,6 @@ p <- ggplot(rates, aes(x=Group, y=mean, ymin=conf.low, ymax=conf.high, fill=as.o
 ggsave(p, filename=paste0(rundir, '/Root growth rate barchart.pdf'), width=25, height=15, units="cm")
 
 names(rates)[3] <- 'GrowthRate_um_h'
-write.table(rates, file=paste0(rundir, '/Predicted Root Growth Rates.tsv'), row.names=F, sep='\t')
+fwrite(rates, file=paste0(rundir, '/Predicted Root Growth Rates.tsv'), sep='\t')
 
 cat(paste0('Wrote statistics and graphs to ', rundir, '.\n'))

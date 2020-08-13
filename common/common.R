@@ -1,6 +1,8 @@
 # common.R -
 # some functions common to other scripts
 
+options(dplyr.summarise.inform = FALSE)
+
 if (!require('pacman')) {
   install.packages('pacman')
   library(pacman)

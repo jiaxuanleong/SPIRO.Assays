@@ -8,8 +8,7 @@
 rm(list=ls())
 source('common/common.R')
 
-p_load(dplyr, readr, ggplot2, survival, survminer, RcppRoll, data.table, germinationmetrics)
-options(dplyr.summarise.inform = FALSE)
+p_load(dplyr, ggplot2, survival, survminer, RcppRoll, data.table, germinationmetrics)
 
 dir <- choose_dir()
 
@@ -145,16 +144,16 @@ names(data.peruid)[5] <- 'Seed Size (cm2)'
 
 # combine with QC notes
 if (file.exists(paste0(outdir, "/germination.postQC.log.tsv"))) {
-  seedlog <- read.table(paste0(outdir, "/germination.postQC.log.tsv"), header=T, stringsAsFactors=F)
+  seedlog <- fread(paste0(outdir, "/germination.postQC.log.tsv"))
   data.peruid <- merge(data.peruid, seedlog, all=T)
-  write.table(data.peruid, file=paste0(rundir, "/germination-perseed.tsv"), sep='\t', row.names=F)
+  fwrite(data.peruid, file=paste0(rundir, "/germination-perseed.tsv"), sep='\t')
 } else {
   data.peruid$Note <- NA
 }
 
 if (grepl('Root Growth$', outdir)) {
   rg <- data.peruid[,c(1,2,4,6)]
-  write.table(rg, file=paste0(outdir, "/germination-perseed.tsv"), sep='\t', row.names=F)
+  fwrite(rg, file=paste0(outdir, "/germination-perseed.tsv"), sep='\t')
 }
 
 # merge group and uid so we can keep both in the conversion long->wide->long
@@ -226,7 +225,7 @@ germstats.pergroup <- data.frame(Group = groups, t50 = t50s, MeanGermTime = mgts
 germstats.pergroup <- merge(germstats.pergroup, seedsizes.pergroup)
 names(germstats.pergroup) <- c('Group', 't50 (h)', 'Mean Germination Time (h)', 'Mean Germination Time SE',
                                'Germinated seeds', 'Ungerminated seeds', 'Seed Size (cm2)', 'Seed Size SD')
-write.table(germstats.pergroup, file=paste0(rundir, "/descriptive_stats.tsv"), sep='\t', row.names=F)
+fwrite(germstats.pergroup, file=paste0(rundir, "/descriptive_stats.tsv"), sep='\t')
 
 if (length(unique(data.long$Group)) > 1) {
   # generate table for t-tests
@@ -259,8 +258,8 @@ if (length(unique(data.long$Group)) > 1) {
   seedsize.pvals$corrected.p.value <- p.adjust(seedsize.pvals$p.value, method="fdr")
   
   names(germination.pvals) <- c('Group 1', 'Group 2', 'Raw p value', 'FDR-corrected p value')
-  write.table(germination.pvals, file=paste0(rundir, "/germination.t-tests.tsv"), sep='\t', row.names=F)
-  write.table(seedsize.pvals, file=paste0(rundir, "/seedsize.t-tests.tsv"), sep='\t', row.names=F)
+  fwrite(germination.pvals, file=paste0(rundir, "/germination.t-tests.tsv"), sep='\t')
+  fwrite(seedsize.pvals, file=paste0(rundir, "/seedsize.t-tests.tsv"), sep='\t')
 } else {
   cat("Only one group in output, skipping t-tests.\n")
 }
@@ -302,7 +301,7 @@ if (length(unique(data.long$Group)) > 1) {
     pvals$km.logrank[i] <- surv_pvalue(sfit)$pval
   }
   names(pvals) <- c('Group 1', 'Group 2', 'Log-Rank p-value')
-  write.table(pvals, file=paste0(rundir, "/germination.kaplan-meier_test.tsv"), sep='\t', row.names=F)
+  fwrite(pvals, file=paste0(rundir, "/germination.kaplan-meier_test.tsv"), sep='\t')
 }
 
 cat(paste0("Statistics have been written to the directory ", rundir, "\n"))

@@ -6,14 +6,14 @@
 rm(list=ls())
 source('common/common.R')
 
-p_load(dplyr, ggplot2, zoo)
+p_load(dplyr, ggplot2, zoo, data.table)
 
 # ggplot theme
 th <- theme_bw() + theme(legend.position="bottom", legend.text=element_text(size=8))
 
 # function for plotting unprocessed data
 plotfile <- function(file) {
-  r <- read.delim(file, stringsAsFactors=FALSE)
+  r <- fread(file)
   names(r) <- c('Slice', 'Label', 'Rootno', 'Length')
   d <- dirname(file)
   dirparams <- unlist(strsplit(d, '/', fixed=T))
@@ -39,12 +39,7 @@ plotfile <- function(file) {
 }
 
 processfile <- function(file, expname) {
-  r <- read_tsv(file, col_types=cols(
-    `Slice No.` = col_integer(),
-    `Slice label` = col_character(),
-    `Root no.` = col_integer(),
-    `Root length (cm)` = col_double()
-  ))
+  r <- fread(file)
   names(r) <- c('Slice', 'Label', 'Rootno', 'Length')
   d <- dirname(file)
   dirparams <- unlist(strsplit(d, '/', fixed=T))
@@ -91,7 +86,6 @@ processfile <- function(file, expname) {
     mutate(still=rollapply(mablsign, 7, function(x) { return(all(x == 0)) }, align="left", fill=NA)) -> r
   
   #truncate after plateau detected
-  #r$still[r$Length < 0.1] <- FALSE
   r$still[which(r$still == FALSE)] <- NA
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
@@ -141,12 +135,7 @@ cat(paste0("Performing root growth QC for experiment << ", expname, " >>\n\n"))
 
 cat("Processing files, please wait...\n")
 
-germtimes <- read_tsv(paste0(outdir, '/germination-perseed.tsv'), col_types=cols(
-  UID = col_character(),
-  Group = col_character(),
-  `Germination Detected on Frame` = col_double(),
-  Note = col_character()
-))
+germtimes <- fread(paste0(outdir, '/germination-perseed.tsv'))
 names(germtimes)[3] <- 'slice'
 normseeds <- germtimes$UID[!is.na(germtimes$slice)]
 badseeds <- germtimes$UID[is.na(germtimes$slice)]
@@ -195,7 +184,7 @@ names(allout)[4] <- 'RelativeElapsedHours'
 names(allout)[5] <- 'PrimaryRootLength'
 names(allout)[6] <- 'Date'
 
-write.table(allout, file=paste0(outdir, "/rootgrowth.postQC.tsv"), sep='\t', row.names=FALSE)
+fwrite(allout, file=paste0(outdir, "/rootgrowth.postQC.tsv"), sep='\t')
 cat(paste0("Output saved to ", outdir, "/rootgrowth.postQC.tsv", 
            ". Adjust groups and remove problematic seedlings from this file, then run process_rootgrowth_data.R.\n"))
 cat(paste0("Graphs are available for each group in the directory ", rundir, "\n"))
