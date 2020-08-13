@@ -82,7 +82,6 @@ diffs <- rbind(as.data.frame(diffs), data.frame(UID=x, diff=0, stringsAsFactors=
 diffs$diff[!is.finite(diffs$diff)] <- 0
 
 # subtract day/night difference from night perimeter values
-setDT(data)
 data[DayNight == 'night', `Perim.` := `Perim.` - diffs$diff[diffs$UID == .BY$UID], by=UID]
 
 # moving average perimeter increase
