@@ -78,7 +78,7 @@ diffs <- data[ElapsedHours<24, .(diff = mean(`Perim.`[DayNight=='night'][1:16], 
 
 # we may be missing some values, e.g. if there is no data for first 24 h
 x <- unique(data$UID)[! unique(data$UID) %in% diffs$UID]
-diffs <- rbind(as.data.frame(diffs), data.frame(UID=x, diff=0, stringsAsFactors=F))
+if(length(x) > 0) diffs <- rbind(as.data.frame(diffs), data.frame(UID=x, diff=0, stringsAsFactors=F))
 diffs$diff[!is.finite(diffs$diff)] <- 0
 
 # subtract day/night difference from night perimeter values
