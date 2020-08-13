@@ -73,15 +73,13 @@ nrows <- data[, list(rows=nrow(.SD)), by=UID]
 seedsizes <- data[, .(SeedSize=mean(`Perim.`[1:rollrange])), by=.(UID, Group)]
 
 # correct for day/night difference in perimeter
-data %>% group_by(UID, DayNight) %>% filter(ElapsedHours < 24) %>%
-  summarize(m_perim=mean(`Perim.`, na.rm=T), sd_perim=sd(`Perim.`, na.rm=T)) %>%
-  ungroup() %>% 
-  group_by(UID) %>%
-  summarize(diff=m_perim[DayNight=='night'] - m_perim[DayNight=='day']) -> diffs
+diffs <- data[ElapsedHours<24, .(diff = mean(`Perim.`[DayNight=='night'], na.rm=T) - 
+                                        mean(`Perim.`[DayNight=='day'], na.rm=T)), by=UID]
 
 # we may be missing some values, e.g. if there is no data for first 24 h
 x <- unique(data$UID)[! unique(data$UID) %in% diffs$UID]
 diffs <- rbind(as.data.frame(diffs), data.frame(UID=x, diff=0, stringsAsFactors=F))
+diffs$diff[!is.finite(diffs$diff)] <- 0
 
 # subtract day/night difference from night perimeter values
 setDT(data)
