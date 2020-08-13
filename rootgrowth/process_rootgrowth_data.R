@@ -6,7 +6,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-p_load(glmmTMB, data.table, ggplot2, dplyr, emmeans, multcomp, multcompView, effects, ggeffects, MASS, tibble, tidyr)
+p_load(glmmTMB, parallel, data.table, ggplot2, dplyr, emmeans, multcomp, multcompView, effects, ggeffects, MASS, tibble, tidyr)
 
 dir <- choose_dir()
 
@@ -34,10 +34,11 @@ ngroups <- length(groups)
 
 # fit the mixed model
 cat("Fitting the model, hold tight...\n")
+num_cores <- max(1, detectCores() - 1)
 if (ngroups > 1) {
   fit.glmmTMB <- glmmTMB(data=data,
           formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2, raw=TRUE) * Group + (1+poly(RelativeElapsedHours, 2, raw=TRUE) | UID),
-          REML = T)
+          REML=T, control=glmmTMBControl(parallel=num_cores))
   fit.glmmTMB %>% emtrends(~Group, var="RelativeElapsedHours") -> fit.trend
   fit.cld <- cld(fit.trend)
   fit.cld %>% as_tibble %>%
