@@ -8,7 +8,20 @@
 rm(list=ls())
 source('common/common.R')
 
-p_load(dplyr, ggplot2, survival, survminer, RcppRoll, data.table, germinationmetrics)
+p_load(dplyr, ggplot2, survival, survminer, RcppRoll, data.table, germinationmetrics, doParallel)
+
+kmplot <- function(grp1, grp2, mydata, outdir) {
+  ds <- subset(mydata, with(mydata, Group==grp1 | Group==grp2))
+  mysurvobj <- Surv(time=ds$`Germination Time (h)`, event=ds$event)
+  mysfit <- surv_fit(mysurvobj~Group, data=ds)
+  p <- ggsurvplot(mysfit, pval=F, fun=function(y) { return(1-y) }) +
+    labs(x='Elapsed Time (h)', y='Fraction of germinated seeds')
+  suppressWarnings(ggsave(p$plot + geom_hline(yintercept=1), 
+                          filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", pvals$Group.1[i], "_vs_", pvals$Group.2[i], ".pdf"),
+                          width=25, height=15, units="cm"))
+  # get p-value (standard log-rank)
+  return(surv_pvalue(mysfit)$pval)
+}
 
 dir <- choose_dir()
 
@@ -287,19 +300,17 @@ if (length(unique(data.long$Group)) > 1) {
   suppressWarnings(ggsave(p$plot + geom_hline(yintercept=1), 
                           filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-allgroups.pdf"), 
                           width=25, height=15, units="cm"))
+
+  num_cores <- max(1, detectCores() - 1)
+  cl <- makeCluster(num_cores)
+  registerDoParallel(cl)
   
-  for (i in seq(1, nrow(pvals))) {
-    ds <- data.surv %>% filter(Group == pvals$Group.1[i] | Group == pvals$Group.2[i])
-    survobj <- Surv(time=ds$`Germination Time (h)`, event=ds$event)
-    sfit <- survfit(survobj~Group, data=ds)
-    p <- ggsurvplot(sfit, pval=F, fun=function(y) { return(1-y) }) +
-      labs(x='Elapsed Time (h)', y='Fraction of germinated seeds')
-    suppressWarnings(ggsave(p$plot + geom_hline(yintercept=1), 
-                            filename=paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", pvals$Group.1[i], "_vs_", pvals$Group.2[i], ".pdf"), 
-                            width=25, height=15, units="cm"))
-    # get p-value (standard log-rank)
-    pvals$km.logrank[i] <- surv_pvalue(sfit)$pval
+  pvals$km.logrank <- foreach(i=seq(1, nrow(pvals)), .combine=c, .packages=c('survival', 'survminer', 'data.table')) %dopar% {
+    kmplot(pvals$Group.1[i], pvals$Group.2[i], data.surv, paste0(rundir, "/Kaplan-Meier Plots/KaplanMeier-", pvals$Group.1[i], "_vs_", pvals$Group.2[i]))
   }
+  
+  stopCluster(cl)
+
   names(pvals) <- c('Group 1', 'Group 2', 'Log-Rank p-value')
   fwrite(pvals, file=paste0(rundir, "/germination.kaplan-meier_test.tsv"), sep='\t')
 }
