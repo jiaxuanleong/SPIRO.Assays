@@ -38,24 +38,25 @@ processfile <- function(file, logdir, expname) {
       # assume that if the label contains two colons (i.e. 3 extracted elements), it is the initial image
       # for that seed, i.e., we are starting with a new seed here. set initial parameters like seed no etc.
       r <- params[2]
-      SeedPos <- c(SeedPos, r)
+      SeedPos[[i]] <- r
       d <- startdate <- getdate(params[3])
-      Date <- c(Date, as.character(d))
-      DayNight <- c(DayNight, getdaynight(params[3]))
+      Date[[i]] <- as.character(d)
+      DayNight[[i]] <- getdaynight(params[3])
     } else {
       # this is not the first record for a seed
-      SeedPos <- c(SeedPos, r)
+      SeedPos[[i]] <- r
       d <- getdate(params[2])
-      Date <- c(Date, as.character(d))
-      DayNight <- c(DayNight, getdaynight(params[2]))
+      Date[[i]] <- as.character(d)
+      DayNight[[i]] <- getdaynight(params[2])
     }
-    ElapsedHours <- c(ElapsedHours, elapsed(startdate, d))
+    ElapsedHours[[i]] <- elapsed(startdate, d)
   }
   data <- NULL
   data$UID <- paste0(plate, '_', group, '_', SeedPos, '_exp:', expname)
   data$Group <- paste0(plate, '_', group)
   resultfile <- dplyr::select(resultfile, -Label)
-  data <- cbind(data, resultfile, SeedPos, Date, ElapsedHours, DayNight)
+  data <- cbind(data, resultfile, SeedPos=unlist(SeedPos), Date=unlist(Date), ElapsedHours=unlist(ElapsedHours), 
+                DayNight=unlist(DayNight))
   data <- check_duplicates(data, paste0(logdir, '/', basename(file), '.log'))
   return(data)
 }
@@ -150,7 +151,7 @@ if (!exists('germination.debug')) {
   expname <- basename(dir)
   cat(paste0("Performing germination QC for experiment << ", expname, " >>\n\n"))
   cat(paste0("Processing files and performing basic quality control, using ", 
-             length(cl), ' ', core_plural, ". This may take a little while...\n"))
+             length(cl), ' ', core_plural, "...\n"))
   
   allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'data.table', 'zoo')) %dopar%
     processfile(f, outdir, expname)
@@ -162,6 +163,7 @@ if (!exists('germination.debug')) {
     allout <- rbind(allout, processfile(f, outdir, expname))
   }
 }
+
 # check the logs
 logfiles <- list.files(path = outdir, pattern = ' germination analysis.tsv.log$', full.names = TRUE, recursive = TRUE, ignore.case = TRUE, no.. = TRUE)
 log <- NULL
