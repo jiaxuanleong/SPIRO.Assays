@@ -70,11 +70,40 @@ ddprange <- round(max(10, 5 / avgTimePerSlice), 0)
 nrows <- data[, list(rows=nrow(.SD)), by=UID]
 
 # calculate seed size by uid
-seedsizes <- data[, .(SeedSize=mean(`Perim.`[1:rollrange])), by=.(UID, Group)]
+seedsizes <- data[, .(SeedSize=mean(Area[1:rollrange])), by=.(UID, Group)]
 
 # correct for day/night difference in perimeter
-diffs <- data[ElapsedHours<24, .(diff = mean(`Perim.`[DayNight=='night'][1:16], na.rm=T) - 
-                                        mean(`Perim.`[DayNight=='day'][1:16], na.rm=T)), by=UID]
+# - we want to use data only during the first 24 h to reduce risk of inflation due to early germination,
+# - we want to avoid the very first slices since there may be imbibition going on,
+# - and we want to use day/night slices that are adjacent to each other in time
+#
+# we assume ~8 h night and 24 h cycle duration but the algorithm might work for other values as well
+
+# number day and night slices separately
+data[, count:=seq_along(ElapsedHours), by=.(UID, DayNight)]
+
+# get elapsed times for the first and last night slices of the first night
+data[DayNight == 'night' & ElapsedHours < 24, .(nightstart=first(ElapsedHours), 
+                                                nightend=last(ElapsedHours)), by=UID] -> ranges
+
+ranges[, start := fcase(nightstart <= 4 & nightend > 20, 0,
+                        # we have a split night, use all of the range
+                        nightstart > 4 & nightstart <= 12, max(nightend - 8, 4),
+                        # night is early
+                        nightstart > 12, nightstart - 8), by=UID
+                        # night is late
+       ][, end := fcase(nightstart <= 4 & nightend > 20, 24,
+                              nightstart > 4 & nightstart <= 12, nightend + 8,
+                              nightstart > 12, min(nightend, nightstart + 8)), by=UID]
+
+diffs <- data[, .(nightmean = mean(`Perim.`[DayNight=='night' & 
+                                              ElapsedHours > ranges[UID==unlist(.BY)]$start &
+                                              ElapsedHours < ranges[UID==unlist(.BY)]$end][1:16], na.rm=T),
+                  daymean =   mean(`Perim.`[DayNight=='day' & 
+                                              ElapsedHours > ranges[UID==unlist(.BY)]$start &
+                                              ElapsedHours < ranges[UID==unlist(.BY)]$end][1:16], na.rm=T)), by=UID]
+
+diffs$diff <- with(diffs, nightmean - daymean)
 
 # we may be missing some values, e.g. if there is no data for first 24 h
 x <- unique(data$UID)[! unique(data$UID) %in% diffs$UID]
