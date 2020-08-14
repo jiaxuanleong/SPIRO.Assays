@@ -159,7 +159,8 @@ data.peruid <- data %>%
 
 seedsizes.pergroup <- seedsizes %>%
   group_by(Group) %>%
-  summarize(SeedSize = mean(SeedSize, na.rm=T), SeedSizeSD = sd(SeedSize, na.rm=T))
+  summarize(SeedSizeSD = sd(SeedSize, na.rm=T), SeedSize = mean(SeedSize, na.rm=T)) %>%
+  dplyr::select(Group, SeedSize, SeedSizeSD)
 
 data.peruid <- as.data.frame(data.peruid)
 
