@@ -122,11 +122,14 @@ data[, ddPerim := dPerim - shift(dPerim), by=UID][1, ddPerim := 0, by=UID]
 # dPerim change over the ddP range
 data[, ddPchange := shift(dPerim, n=ddprange, type="lead") - dPerim, by=UID]
 
+# dPerim change over 2*ddP range
+data[, ddPlongchange := shift(dPerim, n=ddprange*2, type="lead") - dPerim, by=UID]
+
 # rolling average of the sign of ddPerim: basically a measure of the fraction of positive ddPerims
 data[, sign_mean := roll_meanl(sign(ddPerim), n=ddprange, fill=NA), by=UID]
 
 # require 0.8 mean sign and increased dPerim of 0.05 over the ddprange for germination
-data[sign_mean>=0.8 & ddPchange>0.05, Germinated := TRUE, by=UID]
+data[sign_mean>=0.8 & ddPchange>0.05 & ddPlongchange>0.1, Germinated := TRUE, by=UID]
 
 # get the germination slice for each uid
 germslices <- data[Germinated==TRUE, .(germslice=min(Slice)), by=UID]
