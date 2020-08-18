@@ -56,9 +56,7 @@ processfile <- function(file, expname) {
     arrange(date) %>%
     mutate(elapsed=elapsed(date[1], date)) -> r
 
-  r %>% mutate(delta = Length - lag(Length),
-               signdelta = sign(delta),
-               absdelta = abs(delta)) -> r
+  r %>% mutate(delta = Length - lag(Length)) -> r
 
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
@@ -85,7 +83,7 @@ processfile <- function(file, expname) {
     group_by(UID) %>%
     mutate(still=rollapply(mablsign, 7, function(x) { return(all(x == 0)) }, align="left", fill=NA)) -> r
   
-  #truncate after plateau detected
+  # truncate after plateau detected
   r$still[which(r$still == FALSE)] <- NA
   r %>% arrange(elapsed) %>%
     group_by(UID) %>%
