@@ -7,8 +7,7 @@
 # clean slate
 rm(list=ls())
 source('common/common.R')
-
-p_load(dplyr, foreach, doParallel, data.table, zoo, RcppRoll)
+p_load(dplyr, foreach, doParallel, data.table, zoo, RcppRoll, rlang)
 
 # below are cutoffs for area filtering
 upper_area_threshold = 0.02
@@ -69,7 +68,7 @@ check_duplicates <- function(data, logfile) {
     # check data per uid (will only be one group per file)
     # ds = data subset
     ds <- data[which(data$UID == uid),]
-    
+
     # trim data to first occurence of large area
     largearea <- which(ds$Area > upper_area_threshold)
     if (length(largearea)) {
@@ -86,24 +85,24 @@ check_duplicates <- function(data, logfile) {
     # we need to check if there are multiple measurements left for any slice
     ds %>% group_by(Slice) %>% mutate(n=n()) -> ds
     
-    # truncate data after first occurrence of n>1
-    ds$n[ds$n==1] <- NA
-    ds$n <- na.locf(ds$n, na.rm=F)
-    ds$n[which(is.na(ds$n))] <- 1
-    ds %>% filter(n==1) -> ds
-    
+    # truncate data after first occurrence of n>1 (keep first slice)
+    if (length(which(ds$n > 1) > 0) & !is_empty(which(ds$n > 1))) {
+      ds <- ds[1:max(which(ds$n > 1)[1] - 1, 1),]
+    }
+
     # remove this uid from data, so we can add modified subset in its place
     data <- data[data$UID != uid,]
 
     # if there are anomalous objects in the first slice, remove the seed from analysis
-    if(max(ds$n) > 1) {
-      # we have some slices left with multiple measurements -- remove the seed
-      error_uids <- c(error_uids, uid)
-      error_types <- c(error_types, 'DUPE')
-    } else {
-      ds <- dplyr::select(ds, -n)
-      # need to cast to data frame or this fails
-      data <- rbind(as.data.frame(data), as.data.frame(ds))
+    if (length(ds$n) > 0) {
+      if(max(ds$n) > 1) {
+        error_uids <- c(error_uids, uid)
+        error_types <- c(error_types, 'DUPE')
+      } else {
+        ds <- dplyr::select(ds, -n)
+        # need to cast to data frame or this fails
+        data <- rbind(as.data.frame(data), as.data.frame(ds))
+      }
     }
   }
   
