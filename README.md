@@ -9,15 +9,15 @@ This repository contains automated high-throughput analysis pipelines for seed g
 
 # Overview
 
-Each assay comprises of three major steps:
-* Raw data preprocessing (ImageJ macro)
-* Image analysis (ImageJ macro)
-* Quality control and statistical analysis (R)
-
 <p align="center">
   <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/spiro-assays-v1-resized.gif?raw=true" title="SPIRO Assays overview">
 <b>Figure1.</b> SPIRO semi-automated assays require preprocessing of the raw data to create 8-bit time-lapse stack files with scale set in cm. The preprocessed data can than be used either for seed germination or for root growth assay.
 </p>
+
+Each assay comprises of three major steps:
+* Raw data preprocessing (ImageJ macro)
+* Image analysis (ImageJ macro)
+* Quality control and statistical analysis (R)
 
 An overview of the separate analysis steps is provided below. A detailed manual will be provided soon.
 
