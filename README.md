@@ -2,29 +2,16 @@
   <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/SPIRO%20text%20logo.png?raw=true" title="SPIRO Assays">
 </p>
 
-# Smart Plate Imaging Robot (SPIRO) semi-automated assays
-
 This repository contains automated high-throughput analysis pipelines for seed germination and root growth, optimized for the typical plant model organism *Arabidopsis thaliana*. The pipelines were developed for use with [SPIRO](https://github.com/jonasoh/spiro). 
 
-# Overview
-
-<p align="center">
-  <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/spiro-assays-v1-resized.gif?raw=true" title="SPIRO Assays overview">
-<b>Figure1.</b> SPIRO semi-automated assays require preprocessing of the raw data to create 8-bit time-lapse stack files with scale set in cm. The preprocessed data can than be used either for seed germination or for root growth assay.
-</p>
-
-Each assay comprises of three major steps:
+Each assay comprises three major steps:
 * Raw data preprocessing (ImageJ macro)
 * Image analysis (ImageJ macro)
-* Quality control and statistical analysis (R)
+* Quality control and statistical analysis (R scripts)
 
 An overview of the separate analysis steps is provided below. A detailed manual will be provided soon.
 
 # Image preprocessing
-
-<p align="center">
-  <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/preprocessing-v2-reduced-size.gif?raw=true" title="Preprocessing overview">
-</p>
 
 The first step in either of the SPIRO assays is preprocessing of the raw data. It is used for:
 * Creating a time-lapse file for each analysed Petri plate
