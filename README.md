@@ -2,7 +2,7 @@
   <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/SPIRO%20text%20logo.png?raw=true" title="SPIRO Assays">
 </p>
 
-This repository contains automated high-throughput analysis pipelines for seed germination and root growth, optimized for the typical plant model organism *Arabidopsis thaliana*. The pipelines were developed for use with [SPIRO](https://github.com/jonasoh/spiro). 
+This repository contains semi-automated high-throughput analysis pipelines for seed germination and root growth, optimized for the typical plant model organism *Arabidopsis thaliana*. The pipelines were developed for use with [SPIRO](https://github.com/jonasoh/spiro). 
 
 Each assay comprises three major steps:
 * Raw data preprocessing (ImageJ macro)
@@ -34,7 +34,7 @@ The seed germination assay was designed for analysis of *Arabidopsis thaliana* g
   <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/root-grwoth-v1-resized.gif?raw=true" title="Root growth overview">
 </p>
 
-The root growth assay measures primarily root length, and uses a mixed model to assess differences between groups. Complete details will be available in the assay manual.
+The root growth assay measures primary root length, and uses a mixed model to assess differences between groups. Complete details will be available in the assay manual.
 
 # SPIRO Assay Customizer
 
