@@ -6,7 +6,7 @@
 
 # clean slate
 rm(list=ls())
-source('common/common.R')
+source('R scripts/common.R')
 
 p_load(dplyr, ggplot2, survival, survminer, RcppRoll, data.table, germinationmetrics, doParallel)
 

@@ -6,7 +6,7 @@
 
 # clean slate
 rm(list=ls())
-source('common/common.R')
+source('R scripts/common.R')
 p_load(dplyr, foreach, doParallel, data.table, zoo, RcppRoll, rlang)
 
 # below are cutoffs for area filtering
