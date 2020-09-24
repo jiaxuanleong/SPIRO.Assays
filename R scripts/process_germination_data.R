@@ -276,15 +276,12 @@ if (length(unique(data.long$Group)) > 1) {
   colnames(pvals) <- c('Group.1', 'Group.2')
   pvals$Group.1 <- as.character(pvals$Group.1)
   pvals$Group.2 <- as.character(pvals$Group.2)
-  germination.pvals <- seedsize.pvals <- pvals
+  seedsize.pvals <- pvals
   
   for (i in seq(1, nrow(pvals))) {
     # first we check the p value
-    tryCatch({tg <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
-                           data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
-              ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
+    tryCatch({ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
                            data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.2[i]])
-              germination.pvals$p.value[i] <- tg$p.value
               seedsize.pvals$p.value[i] <- ts$p.value
              },
              error=function(e) {
@@ -295,13 +292,11 @@ if (length(unique(data.long$Group)) > 1) {
     })
   }
   
-  # generate corrected p-values according to the false discovery rate (fdr) method
+  # generate corrected p-values according to the false discovery rate (FDR) method
   # see help(p.adjust) for available methods
-  germination.pvals$corrected.p.value <- p.adjust(germination.pvals$p.value, method="fdr")
   seedsize.pvals$corrected.p.value <- p.adjust(seedsize.pvals$p.value, method="fdr")
   
-  names(germination.pvals) <- c('Group 1', 'Group 2', 'Raw p value', 'FDR-corrected p value')
-  fwrite(germination.pvals, file=paste0(rundir, "/germination.t-tests.tsv"), sep='\t')
+  names(seedsize.pvals) <- c('Group 1', 'Group 2', 'Raw p value', 'FDR-corrected p value')
   fwrite(seedsize.pvals, file=paste0(rundir, "/seedsize.t-tests.tsv"), sep='\t')
 } else {
   cat("Only one group in output, skipping t-tests.\n")
