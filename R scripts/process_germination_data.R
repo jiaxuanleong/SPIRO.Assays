@@ -271,14 +271,47 @@ names(germstats.pergroup) <- c('Group', 't50 (h)', 'Mean Germination Time (h)', 
 fwrite(germstats.pergroup, file=paste0(rundir, "/descriptive_stats.tsv"), sep='\t')
 
 if (length(unique(data.long$Group)) > 1) {
-  dir.create(paste0(rundir, "/Kaplan-Meier Plots"))
-  # generate table for kaplan-meier plots
-  # we only compare two groups for each analysis -- 
-  #   please make your own custom analysis if this is inappropriate for your data!
+  # generate table for t-tests
   pvals <- as.data.frame(t(combn(unique(data.long$Group), 2)))
   colnames(pvals) <- c('Group.1', 'Group.2')
   pvals$Group.1 <- as.character(pvals$Group.1)
   pvals$Group.2 <- as.character(pvals$Group.2)
+  germination.pvals <- seedsize.pvals <- pvals
+  
+  for (i in seq(1, nrow(pvals))) {
+    # first we check the p value
+    tryCatch({tg <- t.test(data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.1[i]],
+                           data.peruid$`Germination Time (h)`[data.peruid$Group == pvals$Group.2[i]])
+              ts <- t.test(data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.1[i]],
+                           data.peruid$`Seed Size (cm2)`[data.peruid$Group == pvals$Group.2[i]])
+              germination.pvals$p.value[i] <- tg$p.value
+              seedsize.pvals$p.value[i] <- ts$p.value
+             },
+             error=function(e) {
+                cat(paste0("Unable to compare groups ", pvals$Group.1[i], "(x) to ", pvals$Group.2[i], "(y): "))
+                cat(paste0(e$message, "\n"))
+                germination.pvals$p.value[i] <- NA
+                seedsize.pvals$p.value[i] <- NA
+    })
+  }
+  
+  # generate corrected p-values according to the false discovery rate (fdr) method
+  # see help(p.adjust) for available methods
+  germination.pvals$corrected.p.value <- p.adjust(germination.pvals$p.value, method="fdr")
+  seedsize.pvals$corrected.p.value <- p.adjust(seedsize.pvals$p.value, method="fdr")
+  
+  names(germination.pvals) <- c('Group 1', 'Group 2', 'Raw p value', 'FDR-corrected p value')
+  fwrite(germination.pvals, file=paste0(rundir, "/germination.t-tests.tsv"), sep='\t')
+  fwrite(seedsize.pvals, file=paste0(rundir, "/seedsize.t-tests.tsv"), sep='\t')
+} else {
+  cat("Only one group in output, skipping t-tests.\n")
+}
+
+if (length(unique(data.long$Group)) > 1) {
+  dir.create(paste0(rundir, "/Kaplan-Meier Plots"))
+  # generate table for kaplan-meier plots
+  # we only compare two groups for each analysis -- 
+  #   please make your own custom analysis if this is inappropriate for your data!
   pvals$km.logrank <- NA
   
   # include only seeds that were processed normally or status is unknown (i.e., log file missing)
