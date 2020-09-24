@@ -152,7 +152,7 @@ if (!exists('germination.debug')) {
   cat(paste0("Processing files and performing basic quality control, using ", 
              length(cl), ' ', core_plural, "...\n"))
   
-  allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'data.table', 'zoo')) %dopar%
+  allout <- foreach(f=files, .combine=rbind, .multicombine=T, .packages=c('dplyr', 'data.table', 'zoo', 'rlang')) %dopar%
     processfile(f, outdir, expname)
   stopCluster(cl)
 } else {
