@@ -158,7 +158,6 @@ for (f in files) {
   out.tmp <- out[out$Slice > 1,]
   TimePerSlice <- mean(out.tmp$elapsed / (out.tmp$Slice-1))
   
-  
   # plot processed data
   p <- ggplot(out, aes(x=elapsed, y=Length, color=UID, group=UID)) + 
     geom_point() +
