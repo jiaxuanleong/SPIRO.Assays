@@ -76,7 +76,7 @@ macro "SPIRO_Preprocessing" {
 	} 
 	if (!turboreginstalled || !multistackreginstalled) { 
 		Dialog.create("Plugin not found"); 
-		Dialog.addMessage("Plugins TurboReg and/or MultiStackReg not found. Please refer to SPIRO manual for installation instructions.");
+		Dialog.addMessage("Plugins TurboReg and/or MultiStackReg not found. Please refer to the SPIRO manual for installation instructions.");
 		Dialog.addCheckbox("I understand.", false);
 		Dialog.show();
 		usercheck = Dialog.getCheckbox();
@@ -85,17 +85,17 @@ macro "SPIRO_Preprocessing" {
 	}
 
 	print("=================================================\n"+ 
-			"Welcome to the companion macro of SPIRO for preprocessing!\n" +
-			"=================================================");
+		  "Welcome to the companion macro of SPIRO for preprocessing!\n" +
+		  "=================================================");
 		selectWindow("Log");
-		  
+
 	/* Create and/or define working directories
 	 * ----------------------------------------
 	 */
 	showMessage("Welcome to the companion macro of SPIRO for preprocessing!\n" +
 		"Please locate and open your experiment folder containing SPIRO-acquired images.\n" +
 		"---------\n" +
-		"Alternative types of run:\n" +
+		"Alternative types of run (hold down then press OK):\n" +
 		"SHIFT = Fresh Start mode, all data from any previous run will be deleted\n" +
 		"CTRL = Debug mode, batch size for drift correction can be changed.\n");
 
@@ -130,7 +130,7 @@ macro "SPIRO_Preprocessing" {
 	Dialog.create("Drift Correction");
 	Dialog.addMessage("Would you like to carry out drift correction (registration)?\n" +
 	    "Please note that this step may take up a lot of time and RAM for large datasets.\n" +
-	    "Batch size may be reduced in DEBUG mode for lower RAM requirement");
+	    "Batch size may be reduced in DEBUG mode for lower RAM requirement.");
 	dialogchoices = newArray("Yes", "No");
 	Dialog.addChoice("", dialogchoices);
 	Dialog.show;
@@ -303,9 +303,9 @@ macro "SPIRO_Preprocessing" {
 		userconfirm = false;
 		while (!userconfirm) { 
 			Dialog.createNonBlocking("Scale");
-			Dialog.addMessage("Based on the scale bar, draw a straight line corresponding to 1cm\n." +
-				"Holding down SHIFT helps in keeping line horizontal");
-			Dialog.addCheckbox("Scale bar corresponding to 1cm has been drawn", false);
+			Dialog.addMessage("Based on the scale bar, draw a straight line corresponding to 1 cm\n." +
+				"Holding down SHIFT helps in keeping the line horizontal.");
+			Dialog.addCheckbox("Scale bar corresponding to 1 cm has been drawn", false);
 			Dialog.show();
 			userconfirm = Dialog.getCheckbox();
 		}
@@ -362,7 +362,7 @@ macro "SPIRO_Preprocessing" {
 		if (!is("Batch Mode"))
 			setBatchMode(true);
 		print("\nStep 2/4 Converting images into stacks..." +
-			"\nIt may look like nothing is happening, please be patient.");
+			  "\nIt may look like nothing is happening, please be patient.");
 		selectWindow("Log");
 		for (plateno = 0; plateno < listInmaindir.length; plateno ++) {
 			platefolder = listInmaindir[plateno];
@@ -414,7 +414,7 @@ macro "SPIRO_Preprocessing" {
 		if (!is("Batch Mode"))
 			setBatchMode(true);
 		print("\nStep 3/4 Cropping off unnecessary background and splitting into green channel..." +
-			"\nIt may look like nothing is happening, please be patient.");
+			  "\nIt may look like nothing is happening, please be patient.");
 		listInppdir = getFileList(ppdir);
 		for (fileno = 0; fileno < listInppdir.length; fileno ++) {
 			open(ppdir + listInppdir[fileno]);
@@ -476,8 +476,7 @@ macro "SPIRO_Preprocessing" {
 			}
 		}
 	}
-	
-	
+
 	function register(rMode) {
 		/* Drift correction - dependent on MultiStackReg which is in turn dependent on TurboReg 
 		 *  Registration is needed because SPIRO cube may not always perfectly align with camera view, and user may have moved the plate between time points of image capture
@@ -485,7 +484,7 @@ macro "SPIRO_Preprocessing" {
 		 */
 		if (!is("Batch Mode"))
 			setBatchMode(true);
-		print("\nStep 4/4 Correcting drift...\n It may look like nothing is happening, please be patient.");
+		print("\nStep 4/4 Correcting drift...\nIt may look like nothing is happening, please be patient.");
 		listInppdir = getFileList(ppdir);
 		listInppdirlength = listInppdir.length;
 	
@@ -634,14 +633,14 @@ macro "SPIRO_Germination" {
 	 * to be used as a proxy for germination analysis in R
 	 */
 	print("======================================================\n"+
-		"Welcome to the companion macro of SPIRO for germination analysis!\n" +
-		"======================================================");
+		  "Welcome to the companion macro of SPIRO for germination analysis!\n" +
+		  "======================================================");
 	selectWindow("Log");
 	
 	showMessage("Welcome to the companion macro of SPIRO for germination analysis!\n" +
 		"Please locate and open your experiment folder containing preprocessed data.\n" +
 		"---------\n" +
-		"Alternative types of run:\n" +
+		"Alternative types of run (hold down then press OK):\n" +
 		"SHIFT = Fresh Start mode, all data from any previous run will be deleted\n" + 
 		"CTRL = DEBUG mode, seed detection parameters can be modified");
 		
@@ -681,7 +680,6 @@ macro "SPIRO_Germination" {
 	/* ---------------------------------------------- 
 	 * Lines below this are functions and their descriptions
 	 */
-	
 	
 	function cropGroupsGM() {
 		/* prompts user to make a substack, to make data size smaller by excluding time points after all or most seeds have germinated
@@ -725,9 +723,9 @@ macro "SPIRO_Germination" {
 					while (!userconfirm) {
 						Dialog.createNonBlocking("Group Selection");
 						Dialog.addMessage("Select each group, and add to ROI manager. ROI names will be saved.\n" +
-								"Please use only letters (a/A), numbers (1) and/or dashes (-) in the ROI names. \n" + // to avoid file save issues
+								"Please use only letters (a/A), numbers (1) and/or dashes (-) in the ROI names.\n" + // to avoid file save issues
 								"ROIs cannot share names.");
-						Dialog.addCheckbox("All groups have been added to and labelled in ROI Manager.", false);
+						Dialog.addCheckbox("All groups have been added to and labelled in ROI Manager", false);
 						Dialog.show();
 						userconfirm = Dialog.getCheckbox();
 					}
@@ -909,7 +907,7 @@ macro "SPIRO_Germination" {
 					userconfirm = false;
 					while (!userconfirm) {
 						Dialog.createNonBlocking("User-guided seedling labelling");
-						Dialog.addMessage("Please delete any ROIs that should not be included into analysis," +
+						Dialog.addMessage("Please delete any ROIs that should not be included into analysis, " +
 								"e.g. objects wrongly recognized as seeds." +
 								"\nUnrecognized seeds can also be added as ROIs.");
 						Dialog.addCheckbox("ROIs have been checked", false);
@@ -1088,8 +1086,7 @@ macro "SPIRO_Germination" {
 					run("Close");
 					selectWindow(sortedycoords);
 					run("Close");
-	
-					
+
 					slicelabelarray = newArray(nS);
 					for (sliceno = 0; sliceno < nS; sliceno++) {
 						setSlice(sliceno+1);
@@ -1139,7 +1136,7 @@ macro "SPIRO_Germination" {
 	}
 	
 	function deleteOutputGM() {
-		print("Starting analysis from beginning. \nRemoving output from previous run.");
+		print("Starting analysis from beginning.\nRemoving output from previous run.");
 		listIngermdir = getFileList(germdir);
 		for (platefolderno = 0; platefolderno < listIngermdir.length; platefolderno ++) {  // main loop through plates
 			platefolder = listIngermdir[platefolderno];
@@ -1181,15 +1178,14 @@ macro "SPIRO_RootGrowth" {
 	 */
 	 
 		print("======================================================\n"+
-		"Welcome to the companion macro of SPIRO for root growth analysis!\n" +
-		"======================================================");
+			  "Welcome to the companion macro of SPIRO for root growth analysis!\n" +
+			  "======================================================");
 	selectWindow("Log");
-
 
 	showMessage("Welcome to the companion macro of SPIRO for root growth analysis!\n" +
 		"Please locate and open your experiment folder containing preprocessed data.\n" +
 		"---------\n" +
-		"Alternative types of run:\n" +
+		"Alternative types of run (hold down then press OK):\n" +
 		"SHIFT = Fresh Start mode, all data from any previous run will be deleted\n" +
 		"CTRL = DEBUG mode, non-essential intermediate output files will not be deleted, seed detection parameters can be modified, overlay skeletons can be enabled\n");
 
@@ -1199,9 +1195,9 @@ macro "SPIRO_RootGrowth" {
 	DEBUG = 0;
 	if (isKeyDown("control"))
 		DEBUG = getBoolean("CTRL key pressed. Run macro in debug mode?\n" +
-		"Non-essential intermediate output files will not be deleted at the end of the run.\n" +
-		"Seed detection parameters can be modified.\n" +
-		"Overlay skeletons can be enabled.");
+			"Non-essential intermediate output files will not be deleted at the end of the run.\n" +
+			"Seed detection parameters can be modified.\n" +
+			"Overlay skeletons can be enabled.");
 		
 	freshstart = 0;
 	if (isKeyDown("shift"))
@@ -1256,28 +1252,28 @@ macro "SPIRO_RootGrowth" {
 		step += 1;
 	}
 	if (step == 2) { 
-	getPositions();
-	step += 1;
+		getPositions();
+		step += 1;
 	}
 	if (step == 3) {
-	seedAnalysisRG();
-	step += 1;
+		seedAnalysisRG();
+		step += 1;
 	}
 	if (step == 4) {
-	rootStart();
-	step += 1;
+		rootStart();
+		step += 1;
 	}
 	if (step == 5) {
-	rootMask();
-	step += 1;
+		rootMask();
+		step += 1;
 	}
 	if (step == 6) {
-	rootGrowth();
-	step += 1;
+		rootGrowth();
+		step += 1;
 	}
-	
 	if (step <= 7 && DEBUG == false)
-	deleteOutputRG(); // deletes non-essential outputs
+		deleteOutputRG(); // deletes non-essential outputs
+
 	print("\nRoot growth analysis is complete");
 	selectWindow("Log");
 	if (selfaware) {
@@ -1373,7 +1369,7 @@ macro "SPIRO_RootGrowth" {
 						outputfileexists = File.exists(platedir + groupfolder + groupname + " rootgrowthdetection.tif");
 									
 					if (outputfileexists) {
-							processednoOfgroups += 1;
+						processednoOfgroups += 1;
 					} else {
 						noOfgroupsleft = fullgrouparray.length - processednoOfgroups;
 						reversegrouparray = Array.reverse(fullgrouparray); // to enable trim from end
@@ -1438,7 +1434,7 @@ macro "SPIRO_RootGrowth" {
 					while (!userconfirm) {
 						Dialog.createNonBlocking("Group Selection");
 						Dialog.addMessage("Select each group, and add to ROI manager. ROI names will be saved.\n" +
-								"Please use only letters (a/A), numbers (1) and/or dashes (-) in the ROI names. \n" + // to avoid file save issues
+								"Please use only letters (a/A), numbers (1) and/or dashes (-) in the ROI names.\n" + // to avoid file save issues
 								"ROIs cannot share names.");
 						Dialog.addCheckbox("All groups have been added to and labelled in ROI Manager.", false);
 						Dialog.show();
@@ -1660,7 +1656,7 @@ macro "SPIRO_RootGrowth" {
 			userconfirm = false;
 			while (!userconfirm) {
 				Dialog.createNonBlocking("User-guided seedling labelling");
-				Dialog.addMessage("Please delete any ROIs that should not be included into analysis," +
+				Dialog.addMessage("Please delete any ROIs that should not be included into analysis, " +
 						"e.g. objects wrongly recognized as seeds." +
 						"\nUnrecognized seeds can also be added as ROIs.");
 				Dialog.addCheckbox("ROIs have been checked", false);
@@ -1805,8 +1801,7 @@ macro "SPIRO_RootGrowth" {
 			lengthOfgroupsToprocess = totalnoOfgroups;
 		}
 	}
-	
-	
+
 	function ordercoords() {
 		/* This function is nested within getPositions
 		 * as ImageJ orders ROIs from top -> bottom then left -> right (by y coordinate then x), this makes ROI labelling confusing and difficult for the user to read
@@ -1885,11 +1880,11 @@ macro "SPIRO_RootGrowth" {
 				xm = Table.get(colname, row, sortedxcoords);
 				ym = Table.get(colname, row, sortedycoords);
 				if (xm > 0 && ym > 0) {
-				toUnscaled(xm, ym);
-				makePoint(xm, ym);
-				roiManager("add");
-				roiManager("select", roiManager("count")-1);
-				roiManager("rename", roiManager("count"));
+					toUnscaled(xm, ym);
+					makePoint(xm, ym);
+					roiManager("add");
+					roiManager("select", roiManager("count")-1);
+					roiManager("rename", roiManager("count"));
 				}
 			}
 		}
@@ -2256,8 +2251,7 @@ macro "SPIRO_RootGrowth" {
 				nightimg = "FirstNightImg";
 				rename(nightimg);
 			}
-	
-	
+
 			for (sliceno = 1; sliceno <= nS; sliceno ++) {
 				selectWindow(img);
 				if (sliceno != dayslice && sliceno != nightslice) {
@@ -2282,12 +2276,12 @@ macro "SPIRO_RootGrowth" {
 			}
 	
 			if (dayslice != 0) {
-			selectWindow(dayimg);
-			rename(dayslicelabel);
+				selectWindow(dayimg);
+				rename(dayslicelabel);
 			}
 			if (nightslice != 0) {
-			selectWindow(nightimg);
-			rename(nightslicelabel);
+				selectWindow(nightimg);
+				rename(nightslicelabel);
 			}
 			
 			run("Images to Stack");
@@ -2421,8 +2415,7 @@ macro "SPIRO_RootGrowth" {
 			lengthOfgroupsToprocess = totalnoOfgroups;
 		}
 	}
-	
-	
+
 	function rootGrowth() {
 		/* This function tracks the root growth of each seedling (identified through its rootstartcoordinate, rsc, identified in rootStart)
 		 * for each slice, the skeletons present are matched to rsc, and if there is a match (distance less than 0.1cm), the skeleton length is measured
@@ -2652,7 +2645,7 @@ macro "SPIRO_RootGrowth" {
 	
 	function deleteOutputRG() {
 		if (freshstart) 
-			 print("Starting analysis from beginning. \nRemoving output from previous run.");
+			 print("Starting analysis from beginning.\nRemoving output from previous run.");
 		print("Deleting non-essential files");
 		for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 			platefolder = listInrootgrowthdir[platefolderno];
