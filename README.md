@@ -9,7 +9,7 @@ Each assay comprises three major steps:
 * Raw data preprocessing (ImageJ macro)
 * Image analysis (ImageJ macro)
 * Quality control and statistical analysis (R scripts, SPIRO assay customizer)
-
+</p>
 
 
 <p align="center">
@@ -18,6 +18,7 @@ Each assay comprises three major steps:
 
 
 <b>Figure1.</b> SPIRO semi-automated assays require preprocessing of the raw data to create 8-bit time-lapse stack files with scale set in cm. The preprocessed data can than be used either for seed germination or for root growth assay.
+
 
 # Image preprocessing
 <img align="right" height="200" src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/preprocessing-v2%20flat.png" alt="Preprocessing  overview">
@@ -31,7 +32,7 @@ The first step in either of the SPIRO assays is preprocessing of the raw data. I
 
 
 
-# SPIRO Seed germination assay
+# SPIRO Seed Germination Assay
 
 <img align="right" height="200" src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/germination%20v2%20flat.png" alt="SPIRO Germination assay overview">
 
@@ -53,7 +54,7 @@ The results of the assay comprise:
 
 
 
-# SPIRO Root growth assay
+# SPIRO Root Growth Assay
 
 <img align="right" height="200" src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/root-grwoth-v2%20flat.png" alt="SPIRO Root Growth assay overview">
 
