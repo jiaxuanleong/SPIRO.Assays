@@ -319,9 +319,13 @@ macro "SPIRO_Preprocessing" {
 		// based on scale bar, get coordinates to crop so that only SPIRO-relevant part of image is present
 		nR = Table.size("scalebar");
 		bx = Table.get("BX", nR - 1, "scalebar");
+		bx = parseFloat(bx);
 		by = Table.get("BY", nR - 1, "scalebar");
+		by = parseFloat(by);
 		length = Table.get("Length", nR - 1, "scalebar");
 		xmid = (bx + length/2);
+		xmid = bx + 0.5*length;
+		xmid = parseFloat(xmid);
 		dx = 13;
 		dy = 10.5;
 		toUnscaled(dx, dy);
@@ -1705,6 +1709,8 @@ macro "SPIRO_RootGrowth" {
 			roiManager("save", groupdir + groupname + " seedlingpositions.zip");
 			roiManager("reset");
 			selectWindow(img);
+			run("Remove Overlay");
+			run("Select None");
 			saveAs("Tiff", groupdir + groupname + " masked.tif");
 			close(groupname + " masked.tif");
 		}
@@ -1821,6 +1827,8 @@ macro "SPIRO_RootGrowth" {
 		for (seednumber = 0; seednumber < roicount; seednumber ++) {
 			xmcurrent = Table.get("XM", seednumber, seedlingpositions);
 			ymcurrent = Table.get("YM", seednumber, seedlingpositions);
+			xmcurrent = parseFloat(xmcurrent);
+			ymcurrent = parseFloat(ymcurrent);
 			xmseeds[seednumber] = xmcurrent;
 			ymseeds[seednumber] = ymcurrent;
 		}
@@ -1879,6 +1887,8 @@ macro "SPIRO_RootGrowth" {
 				colname = "col" + col + 1;
 				xm = Table.get(colname, row, sortedxcoords);
 				ym = Table.get(colname, row, sortedycoords);
+				xm = parseFloat(xm);
+				ym = parseFloat(ym);
 				if (xm > 0 && ym > 0) {
 					toUnscaled(xm, ym);
 					makePoint(xm, ym);
@@ -1963,8 +1973,8 @@ macro "SPIRO_RootGrowth" {
 			// the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc
 			// from jumping to hypocotyls or sliding down roots
 			for (roino = 0; roino < roicount; roino ++) {
-				xisp = getResult("XM", roino); // xisp is x initial seed roinoition
-				yisp = getResult("YM", roino); // yisp is y initial seed position
+				xisp = getResult("X", roino); // xisp is x initial seed roinoition
+				yisp = getResult("Y", roino); // yisp is y initial seed position
 				ytb = yisp - 0.05; // y top border 0.05
 				ybb = yisp + 0.4;  // y bottom border 0.4
 				Table.set("ytb", roino, ytb, yref); // y (top border) cannot be more than 0.4cm to the top of initial xm
@@ -1991,9 +2001,13 @@ macro "SPIRO_RootGrowth" {
 					// xm, ym are coordinates for the centre of mass obtained through erosion
 					xUPprev = Table.get("xUP", rowIndex, rsc); // xm of prev slice
 					yUPprev = Table.get("yUP", rowIndex, rsc);  // ym of prev slice
+					xUPprev = parseFloat(xUPprev);
+					yUPprev = parseFloat(yUPprev);
 					toScaled(xUPprev, yUPprev);
 					ytb = Table.get("ytb", roino, yref);
 					ybb = Table.get("ybb", roino, yref);
+					ytb = parseFloat(ytb);
+					ybb = parseFloat(ybb);
 					yroi = yUPprev - topoffset; // yroi is top+leftmost ycoordinate of roi
 					xroi = xUPprev - 0.5*scaledwroi; // xroi is top+leftmost xcoordinate of roi and 0.06 is half of h (height)
 	
@@ -2060,6 +2074,8 @@ macro "SPIRO_RootGrowth" {
 					// xUP and yUP are coordinates for the ultimate points
 					xUPprev = Table.get("xUP", rowIndex, rsc); // xUP of prev slice
 					yUPprev = Table.get("yUP", rowIndex, rsc);  // yUP of prev slice
+					xUPprev = parseFloat(xUPprev);
+					yUPprev = parseFloat(yUPprev);
 					for (UPno = 0; UPno < UPcount; UPno ++) {
 						run("Clear Results");
 						roiManager("select", UPno);
@@ -2501,6 +2517,8 @@ macro "SPIRO_RootGrowth" {
 					rscindex = (sliceno * seedlingcount) + seedlingno;
 					rscX = Table.get("XM", rscindex, rsctsv);
 					rscY = Table.get("YM", rscindex, rsctsv); // obtain rsc coordinates
+					rscX = parseFloat(rscX);
+					rscY = parseFloat(rscY);
 					objectbyrsc = "objectbyrsc";
 					Table.create(objectbyrsc);
 					nrrgm = Table.size(rgm);
