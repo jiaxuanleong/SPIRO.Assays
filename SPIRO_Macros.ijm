@@ -2150,6 +2150,7 @@ macro "SPIRO_RootGrowth" {
 				roino = Table.get("ROI", row, rsc);
 				setSlice(sliceno);
 				makePoint(xUP, yUP);
+				RoiManager.setPosition(sliceno);
 				roiManager("Associate", "true");
 				roiManager("add");
 				roiManager("select", row);
@@ -2418,6 +2419,8 @@ macro "SPIRO_RootGrowth" {
 			saveAs("Tiff", groupdir + groupname + " preskeletonize.tif");
 			run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 			run("Options...", "iterations=1 count=1 pad do=Dilate stack");
+			run("Remove Overlay");
+			updateDisplay();
 			saveAs("Tiff", groupdir + groupname + " rootmask.tif");
 			close(groupname + " rootmask.tif");
 		}
