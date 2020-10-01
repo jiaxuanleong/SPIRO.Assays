@@ -2518,8 +2518,8 @@ macro "SPIRO_RootGrowth" {
 				objectcount = roiManager("count");
 				for (seedlingno = 0; seedlingno < seedlingcount; seedlingno ++) {
 					rscindex = (sliceno * seedlingcount) + seedlingno;
-					rscX = Table.get("XM", rscindex, rsctsv);
-					rscY = Table.get("YM", rscindex, rsctsv); // obtain rsc coordinates
+					rscX = Table.get("xUP", rscindex, rsctsv);
+					rscY = Table.get("yUP", rscindex, rsctsv); // obtain rsc coordinates
 					rscX = parseFloat(rscX);
 					rscY = parseFloat(rscY);
 					objectbyrsc = "objectbyrsc";
