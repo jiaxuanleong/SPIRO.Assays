@@ -607,6 +607,7 @@ macro "SPIRO_Preprocessing" {
 				platename = pnsplit[0];
 				platenamepreproc = platename + "_preprocessed.tif";
 				File.rename(ppdir + ppfilename, ppdir + platenamepreproc);
+			}
 		}
 	}
 	
@@ -1229,6 +1230,7 @@ macro "SPIRO_RootGrowth" {
 	 * ----------------------------------------
 	 */
 	maindir = getDirectory("Choose a Directory");
+	print("Processing directory " + maindir);
 	resultsdir = maindir + "Results" + File.separator; // all output is contained here
 	ppdir = resultsdir + "Preprocessing" + File.separator; // output from the proprocessing macro is here
 	rootgrowthdir = resultsdir + "Root Growth" + File.separator; // output from this macro will be here
@@ -1299,7 +1301,12 @@ macro "SPIRO_RootGrowth" {
 		 */
 		 
 		if (step <= 1) { // check of cropGroupsRG()
-			lastplatefile = listInppdir [listInppdir.length-1]; // checking on last plate
+			lastplateN = 1;
+			lastplatefile = listInppdir [listInppdir.length-lastplateN]; // checking on last plate
+			while (indexOf(lastplatefile, "plate") < 0) {
+				lastplateN += 1;
+				lastplatefile = listInppdir [listInppdir.length-lastplateN];
+			}
 			fnsplit = split(lastplatefile, "_");
 			lastplatename = fnsplit[0];
 			lastplatefolder = rootgrowthdir + lastplatename + File.separator;
@@ -1321,36 +1328,48 @@ macro "SPIRO_RootGrowth" {
 			platearray = newArray(listInrootgrowthdir.length);
 			for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {
 				platefolder = listInrootgrowthdir[platefolderno];
-				platedir = rootgrowthdir + platefolder;
-				if (File.isDirectory(platedir)) {				
-					platearray[platefolderno] = platedir;
-					listInplatedir = getFileList(platedir);
-					noOfgroupsInplatedir = listInplatedir.length;
-					totalnoOfgroups = totalnoOfgroups + noOfgroupsInplatedir;
+				if (indexOf(platefolder, "Removed") < 0 && indexOf(platefolder, "plate") > -1) {
+					platedir = rootgrowthdir + platefolder;
+					if (File.isDirectory(platedir)) {				
+						platearray[platefolderno] = platedir;
+						listInplatedir = getFileList(platedir);
+						noOfgroupsInplatedir = listInplatedir.length;
+						totalnoOfgroups = totalnoOfgroups + noOfgroupsInplatedir;
+					}
 				}
 			}
-	
 			platearray = Array.deleteValue(platearray, 0);
 			fullplatearray = newArray(totalnoOfgroups);
+			platenamearray = newArray(totalnoOfgroups);
 			fullgrouparray = newArray(totalnoOfgroups);
 			
 			fgcurindex = 0; // current index of fullgrouparray
 			
-			for (plateindexno = 0; plateindexno < listInrootgrowthdir.length; plateindexno ++) {
+			for (plateindexno = 0; plateindexno < platearray.length; plateindexno ++) {
 				platedir = platearray[plateindexno];
+				platefoldername = File.getName(platedir);
 				listInplatedir = getFileList(platedir);
 				for (groupfolderno = 0; groupfolderno < listInplatedir.length; groupfolderno ++) {
 					groupfolder = listInplatedir[groupfolderno];
 					groupdir = platedir + groupfolder;
 					if (File.isDirectory(groupdir)) {
 						fullplatearray[fgcurindex] = platedir;
+						platenamearray[fgcurindex] = platefoldername;
 						fullgrouparray[fgcurindex] = groupfolder;
 						fgcurindex += 1;
 					}
 				}
 			}
 			fullplatearray = Array.deleteValue(fullplatearray, 0);
+			platenamearray = Array.deleteValue(platenamearray, 0);
 			fullgrouparray = Array.deleteValue(fullgrouparray, 0);
+
+			print("Plates and groups folders from previous macro run found:"); 
+			for (groupno = 0; groupno < fullgrouparray.length; groupno ++) {
+				platenamecur = platenamearray[groupno];
+				groupnamecur = fullgrouparray[groupno];
+				print(platenamecur + " " + groupnamecur);
+			}
 	
 			finalstep = 6;
 			for (checkstep = 2; checkstep <= finalstep; checkstep ++) {
@@ -1426,6 +1445,7 @@ macro "SPIRO_RootGrowth" {
 					userconfirm = Dialog.getCheckbox();
 				}			
 				roiManager("deselect");
+				run("Select None");
 				run("Make Substack...");
 				substack = getTitle();
 				setSlice(nSlices);
@@ -1548,8 +1568,6 @@ macro "SPIRO_RootGrowth" {
 			
 			if (!is("Batch Mode"))
 				setBatchMode(true);
-			selectWindow("Log");
-			print("Analyzing " + groupname + ", it may look like nothing is happening...");
 			if (selfaware && random > 0.7)
 				print("Is this what a milder version of insanity looks like?");
 			selectWindow("Log");
@@ -2205,8 +2223,7 @@ macro "SPIRO_RootGrowth" {
 		}
 		selectWindow("Log");
 		print("\nStep 5/6. Processing image to make roots more visible");
-		if (!is("Batch Mode"))
-			setBatchMode(true);
+		
 		for (groupprocess = 0; groupprocess < lengthOfgroupsToprocess; groupprocess ++) {  
 			platedir = platesToprocess[groupprocess];
 			platename = File.getName(platedir);
@@ -2217,12 +2234,15 @@ macro "SPIRO_RootGrowth" {
 			print("Processing " + platename + " " + groupname);
 			
 			selectWindow("Log");
-			print("Analyzing " + groupname + ", it may look like nothing is happening...");
+			print("Analyzing " + groupname);
 			if (selfaware && random > 0.7)
 				print("Is this what a milder version of insanity looks like?");
+			if (!is("Batch Mode"))
+			setBatchMode(true);
 			open(groupdir + groupname + ".tif");
 			img = getTitle();
 			nS = nSlices;
+			
 			run("Set Scale...", "global");
 			run("Subtract Background...", "rolling=50 stack");
 			dayslice = 1; // dayslice is the first day image
@@ -2377,18 +2397,19 @@ macro "SPIRO_RootGrowth" {
 			// run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 			// run("Options...", "iterations=1 count=2 pad do=Erode stack");
 			if (overlay) {
+				setBatchMode(false);
 				setBatchMode("show"); //this has to be "show" here for overlay/flatten
 				// overlay the root masks
 				img = getTitle(); ///
 				nS = nSlices; ///
 				roiManager("Associate", "false");
 				roiManager("reset");
-				//run("Colors...", "foreground=black background=black selection=black");
-				//setSlice(1);
-				//slicelabel = getInfo("slice.label");
-				//run("Duplicate...", "use");
-				//rename(slicelabel);
-				setBackgroundColor(0, 0, 0);
+				run("Colors...", "foreground=black background=black selection=black");
+				setSlice(1);
+				slicelabel = getInfo("slice.label");
+				run("Duplicate...", "use");
+				rename(slicelabel);
+				//setBackgroundColor(0, 0, 0);
 				for (sliceno = 1; sliceno < nS; sliceno++) {
 					selectWindow(img);
 					setSlice(sliceno);
@@ -2397,26 +2418,29 @@ macro "SPIRO_RootGrowth" {
 						roiManager("add");
 					}
 					setSlice(sliceno + 1);
-					//slicelabel = getInfo("slice.label");
-					// run("Select All");
-					// run("Duplicate...", "use");
-					// rename(slicelabel);
-					roicount = roiManager("count");
-					roiarray = Array.getSequence(roicount);
-					roiManager("select", roiarray);
-					run("Clear", "slice");
-					// roiManager("Show All without labels");
-					// run("Flatten", "slice");
+					slicelabel = getInfo("slice.label");
+					//run("Select All");
+					//run("Duplicate...", "use");
 					//rename(slicelabel);
-					//run("8-bit");
-					// run("Make Binary");
-					// run("Fill Holes");
+					//roicount = roiManager("count");
+					//roiarray = Array.getSequence(roicount);
+					//roiManager("select", roiarray);
+					//run("Clear", "slice");
+					roiManager("Show All without labels");
+					run("Flatten", "slice");
+					rename(slicelabel);
+					run("8-bit");
+					run("Make Binary");
+					run("Fill Holes");
 				}
-				//close(img);
-				//run("Images to Stack");
+				close(img);
+				run("Images to Stack");
+				setBatchMode("show");
 			}
 			setOption("BlackBackground", false);
 			saveAs("Tiff", groupdir + groupname + " preskeletonize.tif");
+			run("Options...", "iterations=2 count=1 pad do=Erode stack");
+			run("Options...", "iterations=2 count=1 pad do=Erode stack");
 			run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 			run("Options...", "iterations=1 count=1 pad do=Dilate stack");
 			run("Remove Overlay");
@@ -2667,11 +2691,17 @@ macro "SPIRO_RootGrowth" {
 	function deleteOutputRG() {
 		if (freshstart) 
 			 print("Starting analysis from beginning.\nRemoving output from previous run.");
-		print("Deleting non-essential files");
+		print("Removing non-essential files..");
+		removedfilesdir = rootgrowthdir + "Removed Files";
+		if (!File.isDirectory(removedfilesdir))
+			File.makeDirectory(removedfilesdir);
 		for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
 			platefolder = listInrootgrowthdir[platefolderno];
 			if (indexOf(platefolder, "plate") >= 0) { // to avoid processing any random files in the folder
 				platedir = rootgrowthdir + platefolder;
+				removedplatedir = removedfilesdir + File.separator + platefolder;
+				if (!File.isDirectory(removedplatedir))
+					File.makeDirectory(removedplatedir);
 				pfsplit = split(platefolder, "/");
 				platename = pfsplit[0];
 				print("Processing " + platename);
@@ -2679,31 +2709,37 @@ macro "SPIRO_RootGrowth" {
 				for (groupfolderno = 0; groupfolderno < listInplatefolder.length; groupfolderno ++) {
 					groupfolder = listInplatefolder[groupfolderno];
 					groupdir = platedir + groupfolder;
+					removedgroupdir = removedplatedir + groupfolder;
+					if (!File.isDirectory(removedgroupdir))
+						File.makeDirectory(removedgroupdir);
 					groupname = File.getName(groupdir);
 					listIngroupdir = getFileList(groupdir);
-			
-					filedelete = File.delete(groupdir + groupname + ".tif");
-					filedelete = File.delete(groupdir + groupname + " masked.tif");
-					filedelete = File.delete(groupdir + groupname + " rootmask.tif");
-					filedelete = File.delete(groupdir + groupname + " rootstartcoordinates.tsv");
-					filedelete = File.delete(groupdir + groupname + " rootstartrois.zip");
-					filedelete = File.delete(groupdir + groupname + " seedlingpositions.zip");
-					filedelete = File.delete(groupdir + groupname + " seedlingpositions1.zip");
-					filedelete = File.delete(groupdir + "seeds sorted X coordinates.tsv");
-					filedelete = File.delete(groupdir + "seeds sorted Y coordinates.tsv");
-					filedelete = File.delete(groupdir + groupname + " preskeletonize.tif");
-					filedelete = File.delete(groupdir + "firstslice.tif");
-					filedelete = File.delete(groupdir + "secondarypoints.zip");
+					filedelete = File.rename(groupdir + groupname + ".tif", removedgroupdir + groupname + ".tif");
+					filedelete = File.rename(groupdir + groupname + " masked.tif", removedgroupdir + groupname + " masked.tif");
+					filedelete = File.rename(groupdir + groupname + " rootmask.tif", removedgroupdir + groupname + " rootmask.tif");
+					filedelete = File.rename(groupdir + groupname + " rootstartcoordinates.tsv", removedgroupdir + groupname + " rootstartcoordinates.tsv");
+					filedelete = File.rename(groupdir + groupname + " rootstartrois.zip", removedgroupdir + groupname + " rootstartrois.zip");
+					filedelete = File.rename(groupdir + groupname + " seedlingpositions.zip", removedgroupdir + groupname + " seedlingpositions.zip");
+					filedelete = File.rename(groupdir + groupname + " seedlingpositions1.zip", removedgroupdir + groupname + " seedlingpositions1.zip");
+					filedelete = File.rename(groupdir + "seeds sorted X coordinates.tsv", removedgroupdir + "seeds sorted X coordinates.tsv");
+					filedelete = File.rename(groupdir + "seeds sorted Y coordinates.tsv", removedgroupdir + "seeds sorted Y coordinates.tsv");
+					filedelete = File.rename(groupdir + groupname + " preskeletonize.tif", removedgroupdir + groupname + " preskeletonize.tif");
+					filedelete = File.rename(groupdir + "firstslice.tif", removedgroupdir + "firstslice.tif");
+					filedelete = File.rename(groupdir + "secondarypoints.zip", removedgroupdir + "secondarypoints.zip");
 					if (freshstart) {
-						filedelete = File.delete(groupdir + groupname + " rootgrowthdetection.tif");
-						filedelete = File.delete(groupdir + groupname + " rootgrowthmeasurement.tsv");
-						filedelete = File.delete(groupdir + groupname + " germination analysis.tsv");
-						filedelete = File.delete(groupdir);			
+						filedelete = File.rename(groupdir + groupname + " rootgrowthdetection.tif", removedgroupdir + groupname + " rootgrowthdetection.tif");
+						filedelete = File.rename(groupdir + groupname + " rootgrowthmeasurement.tsv", removedgroupdir + groupname + " rootgrowthmeasurement.tsv");
+						filedelete = File.rename(groupdir + groupname + " germination analysis.tsv", removedgroupdir + groupname + " germination analysis.tsv");
+						filedelete = File.delete(groupdir);
 					}
 				}
+			if (freshstart)
+				filedelete = File.delete(platedir);
 			}
 		}
 		freshstart = false; 
 		//turns it back to false so essential output is not deleted at end of macro
+		selectWindow("Log");
+		save(removedfilesdir + File.separator + "Log.txt");
 	}
-}
+}
