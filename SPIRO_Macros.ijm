@@ -1328,7 +1328,7 @@ macro "SPIRO_RootGrowth" {
 			platearray = newArray(listInrootgrowthdir.length);
 			for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {
 				platefolder = listInrootgrowthdir[platefolderno];
-				if (indexOf(platefolder, "Removed") < 0 && indexOf(platefolder, "plate") > -1) {
+				if (indexOf(platefolder, "removed") < 0 && indexOf(platefolder, "plate") > -1) {
 					platedir = rootgrowthdir + platefolder;
 					if (File.isDirectory(platedir)) {				
 						platearray[platefolderno] = platedir;
@@ -2155,6 +2155,7 @@ macro "SPIRO_RootGrowth" {
 			open(groupdir + groupname + ".tif");
 			img = getTitle();
 			roiManager("reset");
+			run("Select None");
 			nr = Table.size(rsc);
 			roiManager("Show All with labels");
 			roiManager("Associate", "true");
@@ -2168,17 +2169,17 @@ macro "SPIRO_RootGrowth" {
 				roino = Table.get("ROI", row, rsc);
 				setSlice(sliceno);
 				makePoint(xUP, yUP);
-				RoiManager.setPosition(sliceno);
 				roiManager("Associate", "true");
 				roiManager("add");
 				roiManager("select", row);
 				roiManager("rename", roino);
+				roiManager("select", row);
+				RoiManager.setPosition(sliceno);
 			}
 			roiManager("save", groupdir + groupname + " rootstartrois.zip");
 			selectWindow(rsc);
 			Table.save(groupdir + groupname + " rootstartcoordinates.tsv");
 			close(rsc);
-
 			roiManager("reset");
 			nrsecpt = Table.size(secpt);
 			for (rowsecpt = 0; rowsecpt < nrsecpt; rowsecpt ++) {
@@ -2625,7 +2626,6 @@ macro "SPIRO_RootGrowth" {
 			}
 			roiManager("reset");
 			setBatchMode(false);
-			
 			selectWindow(rootmask);
 			// graphical output
 			open(groupdir + groupname + " rootstartrois.zip");
@@ -2637,7 +2637,6 @@ macro "SPIRO_RootGrowth" {
 			roiManager("UseNames", "true");
 			updateDisplay();
 			run("Flatten", "stack");
-			
 			open(groupdir + groupname + ".tif");
 			oritif = getTitle();
 			run("RGB Color");
@@ -2656,6 +2655,7 @@ macro "SPIRO_RootGrowth" {
 				setMetadata("Label", slicelabelarray[sliceno]);
 			}
 			
+setBatchMode("show");
 			saveAs("Tiff", groupdir + groupname + " rootgrowthdetection.tif");
 			
 			Table.save(groupdir + groupname + " " + rgm + ".tsv", rgm);
@@ -2741,4 +2741,4 @@ macro "SPIRO_RootGrowth" {
 		selectWindow("Log");
 		save(removedfilesdir + File.separator + "Log.txt");
 	}
-}
+}
