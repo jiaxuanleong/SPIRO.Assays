@@ -6,7 +6,7 @@
 rm(list=ls())
 source('R scripts/common.R')
 
-p_load(dplyr, ggplot2, zoo, data.table)
+p_load(dplyr, ggplot2, ggrepel, patchwork, zoo, data.table)
 
 # ggplot theme
 th <- theme_bw() + theme(legend.position="bottom", legend.text=element_text(size=8))
@@ -35,7 +35,10 @@ plotfile <- function(file) {
            geom_point() + 
            geom_line() +
            scale_x_continuous(sec.axis=sec_axis(~./TimePerSlice, breaks=seq(min(r$elapsed/TimePerSlice), max(r$elapsed/TimePerSlice), 20), name="Slice")) +
-           labs(title=paste0("Unprocessed graph for ", r$GID), x="Elapsed time (h)", y="Root length (cm)") + th)
+           labs(title=paste0("Unprocessed graph for ", r$GID), x="Elapsed time (h)", y="Root length (cm)") + th +
+           geom_label_repel(data=r %>% group_by(UID) %>% arrange(elapsed) %>% summarize(elapsed=last(elapsed), Length=last(Length)), 
+                            aes(label=UID)) +
+           theme(legend.position="none"))
 }
 
 processfile <- function(file, expname) {
@@ -154,22 +157,28 @@ for (f in files) {
   d <- dirname(f)
   dirparams <- unlist(strsplit(d, '/', fixed=T))
   GID <- paste0(dirparams[length(dirparams)-1], '_', dirparams[length(dirparams)])
-  ggsave(plotfile(f), filename=paste0(rundir, '/', GID, '_beforeQC.pdf'), width=25, height=15, units='cm')
+  p_before <- plotfile(f)
   out.tmp <- out[out$Slice > 1,]
   TimePerSlice <- mean(out.tmp$elapsed / (out.tmp$Slice-1))
   
   # plot processed data
-  p <- ggplot(out, aes(x=elapsed, y=Length, color=UID, group=UID)) + 
+  p_proc <- ggplot(out, aes(x=elapsed, y=Length, color=UID, group=UID)) + 
     geom_point() +
     geom_line() +
     scale_x_continuous(sec.axis=sec_axis(~./TimePerSlice, breaks=seq(as.integer(min(out$elapsed/TimePerSlice)), as.integer(max(out$elapsed/TimePerSlice)), 20), name="Slice")) +
-    labs(title=paste0("Processed graph for ", GID), x="Elapsed time (h)", y="Root length (cm)") + th
-  ggsave(p, filename=paste0(rundir, '/', GID, '_postQC_raw.pdf'), width=25, height=15, units='cm')
-  p <- ggplot(out, aes(x=normtime, y=Length, color=UID, group=UID)) + 
+    labs(title=paste0("Processed graph for ", GID), x="Elapsed time (h)", y="Root length (cm)") + th +
+    geom_label_repel(data=out %>% group_by(UID) %>% arrange(elapsed) %>% summarize(elapsed=last(elapsed), Length=last(Length)), 
+                     aes(label=UID)) +
+    theme(legend.position="none")
+  p_norm <- ggplot(out, aes(x=normtime, y=Length, color=UID, group=UID)) + 
     geom_point() +
     geom_line() +
-    labs(title=paste0("Normalized-time graph for ", GID), x="Relative elapsed time (h)", y="Root length (cm)") +th
-  ggsave(p, filename=paste0(rundir, '/', GID, '_postQC_normalized.pdf'), width=25, height=15, units='cm')
+    labs(title=paste0("Normalized-time graph for ", GID), x="Relative elapsed time (h)", y="Root length (cm)") + th +
+    geom_label_repel(data=out %>% group_by(UID) %>% arrange(normtime) %>% summarize(normtime=last(normtime), Length=last(Length)), 
+                     aes(label=UID)) +
+    theme(legend.position="none")
+  p <- p_before / p_proc / p_norm
+  ggsave(p, filename=paste0(rundir, '/', GID, '.pdf'), width=25, height=30, units='cm')
 }
 
 allout %>% arrange(GID, UID, normtime) %>% 
