@@ -63,9 +63,11 @@ if (ngroups > 1) {
     ggplot(aes(x=x, y=predicted, ymin=conf.low, ymax=conf.high, fill=group, group=group)) +
     geom_line(linetype="dashed") + 
     geom_ribbon(alpha=.5) +
-    geom_line(data=plotting, aes(group=UID, ymin=NULL, ymax=NULL), alpha=.7) +
+    geom_line(data=plotting, aes(group=UID, ymin=NULL, ymax=NULL), alpha=.3) +
     facet_wrap(~group) +
-    labs(fill='Group', y="Predicted primary root length (cm)", x="Time since root emergence (h)") -> p
+    labs(fill='Group', y="Predicted primary root length (cm)", x="Time since root emergence (h)") +
+    theme_bw() +
+    theme(legend.position="none") -> p
   ggsave(p, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
 } else {
   fit.glmmTMB %>% ggeffect(terms = c("RelativeElapsedHours [0,24,48,72,96,120,144]")) -> glmmTMB_model_ggeffects
@@ -75,8 +77,10 @@ if (ngroups > 1) {
     ggplot(aes(x=x, y=predicted, ymin=conf.low, ymax=conf.high)) +
     geom_line(linetype="dashed") + 
     geom_ribbon(alpha=.5) +
-    geom_line(data=plotting, aes(group=UID, ymin=NULL, ymax=NULL), alpha=.7) +
-    labs(y="Predicted primary root length (cm)", x="Time since root emergence (h)") -> p
+    geom_line(data=plotting, aes(group=UID, ymin=NULL, ymax=NULL), alpha=.3) +
+    labs(y="Predicted primary root length (cm)", x="Time since root emergence (h)") +
+    theme_bw() +
+    theme(legend.position="none") -> p
   ggsave(p, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
 }
 
