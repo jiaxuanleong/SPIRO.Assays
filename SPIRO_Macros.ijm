@@ -2393,7 +2393,6 @@ macro "SPIRO_RootGrowth" {
 					// run("Remove Outliers...", "radius=4 threshold=50 which=Dark slice");
 				}
 			}
-	
 			// run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 			// run("Options...", "iterations=1 count=2 pad do=Erode stack");
 			if (overlay) {
@@ -2436,11 +2435,11 @@ macro "SPIRO_RootGrowth" {
 				close(img);
 				run("Images to Stack");
 				setBatchMode("show");
+				run("Options...", "iterations=2 count=1 pad do=Erode stack");
 			}
 			setOption("BlackBackground", false);
 			saveAs("Tiff", groupdir + groupname + " preskeletonize.tif");
-			run("Options...", "iterations=2 count=1 pad do=Erode stack");
-			run("Options...", "iterations=2 count=1 pad do=Erode stack");
+			run("Options...", "iterations=1 count=1 pad do=Dilate stack");
 			run("Options...", "iterations=1 count=1 pad do=Skeletonize stack");
 			run("Options...", "iterations=1 count=1 pad do=Dilate stack");
 			run("Remove Overlay");
@@ -2692,7 +2691,7 @@ macro "SPIRO_RootGrowth" {
 		if (freshstart) 
 			 print("Starting analysis from beginning.\nRemoving output from previous run.");
 		print("Removing non-essential files..");
-		removedfilesdir = rootgrowthdir + "Removed Files";
+		removedfilesdir = rootgrowthdir + ".removed files";
 		if (!File.isDirectory(removedfilesdir))
 			File.makeDirectory(removedfilesdir);
 		for (platefolderno = 0; platefolderno < listInrootgrowthdir.length; platefolderno ++) {  // main loop through plates
