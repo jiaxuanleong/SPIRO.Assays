@@ -1169,6 +1169,7 @@ macro "SPIRO_Germination" {
 	}
 }
 
+
 macro "SPIRO_RootGrowth" {
 	/** The root growth macro identifies the root start ie. top of the root, through masking and erosion, then measures the root length after skeletonization***
 	 * The work flow is as follows:
@@ -1731,6 +1732,15 @@ macro "SPIRO_RootGrowth" {
 			run("Select None");
 			saveAs("Tiff", groupdir + groupname + " masked.tif");
 			close(groupname + " masked.tif");
+		}
+		if (resumestep == step) { 
+			/* if partly resumed at this step
+			 *  now that the step is finished,
+			 *  redefine the plates and groups to process, so the next step processes the full number of groups
+			 */
+			platesToprocess = Array.copy(fullplatearray);
+			groupsToprocess = Array.copy(fullgrouparray);
+			lengthOfgroupsToprocess = totalnoOfgroups;
 		}
 	}
 
@@ -2654,8 +2664,7 @@ macro "SPIRO_RootGrowth" {
 				setSlice(sliceno+1);
 				setMetadata("Label", slicelabelarray[sliceno]);
 			}
-			
-setBatchMode("show");
+			setBatchMode("show");
 			saveAs("Tiff", groupdir + groupname + " rootgrowthdetection.tif");
 			
 			Table.save(groupdir + groupname + " " + rgm + ".tsv", rgm);
