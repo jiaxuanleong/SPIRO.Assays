@@ -201,7 +201,7 @@ fwrite(allout, file=paste0(outdir, "/germination.postQC.tsv"), sep='\t')
 if (!grepl('Root Growth$', outdir)) {
   cat(paste0("Saving cleaned and collated data to '", outdir, "/germination.postQC.tsv", "'.\nPlease edit that file to set up correct grouping for your experiment.\n"))
 } else {
-  cat(paste0("Now run process_germination_data.R.\n"))
+  prominent_message("Now run process_germination_data.R.")
 }
 
 # create error log

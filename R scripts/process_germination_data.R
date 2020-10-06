@@ -342,5 +342,5 @@ if (length(unique(data.long$Group)) > 1) {
 
 cat(paste0("Statistics have been written to the directory ", rundir, "\n"))
 if (grepl('Root Growth$', outdir)) {
-  cat("Now run consolidate_rootgrowth_data.R.\n")
+  prominent_message("Now run consolidate_rootgrowth_data.R.")
 }

@@ -58,3 +58,10 @@ getdate <- function(name) {
 getdaynight <- function(name) {
   return(unlist(strsplit(name, '-', fixed=T))[4])
 }
+
+# show prominent message
+prominent_message <- function(message) {
+  cat(paste0(rep('*', nchar(message)), collapse=''))
+  cat(paste0('\n', message, '\n', collapse=''))
+  cat(paste0(rep('*', nchar(message)), collapse=''))
+}
