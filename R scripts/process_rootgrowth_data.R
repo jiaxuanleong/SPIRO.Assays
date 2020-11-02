@@ -97,7 +97,7 @@ fwrite(root.table, file=paste0(rundir, '/Predicted Root Lengths.tsv'), sep='\t')
 p <- ggplot(root.table, aes(x=Group, y=PredictedRootLength, ymin=conf.low, ymax=conf.high, fill=as.ordered(RelativeHours))) + 
   geom_col(position="dodge", color="black") +
   geom_errorbar(position="dodge") +
-  scale_fill_brewer(palette='RdYlBu') +
+  scale_fill_brewer(palette='Greens') +
   theme_bw() +
   labs(fill='Hours', y='Predicted root length (cm)') +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
@@ -147,7 +147,7 @@ for (time in c(24,48,72,96,120,144)) {
 p <- ggplot(rates, aes(x=Group, y=mean, ymin=conf.low, ymax=conf.high, fill=as.ordered(RelativeElapsedHours))) + 
   geom_col(position="dodge", color="black") +
   geom_errorbar(position="dodge") +
-  scale_fill_brewer(palette='RdYlBu') +
+  scale_fill_brewer(palette='Greens') +
   theme_bw() +
   labs(fill='Hours', y=expression('Predicted root growth rate ('*mu*'m/h)')) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
