@@ -41,7 +41,7 @@ This assay was designed for *Arabidopsis thaliana* seed germination analysis by 
 
 **The assay comprises several steps**:
 * Preprocessed data is used to select groups of seeds and define the desired time range for analysis (ImageJ macro)
-* The perimiters and area of each seed is recorded at each time point (ImageJ macro)
+* The perimeters and area of each seed is recorded at each time point (ImageJ macro)
 * The data is data is than subjected to quality control (R script)
 * The data can be optionally adjusted using SPIRO assay customizer that enables relabeling and regrouping of samples
 * The data that passed QC is processed further to determine germination time point for each seed based on dynamics of its perimeter changes (R script)
