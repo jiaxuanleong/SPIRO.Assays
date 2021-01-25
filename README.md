@@ -86,6 +86,25 @@ This assay allows to track primary root length and rate of its growth for indivu
 
 
 
+# SPIRO Assay DEBUG mode
+
+DEBUG mode can be enabled at the start of each assay by holding down the CTRL key.
+
+**Preprocessing**
+* Batch size during drift correction may be lowered for reduced lower RAM requirement
+
+**Seed Germination Assay**:
+* Seed detection parameters i.e. area and circularity may be modified 
+
+**Root growth Assay**:
+* Non-essential intermediate output files will not be deleted at the end of the run. The intermediate files is useful for troubleshooting root masking and root start coordinates
+* Seed detection parameters i.e. area and circularity can be modified
+* Overlay skeletons, where roots are thresholded to favour less broken roots but may create more background noise, can be enabled
+
+<br/>
+
+
+
 # SPIRO Assay Customizer
 <img align="right" width="400" src="https://user-images.githubusercontent.com/6480370/86357062-ce289280-bc5c-11ea-816f-a656977b224c.png" alt="SPIRO Assay Customizer">
 
