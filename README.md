@@ -41,7 +41,7 @@ This assay was designed for *Arabidopsis thaliana* seed germination analysis by 
 
 **The assay comprises several steps**:
 * Preprocessed data is used to select groups of seeds and define the desired time range for analysis (ImageJ macro)
-* The perimiters and area of each seed is recorded at each time point (ImageJ macro)
+* The perimeters and area of each seed is recorded at each time point (ImageJ macro)
 * The data is data is than subjected to quality control (R script)
 * The data can be optionally adjusted using SPIRO assay customizer that enables relabeling and regrouping of samples
 * The data that passed QC is processed further to determine germination time point for each seed based on dynamics of its perimeter changes (R script)
@@ -81,6 +81,40 @@ This assay allows to track primary root length and rate of its growth for indivu
 * Plot with raw root lenght vs time for each seedling of a group 
 * Plot with root length of each seedling normalized to the corresponding germiantion time
 * Results of statistical analysis comparing root growth between groups 
+
+<br/>
+
+
+
+# SPIRO Assay DEBUG mode
+
+DEBUG mode can be enabled at the start of each assay by holding down the CTRL key.
+
+**Preprocessing**
+* Batch size during drift correction may be lowered for reduced lower RAM requirement
+
+  Application: Drift correction for large datasets (e.g. more than 200 time points) can take up a lot of RAM. This may cause ImageJ to freeze up when its allocated RAM is too low, thus images are drift-corrected in batches. If the default batch size of 350 is still causing ImageJ to freeze up on your computer, you may reduce this number e.g. to 100, when the macro prompts you to do so.
+
+**Seed Germination Assay**:
+* Seed detection parameters i.e. area and circularity may be modified
+
+  Application: The default seed detection parameters were optimized using typical Arabidopsis thaliana seeds. If your seeds do not fit the default parameters, the expected area and circularity may be modified when the appropriate dialog box appears during macro run in the debug mode.  The area and circularity of your seeds can be estimated manually in ImageJ using the same thresholding as in the macro.
+
+  **! Changes in the allowed area size must be also introduced into downstream R germination QC R script to allow correct data filtering. For this, please change the variables `upper_area_threshold` and `lower_area_threshold` in `cleanup_germination_data.R`.**
+
+
+**Root growth Assay**:
+* Seed detection parameters i.e. area and circularity can be modified
+
+  Application: see above in “Germination Assay”
+
+* Overlay skeletons can be enabled
+
+  Application: Lighting conditions may affect image capture and cause some roots to look translucent, which makes it difficult for the thresholding methods to distinguish roots from growth media. As the result, on some time frames detected roots might have gaps in their outlines. To overcome this, we introduced the “Overlay Skeletons” function which superimposes roots from one time point to the next, thus filling in potential gaps. However, this function might increase background noise.
+
+* Non-essential intermediate output files will not be deleted at the end of the run.
+
+  Application: If the results of root length macro do not make sense, the intermediate files are useful for troubleshooting root masking and root start coordinates.
 
 <br/>
 
