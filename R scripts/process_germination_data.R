@@ -8,7 +8,8 @@
 rm(list=ls())
 source('R scripts/common.R')
 
-p_load(dplyr, ggplot2, survival, survminer, RcppRoll, data.table, germinationmetrics, doParallel)
+p_load(dplyr, ggplot2, survival, survminer, RcppRoll, data.table, doParallel)
+p_load_gh('aravind-j/germinationmetrics')
 
 kmplot <- function(grp1, grp2, mydata, outdir) {
   ds <- subset(mydata, with(mydata, Group==grp1 | Group==grp2))
