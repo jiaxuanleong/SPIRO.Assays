@@ -9,16 +9,12 @@ Each assay comprises three major steps:
 * Raw data preprocessing (ImageJ macro)
 * Image analysis (ImageJ macro)
 * Quality control and statistical analysis (R scripts, SPIRO assay customizer)
-<br/>
-
 
 <p align="center">
   <img src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/spiro-assays-v1-resized-v2.gif" height="400" title="SPIRO assays overview">
 </p>
 
-
 <b>Figure1.</b> SPIRO semi-automated assays require preprocessing of the raw data to create 8-bit time-lapse stack files with scale set in cm. The preprocessed data can than be used either for seed germination or for root growth assay.
-
 
 # Image preprocessing
 <img align="right" width="600" src="https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/preprocessing-v2%20flat.png" alt="Preprocessing  overview">
@@ -29,9 +25,6 @@ The first step in either of the SPIRO assays is preprocessing of the raw data. *
 * Reducing file size by cropping off unnecessary background in images
 * Converting RGB images into greyscale 8-bit to facilitate further segmentation
 * If needed, correcting for accidental drift of object during imaging
-
-<br/>
-
 
 # SPIRO Seed Germination Assay
 
@@ -50,12 +43,10 @@ This assay was designed for *Arabidopsis thaliana* seed germination analysis by 
 **The results of the assay comprise**:
 * Germination time point for each seed
 * Size of each seed
-* Statistics for germination of each user-selected group of seeds (based on [Germinationmetrics]( https://cran.r-project.org/web/packages/germinationmetrics/index.html))
-* Kaplan-Meier plots for pairwaise comparison of germination in groups 
+* Statistics for germination of each user-selected group of seeds (based on the [germinationmetrics](https://aravind-j.github.io/germinationmetrics/index.html) package)
+* Kaplan-Meier plots for pairwise comparison of germination in groups 
 * T-test comparing seed sizes for all groups
 <br/>
-
-
 
 # SPIRO Root Growth Assay
 
@@ -81,10 +72,6 @@ This assay allows to track primary root length and rate of its growth for indivu
 * Plot with raw root lenght vs time for each seedling of a group 
 * Plot with root length of each seedling normalized to the corresponding germiantion time
 * Results of statistical analysis comparing root growth between groups 
-
-<br/>
-
-
 
 # SPIRO Assay DEBUG mode
 
@@ -116,13 +103,8 @@ DEBUG mode can be enabled at the start of each assay by holding down the CTRL ke
 
   Application: If the results of root length macro do not make sense, the intermediate files are useful for troubleshooting root masking and root start coordinates.
 
-<br/>
-
-
-
 # SPIRO Assay Customizer
 <img align="right" width="400" src="https://user-images.githubusercontent.com/6480370/86357062-ce289280-bc5c-11ea-816f-a656977b224c.png" alt="SPIRO Assay Customizer">
-
 
 The [SPIRO Assay Customizer](https://github.com/jonasoh/spiro-assay-customizer) is a companion tool for SPIRO Assays, which enables a more user friendly handling data rearrangment while running SPIRO assays. Its use is optional but recommended. 
 
@@ -131,8 +113,6 @@ The [SPIRO Assay Customizer](https://github.com/jonasoh/spiro-assay-customizer) 
 * relabeling samples or groups of samples
 * removing samples or groups of samples from analysis
 * reshuffling samples between groups
-
-<br/>
 
 # Troubleshooting
 
