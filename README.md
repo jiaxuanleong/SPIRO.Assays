@@ -67,6 +67,17 @@ This assay allows tracking primary root lengths and growth rates for indivual se
 * Plots with raw and normalized (to germination time) root length vs time for each seedling of a group 
 * Results of statistical analysis comparing root growth between groups 
 
+# SPIRO Assay Customizer
+<img align="right" width="400" src="https://user-images.githubusercontent.com/6480370/86357062-ce289280-bc5c-11ea-816f-a656977b224c.png" alt="SPIRO Assay Customizer">
+
+The [SPIRO Assay Customizer](https://github.com/jonasoh/spiro-assay-customizer) is a companion tool for SPIRO Assays, which enables more user friendly handling of data rearrangment for SPIRO assays. Its use is optional but recommended. 
+
+**The Customizer provides an intuitive user interface for**:
+* Merging data from several experiments
+* Relabelling samples or groups of samples
+* Removing samples or groups of samples from analysis
+* Reshuffling samples between groups
+
 # SPIRO Assay DEBUG mode
 
 DEBUG mode can be enabled at the start of each assay by holding down the Ctrl (Control) key.
@@ -93,17 +104,6 @@ DEBUG mode can be enabled at the start of each assay by holding down the Ctrl (C
 
 * Non-essential intermediate output files will not be deleted at the end of the run
 > If the results of the root growth macro do not make sense, the intermediate files are useful for troubleshooting root masking and root start coordinates.
-
-# SPIRO Assay Customizer
-<img align="right" width="400" src="https://user-images.githubusercontent.com/6480370/86357062-ce289280-bc5c-11ea-816f-a656977b224c.png" alt="SPIRO Assay Customizer">
-
-The [SPIRO Assay Customizer](https://github.com/jonasoh/spiro-assay-customizer) is a companion tool for SPIRO Assays, which enables more user friendly handling of data rearrangment for SPIRO assays. Its use is optional but recommended. 
-
-**The Customizer provides an intuitive user interface for**:
-* Merging data from several experiments
-* Relabelling samples or groups of samples
-* Removing samples or groups of samples from analysis
-* Reshuffling samples between groups
 
 # Troubleshooting
 
