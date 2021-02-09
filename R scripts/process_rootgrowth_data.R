@@ -38,7 +38,7 @@ num_cores <- max(1, detectCores() - 1)
 if (ngroups > 1) {
   fit.glmmTMB <- glmmTMB(data=data,
           formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2, raw=TRUE) * Group + (1+poly(RelativeElapsedHours, 2, raw=TRUE) | UID),
-          REML=T, control=glmmTMBControl(parallel=num_cores))
+          REML=T, control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS"), parallel=num_cores))
   fit.glmmTMB %>% emtrends(~Group, var="RelativeElapsedHours") -> fit.trend
   fit.cld <- cld(fit.trend)
   fit.cld %>% as_tibble %>%
