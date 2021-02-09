@@ -989,7 +989,7 @@ macro "SPIRO_Germination" {
 					Table.set(colname, rowno, xmseeds[ymascendingindexes[0]], sortedxcoords);
 			
 					for (roino = 1; roino < roicount; roino++) {
-						ydiff = ymseeds[ymascendingindexes[roino]] - ymseeds[ymascendingindexes[roino-1]];
+						ydiff = (ymseeds[ymascendingindexes[roino]]) - (ymseeds[ymascendingindexes[roino-1]]);
 						if (ydiff > 0.25) { // if next y coordinate is greater than 2.5mm, add a row
 							rowno = rowno + 1;
 							col = 0;
