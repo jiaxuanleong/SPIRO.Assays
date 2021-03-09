@@ -260,7 +260,7 @@ for(group in unique(data.long$Group)) {
              cat(paste0("Unable to generate germination plot for group ", group, ":\n"))
              cat(paste0(e$message, "\n"))
            })
-  print(plot(graph) + scale_x_continuous(breaks=seq(0, max(germstats$ApproxTime[germstats$Group == group]), 24)) + labs(x="Time (h)"))
+  print(plot(graph, mgt=F) + scale_x_continuous(breaks=seq(0, max(germstats$ApproxTime[germstats$Group == group]), 24)) + labs(x="Time (h)"))
   dev.off()
 }
 
