@@ -3,7 +3,7 @@
   <b>S</b>mart <b>P</b>late <b>I</b>maging <b>Ro</b>bot semi-automated assays
 </p>
 
-This repository contains ImageJ macros, R scripts and a detailed [manual](https://github.com/jiaxuanleong/SPIRO.Assays/raw/master/SPIRO%20Assays%20Manual%20v4.pdf) for semi-automated high-throughput image analyses for seed germination and root growth assays. Both assays were optimized for the plant model organism *Arabidopsis thaliana* and data acquired using [SPIRO](https://github.com/jonasoh/spiro). 
+This repository contains ImageJ macros, R scripts and a detailed [manual](https://github.com/jiaxuanleong/SPIRO.Assays/raw/master/SPIRO%20Assays%20Manual.pdf) for semi-automated high-throughput image analyses for seed germination and root growth assays. Both assays were optimized for the plant model organism *Arabidopsis thaliana* and data acquired using [SPIRO](https://github.com/jonasoh/spiro). 
 
 Each assay comprises three major steps:
 * Raw data preprocessing (ImageJ macros)
