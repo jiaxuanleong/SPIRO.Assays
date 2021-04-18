@@ -2598,10 +2598,28 @@ macro "SPIRO_RootGrowth" {
 								setBackgroundColor(255, 255, 255);
 								run("Clear Outside");
 								run("Create Selection");
-								if (selectionType() != -1) { 
+								if (selectionType() == 4) { //if traced selection type
+									run("Area to Line");
 									run("Measure");
-									objectlength = getResult("Perim.", nResults-1);
-								} else {
+									objectlength = getResult("Length", nResults-1);
+								} 
+								if (selectionType() == 9) { //if composite selection type due to specified rectangle cutting weirdly across roots
+									presplitcount = roiManager("count");
+									roiManager("split");
+									postsplitcount = roiManager("count");
+									compositeselectionparts = postsplitcount - presplitcount;
+									objectlength = 0;
+									for (CSpartcurrent = 0; CSpartcurrent < compositeselectionparts; CSpartcurrent ++) {
+										roiManager("select", roiManager("count")-1); // select from bottom
+										run("Area to Line");
+										run("Measure");
+										partlength =  getResult("Length", nResults-1);
+										objectlength = objectlength + partlength;
+										roiManager("select", roiManager("count")-1);
+										roiManager("delete");
+									}
+								}
+								if (selectionType() == -1) {
 									objectlength = 0;
 								}
 								Table.set("objectlength", nRobjectbyrsc, objectlength, objectbyrsc);
