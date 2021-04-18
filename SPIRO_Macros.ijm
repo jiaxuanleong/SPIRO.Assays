@@ -2654,6 +2654,10 @@ macro "SPIRO_RootGrowth" {
 			}
 			roiManager("reset");
 			setBatchMode(false);
+			if (groupprocess == 0 ) {
+					close(rootmask);
+					open(groupdir + groupname + " rootmask.tif");
+			}
 			selectWindow(rootmask);
 			// graphical output
 			open(groupdir + groupname + " rootstartrois.zip");
