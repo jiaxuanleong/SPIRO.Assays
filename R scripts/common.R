@@ -51,7 +51,8 @@ elapsed <- function(from, to) {
 getdate <- function(name) {
   params <- unlist(strsplit(name, '-', fixed=T))
   x <- paste0(params[2:3], collapse='')
-  return(strptime(x, format='%Y%m%d%H%M%S'))
+  datetime <- strptime(x, format='%Y%m%d%H%M%S'))
+  return(strftime(datetime, format='%Y-%m-%d %H:%M:%S'))
 }
 
 # extract day/night from filename
