@@ -17,6 +17,7 @@ var DEBUG = false; // hold down ctrl during macro start to keep non-essential in
 var freshstart = false; // hold down shift key during macro start to delete all previous data
 var selfaware = false; // rootgrowth: alt key during macro start
 var overlay = false; // rootgrowth: dependent on DEBUG: prompts user on choice whether to overlay skeletons
+var RSCtracking = true; //rootgrowth: dependent on DEBUG: prompts user on choice whether to track RSC dynamically, otherwise use seed position as RSC
 
 // PREPROCESSING-SPECIFIC VARIABLES
 var runRegistration // user choice on whether to run registration
@@ -1203,7 +1204,8 @@ macro "SPIRO_RootGrowth" {
 		DEBUG = getBoolean("CTRL key pressed. Run macro in debug mode?\n" +
 			"Non-essential intermediate output files will not be deleted at the end of the run.\n" +
 			"Seed detection parameters can be modified.\n" +
-			"Overlay skeletons can be enabled.");
+			"Overlay skeletons can be enabled.\n" +
+			"Root Start Coordinate tracking can be disabled.");
 		
 	freshstart = 0;
 	if (isKeyDown("shift"))
@@ -1214,17 +1216,28 @@ macro "SPIRO_RootGrowth" {
 		selfaware = getBoolean("ALT key pressed. Are you sure you want to continue?");
 
 	if (DEBUG) {
-		Dialog.create("DEBUG: Enable overlay skeletons?");
-		Dialog.addMessage("Overlay skeletons is not set to run on default.\n" +
+		Dialog.create("DEBUG: run macro in DEBUG mode?");
+		Dialog.addMessage("Overlay skeletons is not set to run on default." +
 			"Enabling this reduces broken roots but may increase noise," +
-			"please indicate if you would like to enable it");
-		Dialog.addChoice("Overlay skeletons", newArray("Enable", "Disable"));
+			"please indicate if you would like to enable it.\n" +
+			"RSC tracking is set to run on default. Disabling this could be useful for seedlings where root starts do not wiggle.");
+		Dialog.addChoice("Overlay skeletons", newArray("Disable", "Enable"));
+		Dialog.addChoice("RSC tracking", newArray("Enable", "Disable"));
 		Dialog.show();
 		overlaychoice = Dialog.getChoice();
-		if (overlaychoice == "Enable")
+		RSCtrackingchoice = Dialog.getChoice();
+		if (overlaychoice == "Enable") {
 			overlay = true;
-		if (overlaychoice == "Disable")
+			print("Overlay enabled");
+		} else {
 			overlay = false;
+		}
+		if (RSCtrackingchoice == "Enable") {
+			RSCtracking = true;
+		} else {
+			RSCtracking = false;
+			print("Root Start Coordinate tracking disabled");
+		}
 	}
 
 	/* Create and/or define working directories
@@ -1966,202 +1979,228 @@ macro "SPIRO_RootGrowth" {
 					
 			selectWindow("Log");
 			print("Analyzing " + groupname + "...");
-			
-			open(groupdir + groupname + " masked.tif");
-			mask = getTitle();
-			roiManager("reset");
-			roiManager("open", groupdir + groupname + " seedlingpositions.zip");
-			roicount = roiManager("count");
-			roiarray = Array.getSequence(roicount);
-			run("Set Measurements...", "center redirect=None decimal=5");
-			run("Clear Results");
-			roiManager("select", roiarray);
-			roiManager("multi-measure");
-	
-			scaledwroi = 0.12; // width of ROI for finding root start coordinates is 0.12cm
-			scaledhroi = 0.18; // height of ROI is 0.18cm
-			unscaledwroi = 0.12;
-			unscaledhroi = 0.18;
-			topoffset = 0.1; // 0.1 needed to include a little more of the top bit from the centre of mass
-			toUnscaled(unscaledwroi, unscaledhroi);
-			summarytable = "Summary of " + mask;
-			
-			nS = nSlices;
-			rsc = "Root start coordinates";
-			Table.create(rsc);
-			secpt = "secondarypoints";
-			Table.create(secpt);
-			
-			//TO MAKE ROI, first slice, obtain XY coordinates from Results 
-			setSlice(1);
-			roiManager("reset");
-			yref = "YRef";
-			Table.create(yref);  // table for "y references" which contain the top and bottom borders
-	
-			// the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc
-			// from jumping to hypocotyls or sliding down roots
-			for (roino = 0; roino < roicount; roino ++) {
-				xisp = getResult("X", roino); // xisp is x initial seed roinoition
-				yisp = getResult("Y", roino); // yisp is y initial seed position
-				ytb = yisp - 0.05; // y top border 0.05
-				ybb = yisp + 0.4;  // y bottom border 0.4
-				Table.set("ytb", roino, ytb, yref); // y (top border) cannot be more than 0.4cm to the top of initial xm
-				Table.set("ybb", roino, ybb, yref); // y (bottom border) cannot be more than yisp
-				
-				//for first slice, no UP, immediately set rsc using output of analyze particles
-				nr = Table.size(rsc);
-				sliceno = 1;
-				Table.set("Slice", nr, sliceno, rsc);
-				Table.set("ROI", nr, roino + 1, rsc);
-				toUnscaled(xisp, yisp);
-				Table.set("xUP", nr, xisp, rsc); // set xm as initial position (no erosion)
-				Table.set("yUP", nr, yisp, rsc); // set ym
-			}
-			
-			for (sliceno = 2; sliceno <= nS; sliceno ++) { // for each slice
-				setSlice(sliceno); // starting with second slice
-				roiManager("reset");
-				
-				for (roino = 0; roino < roicount; roino++) {
-					prevsliceno = sliceno - 2; //minus 1 for startfrom0, minus 1 for prevslice
-					rowIndex = (prevsliceno * roicount) + roino;
-					// rowIndex to reference same ROI from previous slice
-					// xm, ym are coordinates for the centre of mass obtained through erosion
-					xUPprev = Table.get("xUP", rowIndex, rsc); // xm of prev slice
-					yUPprev = Table.get("yUP", rowIndex, rsc);  // ym of prev slice
-					xUPprev = parseFloat(xUPprev);
-					yUPprev = parseFloat(yUPprev);
-					toScaled(xUPprev, yUPprev);
-					ytb = Table.get("ytb", roino, yref);
-					ybb = Table.get("ybb", roino, yref);
-					ytb = parseFloat(ytb);
-					ybb = parseFloat(ybb);
-					yroi = yUPprev - topoffset; // yroi is top+leftmost ycoordinate of roi
-					xroi = xUPprev - 0.5*scaledwroi; // xroi is top+leftmost xcoordinate of roi and 0.06 is half of h (height)
-	
-					// the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc from jumping to hypocotyls or sliding down roots
-					if (yroi < ytb) { // top border exceeded by top of roi
-						yroi = ytb;
-					}
-	
-					yroibottom = yroi + scaledhroi; // bottom line of roi is y
-					if (yroibottom > ybb) { // lower limit of roi bottom border exceeded
-						exceededverticaldistance = yroibottom - ybb;
-						shortenedhroi = scaledhroi - exceededverticaldistance;
-					}
-	
-					toUnscaled(xroi, yroi);
-	
-					if (yroibottom > ybb) {
-						toUnscaled(shortenedhroi);
-						makeRectangle(xroi, yroi, unscaledwroi, shortenedhroi);
-					} else {
-						makeRectangle(xroi, yroi, unscaledwroi, unscaledhroi);
-					}
-					roiManager("add");
-					roiManager("select", roiManager("count")-1);
-					//roiManager("Remove Slice Info");
-				}
-				
-				/*
-				 * AFTER ROI MADE (per slice), run ultimate points
-				 */
-				roiarray = Array.getSequence(roicount);
-				roiManager("select", roiarray);
-				roiManager("Combine");
-				setBackgroundColor(255, 255, 255);
-				run("Clear Outside", "slice");
-				run("Ultimate Points", "slice");
-				run("Select All");
-				run("Duplicate...", "use");
-				uep = getTitle();
-				
-				run("Select All");
-				run("Duplicate...", "use"); // convert to mask works on a whole image or stack, duplicate to save time
-				rename("pixelpositions");
-				setOption("BlackBlackround", false);
-				setThreshold(1, 255);
-				run("Convert to Mask", "background=Light");
-				roiManager("reset");
-				run("Create Selection");
-				close("pixelpositions");
-				selectWindow(uep);
-				run("Restore Selection");
-				
-				if (selectionType() == 9)
-					roiManager("split");
 
-				run("Set Measurements...", "modal center redirect=None decimal=5");
-				UPcount = roiManager("count");
-				// match ultimate points to rois
-				for (roino = 0; roino < roicount; roino ++) { // for number of rois (seedlingpositions)
-					pUPRD = "prevUPrefdist"; // previous slice ultimate point reference distance
-					Table.create(pUPRD);
-					rowIndex = (prevsliceno * roicount) + roino;
-					// rowIndex to reference same ROI from previous slice
-					// xUP and yUP are coordinates for the ultimate points
-					xUPprev = Table.get("xUP", rowIndex, rsc); // xUP of prev slice
-					yUPprev = Table.get("yUP", rowIndex, rsc);  // yUP of prev slice
-					xUPprev = parseFloat(xUPprev);
-					yUPprev = parseFloat(yUPprev);
-					for (UPno = 0; UPno < UPcount; UPno ++) {
-						run("Clear Results");
-						roiManager("select", UPno);
-						run("Measure");
-						xUPcur = getResult("XM", nResults-1);
-						yUPcur = getResult("YM", nResults-1);
-						toUnscaled(xUPcur, yUPcur);
-						graycur = getResult("Mode", nResults-1);
-						ydist = abs(yUPprev-yUPcur); // Pythagoras theorem to obtain euclidean distance between two points
-						xdist = abs(xUPprev-xUPcur);
-						distUPsq = (ydist*ydist) + (xdist*xdist);
-						distUP = sqrt(distUPsq); // distance of the current point to previous UP
-						toScaled(distUP);
-						if (distUP < 0.1) {
-							nrpUPRD = Table.size(pUPRD);
-							Table.set("Gray", nrpUPRD, graycur, pUPRD);
-							Table.set("xUP", nrpUPRD, xUPcur, pUPRD);
-							Table.set("yUP", nrpUPRD, yUPcur, pUPRD);
-						}
+			if (!RSCtracking) {
+				open(groupdir + groupname + " masked.tif");
+				mask = getTitle();
+				roiManager("open", groupdir + groupname + " seedlingpositions.zip");
+				roicount = roiManager("count");
+				roiarray = Array.getSequence(roicount);
+				run("Set Measurements...", "center redirect=None decimal=5");
+				run("Clear Results");
+				roiManager("select", roiarray);
+				roiManager("multi-measure");
+				nS = nSlices;
+				rsc = "Root start coordinates";
+				Table.create(rsc);
+				for (sliceno = 1; sliceno <= nS; sliceno ++) {
+					for (roino = 0; roino < roicount; roino ++) {
+						xisp = getResult("X", roino); // xisp is x initial seed roinoition
+						yisp = getResult("Y", roino); // yisp is y initial seed position
+						nr = Table.size(rsc);
+						Table.set("Slice", nr, sliceno, rsc);
+						Table.set("ROI", nr, roino + 1, rsc);
+						toUnscaled(xisp, yisp);
+						Table.set("xUP", nr, xisp, rsc); // set xm as initial position (no erosion)
+						Table.set("yUP", nr, yisp, rsc); // set ym
 					}
-					nrpUPRD = Table.size(pUPRD);
-					if (nrpUPRD >= 1) {
-						grayarray = Table.getColumn("Gray", pUPRD);
-						rankgrayarray = Array.rankPositions(grayarray);
-						Array.reverse(rankgrayarray);
-						indexhighestgray = rankgrayarray[0];
-						xUPconfirmed = Table.get("xUP", indexhighestgray, pUPRD);
-						yUPconfirmed = Table.get("yUP", indexhighestgray, pUPRD);
-					} else {
-						xUPconfirmed = xUPprev;
-						yUPconfirmed = yUPprev;
-					}
-					cursliceno = sliceno - 1; // -1 for startfrom0
-					nr = (cursliceno * roicount) + roino;
+				}
+			} else {
+				open(groupdir + groupname + " masked.tif");
+				mask = getTitle();
+				roiManager("reset");
+				roiManager("open", groupdir + groupname + " seedlingpositions.zip");
+				roicount = roiManager("count");
+				roiarray = Array.getSequence(roicount);
+				run("Set Measurements...", "center redirect=None decimal=5");
+				run("Clear Results");
+				roiManager("select", roiarray);
+				roiManager("multi-measure");
+		
+				scaledwroi = 0.12; // width of ROI for finding root start coordinates is 0.12cm
+				scaledhroi = 0.18; // height of ROI is 0.18cm
+				unscaledwroi = 0.12;
+				unscaledhroi = 0.18;
+				topoffset = 0.1; // 0.1 needed to include a little more of the top bit from the centre of mass
+				toUnscaled(unscaledwroi, unscaledhroi);
+				summarytable = "Summary of " + mask;
+				
+				nS = nSlices;
+				rsc = "Root start coordinates";
+				Table.create(rsc);
+				secpt = "secondarypoints";
+				Table.create(secpt);
+				
+				//TO MAKE ROI, first slice, obtain XY coordinates from Results 
+				setSlice(1);
+				roiManager("reset");
+				yref = "YRef";
+				Table.create(yref);  // table for "y references" which contain the top and bottom borders
+		
+				// the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc
+				// from jumping to hypocotyls or sliding down roots
+				for (roino = 0; roino < roicount; roino ++) {
+					xisp = getResult("X", roino); // xisp is x initial seed roinoition
+					yisp = getResult("Y", roino); // yisp is y initial seed position
+					ytb = yisp - 0.05; // y top border 0.05
+					ybb = yisp + 0.4;  // y bottom border 0.4
+					Table.set("ytb", roino, ytb, yref); // y (top border) cannot be more than 0.4cm to the top of initial xm
+					Table.set("ybb", roino, ybb, yref); // y (bottom border) cannot be more than yisp
+					
+					//for first slice, no UP, immediately set rsc using output of analyze particles
+					nr = Table.size(rsc);
+					sliceno = 1;
 					Table.set("Slice", nr, sliceno, rsc);
 					Table.set("ROI", nr, roino + 1, rsc);
-					Table.set("xUP", nr, xUPconfirmed, rsc); 
-					Table.set("yUP", nr, yUPconfirmed, rsc);
-
-					if (nrpUPRD >= 2) {
-						for (secondarypoints = 1; secondarypoints < nrpUPRD; secondarypoints ++) { 
-							nrsecpt = Table.size(secpt); 
-							indexsecondarygray = rankgrayarray[secondarypoints];
-							secondaryxUP = Table.get("xUP", indexsecondarygray, pUPRD);
-							secondaryyUP = Table.get("yUP", indexsecondarygray, pUPRD);
-							Table.set("Slice", nrsecpt, sliceno, secpt);
-							Table.set("ROI", nrsecpt, roino + 1, secpt);
-							Table.set("xUP", nrsecpt, secondaryxUP, secpt); 
-							Table.set("yUP", nrsecpt, secondaryyUP, secpt);
-						}
-					}
-					Table.reset(pUPRD);
+					toUnscaled(xisp, yisp);
+					Table.set("xUP", nr, xisp, rsc); // set xm as initial position (no erosion)
+					Table.set("yUP", nr, yisp, rsc); // set ym
 				}
-				close(uep);
+				
+				for (sliceno = 2; sliceno <= nS; sliceno ++) { // for each slice
+					setSlice(sliceno); // starting with second slice
+					roiManager("reset");
+					
+					for (roino = 0; roino < roicount; roino++) {
+						prevsliceno = sliceno - 2; //minus 1 for startfrom0, minus 1 for prevslice
+						rowIndex = (prevsliceno * roicount) + roino;
+						// rowIndex to reference same ROI from previous slice
+						// xm, ym are coordinates for the centre of mass obtained through erosion
+						xUPprev = Table.get("xUP", rowIndex, rsc); // xm of prev slice
+						yUPprev = Table.get("yUP", rowIndex, rsc);  // ym of prev slice
+						xUPprev = parseFloat(xUPprev);
+						yUPprev = parseFloat(yUPprev);
+						toScaled(xUPprev, yUPprev);
+						ytb = Table.get("ytb", roino, yref);
+						ybb = Table.get("ybb", roino, yref);
+						ytb = parseFloat(ytb);
+						ybb = parseFloat(ybb);
+						yroi = yUPprev - topoffset; // yroi is top+leftmost ycoordinate of roi
+						xroi = xUPprev - 0.5*scaledwroi; // xroi is top+leftmost xcoordinate of roi and 0.06 is half of h (height)
+		
+						// the borders are setting the top/bottom limits within which the roi can be positioned to prevent rsc from jumping to hypocotyls or sliding down roots
+						if (yroi < ytb) { // top border exceeded by top of roi
+							yroi = ytb;
+						}
+		
+						yroibottom = yroi + scaledhroi; // bottom line of roi is y
+						if (yroibottom > ybb) { // lower limit of roi bottom border exceeded
+							exceededverticaldistance = yroibottom - ybb;
+							shortenedhroi = scaledhroi - exceededverticaldistance;
+						}
+		
+						toUnscaled(xroi, yroi);
+		
+						if (yroibottom > ybb) {
+							toUnscaled(shortenedhroi);
+							makeRectangle(xroi, yroi, unscaledwroi, shortenedhroi);
+						} else {
+							makeRectangle(xroi, yroi, unscaledwroi, unscaledhroi);
+						}
+						roiManager("add");
+						roiManager("select", roiManager("count")-1);
+						//roiManager("Remove Slice Info");
+					}
+					
+					/*
+					 * AFTER ROI MADE (per slice), run ultimate points
+					 */
+					roiarray = Array.getSequence(roicount);
+					roiManager("select", roiarray);
+					roiManager("Combine");
+					setBackgroundColor(255, 255, 255);
+					run("Clear Outside", "slice");
+					run("Ultimate Points", "slice");
+					run("Select All");
+					run("Duplicate...", "use");
+					uep = getTitle();
+					
+					run("Select All");
+					run("Duplicate...", "use"); // convert to mask works on a whole image or stack, duplicate to save time
+					rename("pixelpositions");
+					setOption("BlackBlackround", false);
+					setThreshold(1, 255);
+					run("Convert to Mask", "background=Light");
+					roiManager("reset");
+					run("Create Selection");
+					close("pixelpositions");
+					selectWindow(uep);
+					run("Restore Selection");
+					
+					if (selectionType() == 9)
+						roiManager("split");
+	
+					run("Set Measurements...", "modal center redirect=None decimal=5");
+					UPcount = roiManager("count");
+					// match ultimate points to rois
+					for (roino = 0; roino < roicount; roino ++) { // for number of rois (seedlingpositions)
+						pUPRD = "prevUPrefdist"; // previous slice ultimate point reference distance
+						Table.create(pUPRD);
+						rowIndex = (prevsliceno * roicount) + roino;
+						// rowIndex to reference same ROI from previous slice
+						// xUP and yUP are coordinates for the ultimate points
+						xUPprev = Table.get("xUP", rowIndex, rsc); // xUP of prev slice
+						yUPprev = Table.get("yUP", rowIndex, rsc);  // yUP of prev slice
+						xUPprev = parseFloat(xUPprev);
+						yUPprev = parseFloat(yUPprev);
+						for (UPno = 0; UPno < UPcount; UPno ++) {
+							run("Clear Results");
+							roiManager("select", UPno);
+							run("Measure");
+							xUPcur = getResult("XM", nResults-1);
+							yUPcur = getResult("YM", nResults-1);
+							toUnscaled(xUPcur, yUPcur);
+							graycur = getResult("Mode", nResults-1);
+							ydist = abs(yUPprev-yUPcur); // Pythagoras theorem to obtain euclidean distance between two points
+							xdist = abs(xUPprev-xUPcur);
+							distUPsq = (ydist*ydist) + (xdist*xdist);
+							distUP = sqrt(distUPsq); // distance of the current point to previous UP
+							toScaled(distUP);
+							if (distUP < 0.1) {
+								nrpUPRD = Table.size(pUPRD);
+								Table.set("Gray", nrpUPRD, graycur, pUPRD);
+								Table.set("xUP", nrpUPRD, xUPcur, pUPRD);
+								Table.set("yUP", nrpUPRD, yUPcur, pUPRD);
+							}
+						}
+						nrpUPRD = Table.size(pUPRD);
+						if (nrpUPRD >= 1) {
+							grayarray = Table.getColumn("Gray", pUPRD);
+							rankgrayarray = Array.rankPositions(grayarray);
+							Array.reverse(rankgrayarray);
+							indexhighestgray = rankgrayarray[0];
+							xUPconfirmed = Table.get("xUP", indexhighestgray, pUPRD);
+							yUPconfirmed = Table.get("yUP", indexhighestgray, pUPRD);
+						} else {
+							xUPconfirmed = xUPprev;
+							yUPconfirmed = yUPprev;
+						}
+						cursliceno = sliceno - 1; // -1 for startfrom0
+						nr = (cursliceno * roicount) + roino;
+						Table.set("Slice", nr, sliceno, rsc);
+						Table.set("ROI", nr, roino + 1, rsc);
+						Table.set("xUP", nr, xUPconfirmed, rsc); 
+						Table.set("yUP", nr, yUPconfirmed, rsc);
+	
+						if (nrpUPRD >= 2) {
+							for (secondarypoints = 1; secondarypoints < nrpUPRD; secondarypoints ++) { 
+								nrsecpt = Table.size(secpt); 
+								indexsecondarygray = rankgrayarray[secondarypoints];
+								secondaryxUP = Table.get("xUP", indexsecondarygray, pUPRD);
+								secondaryyUP = Table.get("yUP", indexsecondarygray, pUPRD);
+								Table.set("Slice", nrsecpt, sliceno, secpt);
+								Table.set("ROI", nrsecpt, roino + 1, secpt);
+								Table.set("xUP", nrsecpt, secondaryxUP, secpt); 
+								Table.set("yUP", nrsecpt, secondaryyUP, secpt);
+							}
+						}
+						Table.reset(pUPRD);
+					}
+					close(uep);
+				}
 			}
 			close("Results");
 			close(mask);
-			
 			open(groupdir + groupname + ".tif");
 			img = getTitle();
 			roiManager("reset");
@@ -2191,6 +2230,8 @@ macro "SPIRO_RootGrowth" {
 			Table.save(groupdir + groupname + " rootstartcoordinates.tsv");
 			close(rsc);
 			roiManager("reset");
+
+			/* for debug purposes if ultimate points not working well
 			nrsecpt = Table.size(secpt);
 			for (rowsecpt = 0; rowsecpt < nrsecpt; rowsecpt ++) {
 				secondaryxUP = Table.get("xUP", rowsecpt, secpt);
@@ -2205,6 +2246,7 @@ macro "SPIRO_RootGrowth" {
 				roiManager("rename", roino);
 			}
 			roiManager("save", groupdir + "secondarypoints.zip");
+			*/
 			close();
 		}
 		if (resumestep == step) { 
@@ -2598,10 +2640,28 @@ macro "SPIRO_RootGrowth" {
 								setBackgroundColor(255, 255, 255);
 								run("Clear Outside");
 								run("Create Selection");
-								if (selectionType() != -1) { 
+								if (selectionType() == 4) { //if traced selection type
+									run("Area to Line");
 									run("Measure");
-									objectlength = getResult("Perim.", nResults-1);
-								} else {
+									objectlength = getResult("Length", nResults-1);
+								} 
+								if (selectionType() == 9) { //if composite selection type due to specified rectangle cutting weirdly across roots
+									presplitcount = roiManager("count");
+									roiManager("split");
+									postsplitcount = roiManager("count");
+									compositeselectionparts = postsplitcount - presplitcount;
+									objectlength = 0;
+									for (CSpartcurrent = 0; CSpartcurrent < compositeselectionparts; CSpartcurrent ++) {
+										roiManager("select", roiManager("count")-1); // select from bottom
+										run("Area to Line");
+										run("Measure");
+										partlength =  getResult("Length", nResults-1);
+										objectlength = objectlength + partlength;
+										roiManager("select", roiManager("count")-1);
+										roiManager("delete");
+									}
+								}
+								if (selectionType() == -1) {
 									objectlength = 0;
 								}
 								Table.set("objectlength", nRobjectbyrsc, objectlength, objectbyrsc);
@@ -2636,6 +2696,10 @@ macro "SPIRO_RootGrowth" {
 			}
 			roiManager("reset");
 			setBatchMode(false);
+			if (groupprocess == 0 ) {
+					close(rootmask);
+					open(groupdir + groupname + " rootmask.tif");
+			}
 			selectWindow(rootmask);
 			// graphical output
 			open(groupdir + groupname + " rootstartrois.zip");
