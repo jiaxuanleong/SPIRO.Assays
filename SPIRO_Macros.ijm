@@ -711,7 +711,7 @@ macro "SPIRO_Germination" {
 				userconfirm = false;
 				while (!userconfirm) {
 					Dialog.createNonBlocking("Time range selection");
-					Dialog.addMessage("Please note first and last slice to be included for root growth analysis, and indicate it in the next step.");
+					Dialog.addMessage("Please note first and last slice to be included for germination analysis, and indicate it in the next step.");
 					Dialog.addCheckbox("First and last slices have been noted", false);
 					Dialog.show();
 					userconfirm = Dialog.getCheckbox();
