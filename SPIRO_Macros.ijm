@@ -2521,7 +2521,7 @@ macro "SPIRO_RootGrowth" {
 			print("Where is the limit of self?");
 		selectWindow("Log");
 		print("\nStep 6/6. Tracking root growth");
-		for (groupprocess = 0; groupprocess < lengthOfgroupsToprocess; groupprocess ++) {  
+		for (groupprocess = 0; groupprocess < lengthOfgroupsToprocess; groupprocess ++) {
 			platedir = platesToprocess[groupprocess];
 			platename = File.getName(platedir);
 			groupfolder = groupsToprocess[groupprocess];
@@ -2545,7 +2545,6 @@ macro "SPIRO_RootGrowth" {
 			Table.create(rgm);
 			if (!is("Batch Mode"))
 				setBatchMode(true); 
-	
 			rsccount = Table.size(rsctsv);
 			seedlingcount = rsccount / nS;
 	
@@ -2601,7 +2600,6 @@ macro "SPIRO_RootGrowth" {
 					objectbyrsc = "objectbyrsc";
 					Table.create(objectbyrsc);
 					nrrgm = Table.size(rgm);
-			
 					for (objectno = 0; objectno < objectcount; objectno ++) {
 						roiManager("select", objectno);
 						Roi.getContainedPoints(xpointsobject, ypointsobject); // calculate for each point in object, distance to rsc
@@ -2621,52 +2619,18 @@ macro "SPIRO_RootGrowth" {
 							if (distancetorsc < 0.1 && tablesetonce == 0) { // if distancetorsc below 0.1, the object is assumed to be a seedling
 								Table.set("objectno", nRobjectbyrsc, objectno, objectbyrsc); // object roi number copied to a table
 								roiManager("select", objectno);
-								Roi.getCoordinates(xpoints, ypoints); 
-								getBoundingRect(objectx, objecty, objectw, objecth); 
-								for (pointarray = 0; pointarray < xpoints.length; pointarray ++) { // to adjust so that coordinates within tempskel correspond to main img
-									curxpoint = xpoints[pointarray];
-									curypoint = ypoints[pointarray];
-									diffy = rscY - objecty;
-									xpoints[pointarray] = curxpoint - objectx;
-									ypoints[pointarray] = curypoint - objecty - diffy; 
-								}
-	
-								// a small selection with the seedling is duplicated so that "clear outside" can be used to remove trash around seedling within rectangular roi
-								curslice = sliceno+1;
-								run("Specify...", "width=["+objectw+"] height=["+objecth+"] x=["+objectx+"] y=["+rscY+"] slice=["+curslice+"]");
-								run("Duplicate...", "use");
-								rename("tempskel");
-								makeSelection(2, xpoints, ypoints);
-								setBackgroundColor(255, 255, 255);
-								run("Clear Outside");
-								run("Create Selection");
-								if (selectionType() == 4) { //if traced selection type
+								if (selectionType() <= 4 && selectionType() >= 0) { //if selection type is not a line
 									run("Area to Line");
 									run("Measure");
 									objectlength = getResult("Length", nResults-1);
-								} 
-								if (selectionType() == 9) { //if composite selection type due to specified rectangle cutting weirdly across roots
-									presplitcount = roiManager("count");
-									roiManager("split");
-									postsplitcount = roiManager("count");
-									compositeselectionparts = postsplitcount - presplitcount;
-									objectlength = 0;
-									for (CSpartcurrent = 0; CSpartcurrent < compositeselectionparts; CSpartcurrent ++) {
-										roiManager("select", roiManager("count")-1); // select from bottom
-										run("Area to Line");
-										run("Measure");
-										partlength =  getResult("Length", nResults-1);
-										objectlength = objectlength + partlength;
-										roiManager("select", roiManager("count")-1);
-										roiManager("delete");
-									}
 								}
-								if (selectionType() == -1) {
+								if (selectionType() < 0 || selectionType() >= 9) { //no selection or point
+									seltype = selectionType();
+									print("selectiontype = " +seltype);
 									objectlength = 0;
 								}
 								Table.set("objectlength", nRobjectbyrsc, objectlength, objectbyrsc);
 								tablesetonce = 1; // table has been set once, if loop will not trigger again thus saving time on measuring
-								close("tempskel");
 							}
 						}
 					}
@@ -2695,16 +2659,14 @@ macro "SPIRO_RootGrowth" {
 				}
 			}
 			roiManager("reset");
-			setBatchMode(false);
-			if (groupprocess == 0 ) {
-					close(rootmask);
-					open(groupdir + groupname + " rootmask.tif");
-			}
 			selectWindow(rootmask);
+			setBatchMode("exit and display");
 			// graphical output
+			run("Collect Garbage");
 			open(groupdir + groupname + " rootstartrois.zip");
 			run("Labels...", "color=white font=22 show use draw");
 			run("Colors...", "foreground=black background=black selection=red");
+			Overlay.useNamesAsLabels(true);
 			roiManager("Show All with labels");
 			roiManager("Associate", "true");
 			roiManager("Centered", "false");
@@ -2712,9 +2674,9 @@ macro "SPIRO_RootGrowth" {
 			updateDisplay();
 			run("Flatten", "stack");
 			open(groupdir + groupname + ".tif");
+			setBatchMode("show");
 			oritif = getTitle();
-			run("RGB Color");
-			
+			run("RGB Color");			
 			nS = nSlices;
 			slicelabelarray = newArray(nS);
 			for (sliceno = 0; sliceno < nS; sliceno++) {
