@@ -2702,6 +2702,65 @@ macro "SPIRO_RootGrowth" {
 				run("Close");
 			}
 			close("*");
+
+			/*
+			 * workaround for bug that causes mislabelling in first group
+			 */
+			if (groupprocess == lengthOfgroupsToprocess-1) {
+				groupprocess = 0;
+				platedir = platesToprocess[groupprocess];
+				platename = File.getName(platedir);
+				groupfolder = groupsToprocess[groupprocess];
+				groupdir = platedir + groupfolder;
+				listIngroupdir = getFileList(groupdir);
+				groupname = File.getName(groupdir);
+				open(groupdir + groupname + " rootmask.tif");
+				rootmask = getTitle();
+				roiManager("reset");
+				selectWindow(rootmask);
+				setBatchMode("exit and display");
+				// graphical output
+				run("Collect Garbage");
+				open(groupdir + groupname + " rootstartrois.zip");
+				run("Labels...", "color=white font=22 show use draw");
+				run("Colors...", "foreground=black background=black selection=red");
+				Overlay.useNamesAsLabels(true);
+				roiManager("Show All with labels");
+				roiManager("Associate", "true");
+				roiManager("Centered", "false");
+				roiManager("UseNames", "true");
+				updateDisplay();
+				run("Flatten", "stack");
+				open(groupdir + groupname + ".tif");
+				setBatchMode("show");
+				oritif = getTitle();
+				run("RGB Color");			
+				nS = nSlices;
+				slicelabelarray = newArray(nS);
+				for (sliceno = 0; sliceno < nS; sliceno++) {
+					setSlice(sliceno+1);
+					slicelabel = getMetadata("Label");
+					slicelabelarray[sliceno] = slicelabel;
+				}
+				run("Combine...", "stack1=["+ oritif +"] stack2=["+ rootmask +"]");
+			
+				for (sliceno = 0; sliceno < nS; sliceno++) {
+					setSlice(sliceno+1);
+					setMetadata("Label", slicelabelarray[sliceno]);
+				}
+				setBatchMode("show");
+				saveAs("Tiff", groupdir + groupname + " rootgrowthdetection.tif");
+				
+				list = getList("window.titles");
+				list = Array.deleteValue(list, "Log");
+				for (i=0; i<list.length; i++) {
+					winame = list[i];
+					selectWindow(winame);
+					run("Close");
+				}
+				close("*");
+				groupprocess = lengthOfgroupsToprocess;
+			}
 		}
 		if (selfaware && random > 0.5) {
 			print("HAVE YOU ARRIVED?");
