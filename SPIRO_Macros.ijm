@@ -2661,9 +2661,23 @@ macro "SPIRO_RootGrowth" {
 			roiManager("reset");
 			selectWindow(rootmask);
 			setBatchMode("exit and display");
+			Overlay.remove;
 			// graphical output
 			run("Collect Garbage");
 			open(groupdir + groupname + " rootstartrois.zip");
+			roicount = roiManager("count");
+			nS = nSlices;
+			roinoperslice = roicount/nS;
+			roiname = 1;
+			if (groupprocess == 0) {
+				for (roino = 0; roino < roicount; roino ++) {
+					roiManager("select", roino);
+					roiManager("rename", roiname);
+					roiname += 1;
+					if (roiname > roinoperslice)
+						roiname = 1;
+				}
+			}
 			run("Labels...", "color=white font=22 show use draw");
 			run("Colors...", "foreground=black background=black selection=red");
 			Overlay.useNamesAsLabels(true);
@@ -2705,7 +2719,7 @@ macro "SPIRO_RootGrowth" {
 
 			/*
 			 * workaround for bug that causes mislabelling in first group
-			 */
+			 
 			if (groupprocess == lengthOfgroupsToprocess-1) {
 				groupprocess = 0;
 				platedir = platesToprocess[groupprocess];
@@ -2761,6 +2775,7 @@ macro "SPIRO_RootGrowth" {
 				close("*");
 				groupprocess = lengthOfgroupsToprocess;
 			}
+			*/
 		}
 		if (selfaware && random > 0.5) {
 			print("HAVE YOU ARRIVED?");
