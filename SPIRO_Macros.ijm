@@ -2658,6 +2658,8 @@ macro "SPIRO_RootGrowth" {
 					run("Clear Results");
 				}
 			}
+
+			Table.save(groupdir + groupname + " " + rgm + ".tsv", rgm);
 			roiManager("reset");
 			selectWindow(rootmask);
 			setBatchMode("exit and display");
@@ -2667,6 +2669,8 @@ macro "SPIRO_RootGrowth" {
 			open(groupdir + groupname + " rootstartrois.zip");
 			roicount = roiManager("count");
 			nS = nSlices;
+			
+			/* hack3 roi labelling
 			roinoperslice = roicount/nS;
 			roiname = 1;
 			if (groupprocess == 0) {
@@ -2678,6 +2682,8 @@ macro "SPIRO_RootGrowth" {
 						roiname = 1;
 				}
 			}
+			*/
+			
 			run("Labels...", "color=white font=22 show use draw");
 			run("Colors...", "foreground=black background=black selection=red");
 			Overlay.useNamesAsLabels(true);
@@ -2707,7 +2713,6 @@ macro "SPIRO_RootGrowth" {
 			setBatchMode("show");
 			saveAs("Tiff", groupdir + groupname + " rootgrowthdetection.tif");
 			
-			Table.save(groupdir + groupname + " " + rgm + ".tsv", rgm);
 			list = getList("window.titles");
 			list = Array.deleteValue(list, "Log");
 			for (i=0; i<list.length; i++) {
@@ -2717,6 +2722,66 @@ macro "SPIRO_RootGrowth" {
 			}
 			close("*");
 
+			if (groupprocess == 0) {
+				dummygroupfolder = "dummy " + groupfolder;
+				dummygroupdir = platedir + dummygroupfolder;
+				File.makeDirectory(dummygroupdir);
+				for (dummyfileno = 0; dummyfileno < listIngroupdir.length; dummyfileno ++) {
+					filename = listIngroupdir[dummyfileno];
+					filepath1 = groupdir + filename;
+					filepath2 = dummygroupdir + filename;
+					File.copy(filepath1, filepath2);
+				}
+				File.delete(dummygroupdir + groupname + " rootgrowthdetection.tif");
+
+				open(dummygroupdir + groupname + " rootmask.tif");
+				rootmask = getTitle();
+				roiManager("reset");
+				selectWindow(rootmask);
+				setBatchMode("exit and display");
+				Overlay.remove;
+				// graphical output
+				run("Collect Garbage");
+				open(dummygroupdir + groupname + " rootstartrois.zip");
+				
+				run("Labels...", "color=white font=22 show use draw");
+				run("Colors...", "foreground=black background=black selection=red");
+				Overlay.useNamesAsLabels(true);
+				roiManager("Show All with labels");
+				roiManager("Associate", "true");
+				roiManager("Centered", "false");
+				roiManager("UseNames", "true");
+				updateDisplay();
+				run("Flatten", "stack");
+				open(dummygroupdir + groupname + ".tif");
+				setBatchMode("show");
+				oritif = getTitle();
+				run("RGB Color");			
+				nS = nSlices;
+				slicelabelarray = newArray(nS);
+				for (sliceno = 0; sliceno < nS; sliceno++) {
+					setSlice(sliceno+1);
+					slicelabel = getMetadata("Label");
+					slicelabelarray[sliceno] = slicelabel;
+				}
+				run("Combine...", "stack1=["+ oritif +"] stack2=["+ rootmask +"]");
+			
+				for (sliceno = 0; sliceno < nS; sliceno++) {
+					setSlice(sliceno+1);
+					setMetadata("Label", slicelabelarray[sliceno]);
+				}
+				setBatchMode("show");
+				saveAs("Tiff", dummygroupdir + groupname + " rootgrowthdetection.tif");	
+							list = getList("window.titles");
+				list = Array.deleteValue(list, "Log");
+				for (i=0; i<list.length; i++) {
+					winame = list[i];
+					selectWindow(winame);
+					run("Close");
+				}
+				close("*");
+				}
+				
 			/*
 			 * workaround for bug that causes mislabelling in first group
 			 
