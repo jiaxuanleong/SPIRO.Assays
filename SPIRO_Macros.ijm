@@ -40,6 +40,8 @@ var platesToprocess; // if macro resumes from previous run, array of plates to b
 var groupsToprocess; // if macro resumes from previous run, array of groups to be continued with
 var lengthOfgroupsToprocess; // if macro resumes from previous run, size of array of groups to process
 var resumestep; // step to resume from
+var methodinput = "MaxEntropy";
+var cleanwithfirstslice = 1;
 
 /*
  * ---------------------
@@ -1194,7 +1196,7 @@ macro "SPIRO_RootGrowth" {
 		"---------\n" +
 		"Alternative types of run (hold down then press OK):\n" +
 		"SHIFT = Fresh Start mode, all data from any previous run will be deleted\n" +
-		"CTRL = DEBUG mode, non-essential intermediate output files will not be deleted, seed detection parameters can be modified, overlay skeletons can be enabled\n");
+		"CTRL = DEBUG mode, non-essential intermediate output files will not be deleted, seed detection parameters can be modified, overlay skeletons can be enabled, Root Start Coordinate tracking can be disabled, alternate root segmentation methods can be applied\n");
 
 	/* Define alternative types of run
 	 * ------------------------------
@@ -1205,7 +1207,8 @@ macro "SPIRO_RootGrowth" {
 			"Non-essential intermediate output files will not be deleted at the end of the run.\n" +
 			"Seed detection parameters can be modified.\n" +
 			"Overlay skeletons can be enabled.\n" +
-			"Root Start Coordinate tracking can be disabled.");
+			"Root Start Coordinate tracking can be disabled.\n" +
+			"Alternate root segmentation methods can be applied");
 		
 	freshstart = 0;
 	if (isKeyDown("shift"))
@@ -1223,9 +1226,13 @@ macro "SPIRO_RootGrowth" {
 			"RSC tracking is set to run on default. Disabling this could be useful for seedlings where root starts do not wiggle.");
 		Dialog.addChoice("Overlay skeletons", newArray("Disable", "Enable"));
 		Dialog.addChoice("RSC tracking", newArray("Enable", "Disable"));
+		Dialog.addString("Root thresholding method", "MaxEntropy");
+		Dialog.addChoice("Clean with first slice", newArray("Enable", "Disable"));
 		Dialog.show();
 		overlaychoice = Dialog.getChoice();
 		RSCtrackingchoice = Dialog.getChoice();
+		methodinput = Dialog.getString();
+		cleanwithfirstslice = Dialog.getChoice();
 		if (overlaychoice == "Enable") {
 			overlay = true;
 			print("Overlay enabled");
@@ -1237,6 +1244,12 @@ macro "SPIRO_RootGrowth" {
 		} else {
 			RSCtracking = false;
 			print("Root Start Coordinate tracking disabled");
+		}
+		if (cleanwithfirstslice == "Enable") {
+			cleanwithfirstslice = true;
+		} else {
+			cleanwithfirstslice = false;
+			print("Clean with first slice disabled");
 		}
 	}
 
@@ -2298,135 +2311,139 @@ macro "SPIRO_RootGrowth" {
 			
 			run("Set Scale...", "global");
 			run("Subtract Background...", "rolling=50 stack");
-			dayslice = 1; // dayslice is the first day image
-			setSlice(dayslice);
-			slicelabel = getInfo("slice.label");
-	
-			dayslice = 0; // define it as 0 at beginning so it remains at 0 if there is no day slice
-			// get first day slice
-			for (sliceno = 1; sliceno <= nS; sliceno ++) {
-				setSlice(sliceno);
-				slicelabel = getInfo("slice.label");
-				if (indexOf(slicelabel, "day") > -1) {
-					dayslice = sliceno;
-					sliceno = nS+1;
-					dayslicelabel = slicelabel;
-				}
-			}
-	
-			nightslice = 0; // define it as 0 at beginning so it remains at 0 if there is no night slice
-			// get first night slice
-			for (sliceno = 1; sliceno <= nS; sliceno ++) {
-				setSlice(sliceno);
-				slicelabel = getInfo("slice.label");
-				if (indexOf(slicelabel, "night") > -1) {
-					nightslice = sliceno;
-					sliceno = nS+1;
-					nightslicelabel = slicelabel;
-				}
-			}
-	
-			if (dayslice != 0) {
-				selectWindow(img);
-				setSlice(dayslice);
-				run("Duplicate...", "use");
-				dayimg = "FirstDayImg";
-				rename(dayimg);
-			}
-	
-			if (nightslice != 0) {
-				selectWindow(img);
-				setSlice(nightslice);
-				run("Duplicate...", "use");
-				nightimg = "FirstNightImg";
-				rename(nightimg);
-			}
 
-			for (sliceno = 1; sliceno <= nS; sliceno ++) {
-				selectWindow(img);
-				if (sliceno != dayslice && sliceno != nightslice) {
-					selectWindow(img);
+			if (cleanwithfirstslice) {
+				dayslice = 1; // dayslice is the first day image
+				setSlice(dayslice);
+				slicelabel = getInfo("slice.label");
+		
+				dayslice = 0; // define it as 0 at beginning so it remains at 0 if there is no day slice
+				// get first day slice
+				for (sliceno = 1; sliceno <= nS; sliceno ++) {
 					setSlice(sliceno);
-					curslicelabel = getInfo("slice.label");
-					run("Duplicate...", "use");
-					rename("temp");
-					if (indexOf(curslicelabel, "day") > 0) {
-						run("Calculator Plus", "i1=[temp] i2=["+dayimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=5 k2=0 create");
-						selectWindow("Result");
-						rename(curslicelabel);
-						close("temp");
-					} 
-					if (indexOf(curslicelabel, "night") > 0) {
-						run("Calculator Plus", "i1=[temp] i2=["+nightimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=5 k2=0 create");
-						selectWindow("Result");
-						rename(curslicelabel);
-						close("temp");
+					slicelabel = getInfo("slice.label");
+					if (indexOf(slicelabel, "day") > -1) {
+						dayslice = sliceno;
+						sliceno = nS+1;
+						dayslicelabel = slicelabel;
 					}
 				}
-			}
+		
+				nightslice = 0; // define it as 0 at beginning so it remains at 0 if there is no night slice
+				// get first night slice
+				for (sliceno = 1; sliceno <= nS; sliceno ++) {
+					setSlice(sliceno);
+					slicelabel = getInfo("slice.label");
+					if (indexOf(slicelabel, "night") > -1) {
+						nightslice = sliceno;
+						sliceno = nS+1;
+						nightslicelabel = slicelabel;
+					}
+				}
+		
+				if (dayslice != 0) {
+					selectWindow(img);
+					setSlice(dayslice);
+					run("Duplicate...", "use");
+					dayimg = "FirstDayImg";
+					rename(dayimg);
+				}
+		
+				if (nightslice != 0) {
+					selectWindow(img);
+					setSlice(nightslice);
+					run("Duplicate...", "use");
+					nightimg = "FirstNightImg";
+					rename(nightimg);
+				}
 	
-			if (dayslice != 0) {
-				selectWindow(dayimg);
-				rename(dayslicelabel);
-			}
-			if (nightslice != 0) {
-				selectWindow(nightimg);
-				rename(nightslicelabel);
-			}
-			
-			run("Images to Stack");
-	
-			if (dayslice != 0 && nightslice != 0) {
-				setSlice(1);
-				run("Select All");
-				run("Copy");
-				setSlice(dayslice);
-				run("Add Slice");
-				run("Paste");
-				setMetadata("Label", dayslicelabel);
-				setSlice(1);
-				run("Delete Slice");
+				for (sliceno = 1; sliceno <= nS; sliceno ++) {
+					selectWindow(img);
+					if (sliceno != dayslice && sliceno != nightslice) {
+						selectWindow(img);
+						setSlice(sliceno);
+						curslicelabel = getInfo("slice.label");
+						run("Duplicate...", "use");
+						rename("temp");
+						if (indexOf(curslicelabel, "day") > 0) {
+							run("Calculator Plus", "i1=[temp] i2=["+dayimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=5 k2=0 create");
+							selectWindow("Result");
+							rename(curslicelabel);
+							close("temp");
+						} 
+						if (indexOf(curslicelabel, "night") > 0) {
+							run("Calculator Plus", "i1=[temp] i2=["+nightimg+"] operation=[Subtract: i2 = (i1-i2) x k1 + k2] k1=5 k2=0 create");
+							selectWindow("Result");
+							rename(curslicelabel);
+							close("temp");
+						}
+					}
+				}
+		
+				if (dayslice != 0) {
+					selectWindow(dayimg);
+					rename(dayslicelabel);
+				}
+				if (nightslice != 0) {
+					selectWindow(nightimg);
+					rename(nightslicelabel);
+				}
 				
-				setSlice(2);
-				run("Select All");
-				run("Copy");
-				setSlice(nightslice);
-				run("Add Slice");
-				run("Paste");
-				setMetadata("Label", nightslicelabel);
-				setSlice(2);
-				run("Delete Slice");
+				run("Images to Stack");
+		
+				if (dayslice != 0 && nightslice != 0) {
+					setSlice(1);
+					run("Select All");
+					run("Copy");
+					setSlice(dayslice);
+					run("Add Slice");
+					run("Paste");
+					setMetadata("Label", dayslicelabel);
+					setSlice(1);
+					run("Delete Slice");
+					
+					setSlice(2);
+					run("Select All");
+					run("Copy");
+					setSlice(nightslice);
+					run("Add Slice");
+					run("Paste");
+					setMetadata("Label", nightslicelabel);
+					setSlice(2);
+					run("Delete Slice");
+				}
+		
+				if (dayslice != 0 && nightslice == 0) {
+					setSlice(1);
+					run("Select All");
+					run("Copy");
+					setSlice(dayslice);
+					run("Add Slice");
+					run("Paste");
+					setMetadata("Label", dayslicelabel);
+					setSlice(1);
+					run("Delete Slice");
+				}
+		
+				if (dayslice == 0 && nightslice != 0) {
+					setSlice(1);
+					run("Select All");
+					run("Copy");
+					setSlice(nightslice);
+					run("Add Slice");
+					run("Paste");
+					setMetadata("Label", nightslicelabel);
+					setSlice(1);
+					run("Delete Slice");
+				}
+				
+				close(img);
+				selectWindow("Stack");
+				rename(img);
 			}
-	
-			if (dayslice != 0 && nightslice == 0) {
-				setSlice(1);
-				run("Select All");
-				run("Copy");
-				setSlice(dayslice);
-				run("Add Slice");
-				run("Paste");
-				setMetadata("Label", dayslicelabel);
-				setSlice(1);
-				run("Delete Slice");
-			}
-	
-			if (dayslice == 0 && nightslice != 0) {
-				setSlice(1);
-				run("Select All");
-				run("Copy");
-				setSlice(nightslice);
-				run("Add Slice");
-				run("Paste");
-				setMetadata("Label", nightslicelabel);
-				setSlice(1);
-				run("Delete Slice");
-			}
-			
-			close(img);
-			selectWindow("Stack");
-			rename(img);
+			run("Options...", "iterations=1 count=1 black pad");
 			setOption("BlackBackground", false);
-			run("Convert to Mask", "method=MaxEntropy background=Dark calculate");
+			run("Convert to Mask", "method="+methodinput+" background=Dark calculate");
 	
 			for (sliceno = 1; sliceno <= nS; sliceno ++) {
 				selectWindow(img);
