@@ -1583,7 +1583,8 @@ macro "SPIRO_RootGrowth" {
 		 * the user is asked to confirm the identified seed positions, then the seed positions are recorded in the temporary output table "seedpositions.tsv"
 		 */
 		print("\nStep 2/6. Finding seedling positions");
-		
+
+		/*
 		for (groupprocess = 0; groupprocess < lengthOfgroupsToprocess; groupprocess ++) {  
 			platedir = platesToprocess[groupprocess];
 			platename = File.getName(platedir);
@@ -1599,7 +1600,7 @@ macro "SPIRO_RootGrowth" {
 				print("Is this what a milder version of insanity looks like?");
 			selectWindow("Log");
 			// open(groupdir + groupname + ".tif");		
-			/*
+			
 			open(groupdir + "firstslice.tif");	
 			// img = getTitle();
 					
@@ -1730,7 +1731,7 @@ macro "SPIRO_RootGrowth" {
 			groupdir = platedir + groupfolder;
 			listIngroupdir = getFileList(groupdir);
 			groupname = File.getName(groupdir);
-					
+			print("Processing " + platename + " " + groupname);
 			open(groupdir + groupname + ".tif");
 			img = getTitle();
 
