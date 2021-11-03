@@ -1750,13 +1750,13 @@ macro "SPIRO_RootGrowth" {
 			}
 			setBatchMode("show");
 			setBatchMode(false);
-			/*
+			
 			roiManager("reset");
-			open(groupdir + groupname + " seedlingpositions1.zip");
+			open(groupdir + groupname + " seedlingpositions.zip");
 			ordercoords();
 			roiManager("save", groupdir + groupname + " seedlingpositions.zip");
 			roiManager("reset");
-			*/
+			
 			selectWindow(img);
 			run("Remove Overlay");
 			run("Select None");
