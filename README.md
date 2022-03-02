@@ -102,6 +102,13 @@ DEBUG mode can be enabled at the start of each assay by holding down the Ctrl (C
 * Overlay skeletons can be enabled
 > Lighting conditions may affect image capture and cause some roots to look translucent, making it difficult for the thresholding methods to distinguish roots from growth media. As a result, on some time frames detected roots might have gaps in their outlines. To overcome this, we introduced the “Overlay Skeletons” function which superimposes roots from one time point to the next, thus filling in potential gaps. However, this function might increase background noise.
 
+* Root Start Coordinate tracking can be disabled
+> Detection of root start coordinate depends on the "Erode" command to find the center of mass. Growth under certain nutrient limiting conditions may cause seedlings to have a very small root start, making this strategy unapplicable. If your seedlings do not wiggle about so much during growth this step can be disabled.
+
+* Alternate root segmentation methods can be applied
+> The original thresholding method may not be appropriate for some lighting conditions. You can change the thresholding methods by typing in any of the available thresholding methods in FIJI i.e. Huang, Intermodes, IsoData etc. 
+> For experiments starting with seedlings (as opposed to seeds) as well you should disable "Clean with first slice" 
+
 * Non-essential intermediate output files will not be deleted at the end of the run
 > If the results of the root growth macro do not make sense, the intermediate files are useful for troubleshooting root masking and root start coordinates.
 
