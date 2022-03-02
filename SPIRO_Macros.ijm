@@ -200,6 +200,7 @@ macro "SPIRO_Preprocessing" {
 		print("Step 1/4 Setting scale...");
 		plate1dir = maindir + listInmaindir[0]; // only first image of first plate needed to set scale
 		listInplate1dir = getFileList(plate1dir);
+		Array.sort(listInplate1dir);
 		img1 = listInplate1dir[0];
 		open(plate1dir + img1);
 		run("Set Scale...", "distance=1 known=1 unit=pixel"); //remove scale
@@ -376,6 +377,7 @@ macro "SPIRO_Preprocessing" {
 			platedir = maindir + platefolder;
 			platename = File.getName(platedir);
 			listInplatedir = getFileList(platedir);
+			Array.sort(listInplatedir);
 			numtp = listInplatedir.length; // number of time points
 			print("Processing " + platename);
 			if (numtp > batchsize) {
@@ -423,6 +425,7 @@ macro "SPIRO_Preprocessing" {
 		print("\nStep 3/4 Cropping off unnecessary background and splitting into green channel..." +
 			  "\nIt may look like nothing is happening, please be patient.");
 		listInppdir = getFileList(ppdir);
+		Array.sort(listInppdir);
 		for (fileno = 0; fileno < listInppdir.length; fileno ++) {
 			open(ppdir + listInppdir[fileno]);
 			ppstack = getTitle();
@@ -493,6 +496,7 @@ macro "SPIRO_Preprocessing" {
 			setBatchMode(true);
 		print("\nStep 4/4 Correcting drift...\nIt may look like nothing is happening, please be patient.");
 		listInppdir = getFileList(ppdir);
+		Array.sort(listInppdir);
 		listInppdirlength = listInppdir.length;
 	
 		if (rMode == rNonbatched) { 
@@ -522,6 +526,7 @@ macro "SPIRO_Preprocessing" {
 	
 		if (rMode == rbatched) {
 			listInppdir = getFileList(ppdir);
+			Array.sort(listInppdir);
 			listInppdirlength = listInppdir.length;
 			for (plateno = 0; plateno < listInmaindir.length; plateno ++) {
 				platemain = listInmaindir[plateno];
