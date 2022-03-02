@@ -111,3 +111,5 @@ Some common errors and workarounds have been summarized in these tables:
 * [Preprocessing troubleshooting](https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/Preprocessing%20troubleshooting.md)
 * [Germination assay troubleshooting](https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/Germination%20assay%20troubleshooting.md)
 * [Root growth assay troubleshooting](https://github.com/AlyonaMinina/Files_for_SPIRO_reps/blob/master/SPIRO.Assays%20files/Root%20growth%20assay%20troubleshooting.md)
+
+Before submitting an issue, please run the macro using a clean install of FIJI ImageJ v1.53f with only the required plugins TurboReg and MultiStackReg). At the time of writing ImageJ v1.53f has been confirmed to run smoothly i.e. recognizing all commands used in the SPIRO macros. You can get this version from the FIJI [archive](https://downloads.imagej.net/fiji/archive/20220222-1217/)
