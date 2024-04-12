@@ -30,12 +30,16 @@ file.copy(paste0(outdir, "/germination-perseed.tsv"), paste0(rundir, '/QC Result
 
 # loop to ask the user to choose the control group
 groups <- as.character(unique(data$Group))
+data$Group <- as.factor(data$Group)
 ngroups <- length(groups)
 
 # fit the mixed model
 cat("Fitting the model, hold tight...\n")
 num_cores <- max(1, detectCores() - 1)
 if (ngroups > 1) {
+  # depending on the version of glmmTMB, there could be an error here. if so, try omitting the
+  #   optimizer=optim, optArgs=list(method="BFGS"),
+  # part of the following call
   fit.glmmTMB <- glmmTMB(data=data,
           formula=PrimaryRootLength ~ 1 + poly(RelativeElapsedHours, 2, raw=TRUE) * Group + (1+poly(RelativeElapsedHours, 2, raw=TRUE) | UID),
           REML=T, control=glmmTMBControl(optimizer=optim, optArgs=list(method="BFGS"), parallel=num_cores))
@@ -67,8 +71,8 @@ if (ngroups > 1) {
     facet_wrap(~group) +
     labs(fill='Group', y="Predicted primary root length (cm)", x="Time since root emergence (h)") +
     theme_bw() +
-    theme(legend.position="none") -> p
-  ggsave(p, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
+    theme(legend.position="none") -> p.trend
+  ggsave(p.trend, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
 } else {
   fit.glmmTMB %>% ggeffect(terms = c("RelativeElapsedHours [0,24,48,72,96,120,144]")) -> glmmTMB_model_ggeffects
   data %>% rename(group=Group, x=RelativeElapsedHours, predicted=PrimaryRootLength) %>%
@@ -80,8 +84,8 @@ if (ngroups > 1) {
     geom_line(data=plotting, aes(group=UID, ymin=NULL, ymax=NULL), alpha=.3) +
     labs(y="Predicted primary root length (cm)", x="Time since root emergence (h)") +
     theme_bw() +
-    theme(legend.position="none") -> p
-  ggsave(p, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
+    theme(legend.position="none") -> p.trend
+  ggsave(p.trend, filename=paste0(rundir, '/Model prediction overview.pdf'), width=25, height=25, units="cm")
 }
 
 glmmTMB_model_ggeffects %>% as_tibble %>% 
