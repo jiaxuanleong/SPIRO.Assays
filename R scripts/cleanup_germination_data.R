@@ -114,8 +114,8 @@ check_duplicates <- function(data, logfile) {
   return(data)
 }
 
-dir <- choose_dir()
-resultsdir <- paste0(dir, '/Results')
+my_dir <- choose_dir()
+resultsdir <- paste0(my_dir, '/Results')
 germdir <- paste0(resultsdir, '/Germination')
 rootdir <- paste0(resultsdir, '/Root Growth')
 
@@ -147,7 +147,7 @@ if (!exists('germination.debug')) {
   } else {
     core_plural <- 'thread'
   }
-  expname <- basename(dir)
+  expname <- basename(my_dir)
   cat(paste0("Performing germination QC for experiment << ", expname, " >>\n\n"))
   cat(paste0("Processing files and performing basic quality control, using ", 
              length(cl), ' ', core_plural, "...\n"))
@@ -157,7 +157,7 @@ if (!exists('germination.debug')) {
   stopCluster(cl)
 } else {
   allout <- NULL
-  expname <- basename(dir)
+  expname <- basename(my_dir)
   for (f in files) {
     allout <- rbind(allout, processfile(f, outdir, expname))
   }

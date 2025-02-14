@@ -15,11 +15,11 @@ spiro_common_included <- function() {
 choose_dir <- function() {
   # there is no support for directory picker under non-windows platforms
   if (.Platform$OS.type == 'unix') {
-    dir <- readline(prompt = "Enter directory: ")
+    my_dir <- readline(prompt = "Enter directory: ")
   } else {
-    dir <- choose.dir(getwd(), "Choose folder to process")
+    my_dir <- choose.dir(getwd(), "Choose folder to process")
   }
-  return(dir)
+  return(my_dir)
 }
 
 create_rundir <- function(outdir) {

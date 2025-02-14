@@ -8,9 +8,9 @@ rm(list=ls())
 source('R scripts/common.R')
 p_load(glmmTMB, parallel, data.table, ggplot2, dplyr, emmeans, multcomp, multcompView, effects, ggeffects, MASS, tibble, tidyr)
 
-dir <- choose_dir()
+my_dir <- choose_dir()
 
-resultsdir <- paste0(dir, '/Results')
+resultsdir <- paste0(my_dir, '/Results')
 outdir <- paste0(resultsdir, '/Root Growth')
 rundir <- create_rundir(outdir)
 

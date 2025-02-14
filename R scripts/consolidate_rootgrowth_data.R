@@ -107,9 +107,9 @@ processfile <- function(file, expname) {
   return(r)
 }
 
-dir <- choose_dir()
+my_dir <- choose_dir()
 
-resultsdir <- paste0(dir, '/Results')
+resultsdir <- paste0(my_dir, '/Results')
 outdir <- paste0(resultsdir, '/Root Growth')
 rundir <- paste0(outdir, '/Pre-analysis Graphs')
 if (!dir.exists(rundir)) {
@@ -131,7 +131,7 @@ if (!file.exists(paste0(outdir, '/germination-perseed.tsv'))) {
 
 allout <- NULL
 
-expname <- basename(dir)
+expname <- basename(my_dir)
 cat(paste0("Performing root growth QC for experiment << ", expname, " >>\n\n"))
 
 cat("Processing files, please wait...\n")

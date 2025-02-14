@@ -24,7 +24,7 @@ kmplot <- function(grp1, grp2, mydata, outdir) {
   return(surv_pvalue(mysfit)$pval)
 }
 
-dir <- choose_dir()
+my_dir <- choose_dir()
 
 resultsdir <- paste0(dir, '/Results')
 germdir <- paste0(resultsdir, '/Germination')
