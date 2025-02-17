@@ -26,7 +26,7 @@ kmplot <- function(grp1, grp2, mydata, outdir) {
 
 my_dir <- choose_dir()
 
-resultsdir <- paste0(dir, '/Results')
+resultsdir <- paste0(my_dir, '/Results')
 germdir <- paste0(resultsdir, '/Germination')
 rootdir <- paste0(resultsdir, '/Root Growth')
 
